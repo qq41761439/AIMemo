@@ -4,6 +4,12 @@ import 'package:aimemo/src/services/template_renderer.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
+  test('default template separates completed work and todos', () {
+    expect(defaultSummaryTemplate, contains('“完成事项”只总结已完成任务'));
+    expect(defaultSummaryTemplate, contains('“待办事项”只放未完成任务'));
+    expect(defaultSummaryTemplate, contains('不要把未完成任务写成已完成成果'));
+  });
+
   test('renders supported placeholders', () {
     final prompt = renderSummaryPrompt(
       template: '请总结{period}：\n{tasks}\n标签：{tags}',
