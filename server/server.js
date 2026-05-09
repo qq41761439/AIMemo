@@ -1,5 +1,6 @@
 import Fastify from 'fastify';
 import cors from '@fastify/cors';
+import fs from 'node:fs';
 import 'dotenv/config';
 
 const app = Fastify({ logger: true });
@@ -20,9 +21,15 @@ app.post('/api/generate-summary', async (request, reply) => {
     return reply.code(400).send({ error: 'prompt is required' });
   }
 
-  const apiKey = process.env.LLM_API_KEY;
-  const baseUrl = process.env.LLM_BASE_URL ?? 'https://api.openai.com/v1';
-  const model = process.env.LLM_MODEL ?? 'gpt-4o-mini';
+  const cliProxyConfig = loadCliProxyConfig();
+  const apiKey = process.env.LLM_API_KEY ?? cliProxyConfig?.apiKey;
+  const baseUrl =
+    process.env.LLM_BASE_URL ??
+    cliProxyConfig?.baseUrl ??
+    'https://api.openai.com/v1';
+  const model =
+    process.env.LLM_MODEL ??
+    (cliProxyConfig == null ? 'gpt-4o-mini' : 'gpt-5.4-mini');
 
   if (!apiKey) {
     return reply.code(500).send({ error: 'LLM_API_KEY is not configured' });
@@ -80,3 +87,24 @@ const port = Number(process.env.PORT ?? 8787);
 const host = process.env.HOST ?? '127.0.0.1';
 
 await app.listen({ port, host });
+
+function loadCliProxyConfig() {
+  const configPath =
+    process.env.CLIPROXYAPI_CONFIG ?? '/opt/homebrew/etc/cliproxyapi.conf';
+  if (!fs.existsSync(configPath)) {
+    return null;
+  }
+
+  const content = fs.readFileSync(configPath, 'utf8');
+  const portMatch = content.match(/^port:\s*(\d+)/m);
+  const keyMatch = content.match(/api-keys:\s*\n(?:[ \t]+#[^\n]*\n)*[ \t]+-\s*["']?([^"'\s]+)["']?/m);
+  if (keyMatch == null) {
+    return null;
+  }
+
+  const cliProxyPort = portMatch?.[1] ?? '8317';
+  return {
+    apiKey: keyMatch[1],
+    baseUrl: `http://127.0.0.1:${cliProxyPort}/v1`,
+  };
+}

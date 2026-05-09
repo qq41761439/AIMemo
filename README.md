@@ -103,9 +103,23 @@ brew install cocoapods
 
 ## 启动 LLM 代理
 
+AIMemo 的 Node 代理优先读取 `server/.env`。如果没有配置 `LLM_API_KEY`，它会自动尝试读取本机 CLIProxyAPI 配置：
+
+```text
+/opt/homebrew/etc/cliproxyapi.conf
+```
+
+因此本机已经运行 CLIProxyAPI 时，可以直接启动 AIMemo 代理；默认会转发到 `http://127.0.0.1:8317/v1`，模型默认使用 `gpt-5.4-mini`。
+
 ```bash
 cd server
 npm install
+npm run dev
+```
+
+如果不用 CLIProxyAPI，或想手动指定模型服务，可以复制并编辑 `.env`：
+
+```bash
 cp .env.example .env
 ```
 
