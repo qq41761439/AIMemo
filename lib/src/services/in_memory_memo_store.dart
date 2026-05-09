@@ -14,7 +14,7 @@ class InMemoryMemoStore implements MemoStore {
   final List<SummaryRecord> _summaries = <SummaryRecord>[];
   final Map<String, DateTime> _tagTouchedAt = <String, DateTime>{};
   final Map<PeriodType, String> _templates = {
-    for (final type in PeriodType.values) type: defaultSummaryTemplate,
+    for (final type in PeriodType.values) type: defaultSummaryTemplateFor(type),
   };
   int _nextTaskId = 1;
   int _nextSummaryId = 1;
@@ -160,7 +160,13 @@ class InMemoryMemoStore implements MemoStore {
 
   @override
   Future<String> getTemplate(PeriodType type) async {
-    return _templates[type] ?? defaultSummaryTemplate;
+    final content = _templates[type] ?? defaultSummaryTemplateFor(type);
+    if (isLegacyDefaultSummaryTemplate(content)) {
+      final defaultTemplate = defaultSummaryTemplateFor(type);
+      _templates[type] = defaultTemplate;
+      return defaultTemplate;
+    }
+    return content;
   }
 
   @override
@@ -170,7 +176,7 @@ class InMemoryMemoStore implements MemoStore {
 
   @override
   Future<void> resetTemplate(PeriodType type) async {
-    _templates[type] = defaultSummaryTemplate;
+    _templates[type] = defaultSummaryTemplateFor(type);
   }
 
   @override

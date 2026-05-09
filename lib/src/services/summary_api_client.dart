@@ -20,6 +20,7 @@ class SummaryApiClient {
     required String tasks,
     required String template,
     required String prompt,
+    int? periodDays,
   }) async {
     final uri = Uri.parse('$baseUrl/api/generate-summary');
     final http.Response response;
@@ -33,6 +34,7 @@ class SummaryApiClient {
           'tasks': tasks,
           'template': template,
           'prompt': prompt,
+          if (periodDays != null) 'period_days': periodDays,
         }),
       );
     } on http.ClientException catch (error) {

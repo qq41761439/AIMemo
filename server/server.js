@@ -73,6 +73,9 @@ function renderPrompt(body) {
   const template = typeof body.template === 'string' ? body.template : '';
   const tasks = typeof body.tasks === 'string' ? body.tasks : '';
   const period = typeof body.period === 'string' ? body.period : '';
+  const periodDays = Number.isFinite(Number(body.period_days))
+    ? String(Number(body.period_days))
+    : '';
   const tags = Array.isArray(body.tags) && body.tags.length > 0
     ? body.tags.join('、')
     : '全部标签';
@@ -80,6 +83,7 @@ function renderPrompt(body) {
   return template
     .replaceAll('{tasks}', tasks)
     .replaceAll('{period}', period)
+    .replaceAll('{period_days}', periodDays)
     .replaceAll('{tags}', tags);
 }
 

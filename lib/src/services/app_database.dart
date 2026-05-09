@@ -113,7 +113,7 @@ CREATE TABLE summaries (
     for (final type in PeriodType.values) {
       await db.insert('templates', {
         'period_type': type.value,
-        'content': defaultSummaryTemplate,
+        'content': defaultSummaryTemplateFor(type),
         'updated_at': now,
       });
     }
@@ -245,10 +245,17 @@ ORDER BY g.created_at DESC, g.name COLLATE NOCASE ASC
       limit: 1,
     );
     if (rows.isEmpty) {
-      await saveTemplate(type, defaultSummaryTemplate);
-      return defaultSummaryTemplate;
+      final defaultTemplate = defaultSummaryTemplateFor(type);
+      await saveTemplate(type, defaultTemplate);
+      return defaultTemplate;
     }
-    return rows.first['content'] as String;
+    final content = rows.first['content'] as String;
+    if (isLegacyDefaultSummaryTemplate(content)) {
+      final defaultTemplate = defaultSummaryTemplateFor(type);
+      await saveTemplate(type, defaultTemplate);
+      return defaultTemplate;
+    }
+    return content;
   }
 
   @override
@@ -267,7 +274,7 @@ ORDER BY g.created_at DESC, g.name COLLATE NOCASE ASC
 
   @override
   Future<void> resetTemplate(PeriodType type) {
-    return saveTemplate(type, defaultSummaryTemplate);
+    return saveTemplate(type, defaultSummaryTemplateFor(type));
   }
 
   @override

@@ -5,9 +5,12 @@ import 'package:flutter_test/flutter_test.dart';
 
 void main() {
   test('default template separates completed work and todos', () {
-    expect(defaultSummaryTemplate, contains('“完成事项”只总结已完成任务'));
-    expect(defaultSummaryTemplate, contains('“待办事项”只放未完成任务'));
-    expect(defaultSummaryTemplate, contains('不要把未完成任务写成已完成成果'));
+    expect(defaultSummaryTemplateFor(PeriodType.daily), contains('请只输出以下两部分'));
+    expect(defaultSummaryTemplateFor(PeriodType.weekly), contains('本周已完成任务'));
+    expect(defaultSummaryTemplateFor(PeriodType.monthly), contains('关键进展'));
+    expect(defaultSummaryTemplateFor(PeriodType.yearly), contains('经验复盘'));
+    expect(defaultSummaryTemplateFor(PeriodType.custom),
+        contains('{period_days}'));
   });
 
   test('renders supported placeholders', () {
@@ -54,5 +57,17 @@ void main() {
     );
 
     expect(prompt, '自定义（2026-05-01 至 2026-05-03）');
+  });
+
+  test('renders period day count', () {
+    final prompt = renderSummaryPrompt(
+      template: '{period_days} 天',
+      periodType: PeriodType.custom,
+      tags: const [],
+      tasks: const [],
+      periodDays: 8,
+    );
+
+    expect(prompt, '8 天');
   });
 }

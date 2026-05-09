@@ -199,4 +199,13 @@ void main() {
     expect(summaries.single.output, '今天完成了核心设计。');
     expect(summaries.single.tagFilter, ['工作']);
   });
+
+  test('uses period-specific default templates', () async {
+    expect(await database.getTemplate(PeriodType.daily), contains('今天做完了什么'));
+    expect(await database.getTemplate(PeriodType.weekly), contains('本周已完成任务'));
+    expect(await database.getTemplate(PeriodType.monthly), contains('本月最重要'));
+    expect(await database.getTemplate(PeriodType.yearly), contains('年度完成'));
+    expect(await database.getTemplate(PeriodType.custom),
+        contains('{period_days}'));
+  });
 }

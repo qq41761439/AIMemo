@@ -953,12 +953,14 @@ class _SummaryPanelState extends ConsumerState<_SummaryPanel> {
 
       final template = await database.getTemplate(_periodType);
       final periodText = '${_periodType.placeholderName}（${range.label}）';
+      final periodDays = range.end.difference(range.start).inDays;
       final prompt = renderSummaryPrompt(
         template: template,
         periodType: _periodType,
         tasks: tasks,
         tags: selectedTags,
         periodText: periodText,
+        periodDays: periodDays,
       );
       final summary = await ref.read(summaryApiClientProvider).generateSummary(
             period: periodText,
@@ -966,6 +968,7 @@ class _SummaryPanelState extends ConsumerState<_SummaryPanel> {
             tasks: formatTasksForPrompt(tasks),
             template: template,
             prompt: prompt,
+            periodDays: periodDays,
           );
 
       await database.insertSummary(
@@ -1110,7 +1113,7 @@ class _TemplatePanelState extends ConsumerState<_TemplatePanel> {
           const _PanelHeader(
             icon: Icons.tune,
             title: '模板配置',
-            subtitle: '支持 {period}、{tasks}、{tags}。',
+            subtitle: '支持 {period}、{period_days}、{tasks}、{tags}。',
           ),
           const SizedBox(height: 16),
           _TemplatePeriodSelector(
@@ -1131,7 +1134,7 @@ class _TemplatePanelState extends ConsumerState<_TemplatePanel> {
               decoration: const InputDecoration(
                 alignLabelWithHint: true,
                 labelText: '提示词模板',
-                hintText: '{period} {tasks} {tags}',
+                hintText: '{period} {period_days} {tasks} {tags}',
               ),
               expands: true,
               minLines: null,

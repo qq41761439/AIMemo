@@ -14,6 +14,7 @@ void main() {
         expect(body['template'], '{tasks}');
         expect(body['tasks'], '任务');
         expect(body['period'], '今天');
+        expect(body['period_days'], 1);
         expect(body['tags'], isEmpty);
 
         return http.Response.bytes(
@@ -30,6 +31,7 @@ void main() {
       tasks: '任务',
       template: '{tasks}',
       prompt: '最终提示词',
+      periodDays: 1,
     );
 
     expect(summary, '今天完成了核心任务。');
