@@ -34,4 +34,15 @@ void main() {
     expect(range.end, DateTime(2027));
     expect(range.label, '2026年');
   });
+
+  test('date range label uses inclusive end date', () {
+    expect(
+      dateRangeLabel(DateTime(2026, 5, 1), DateTime(2026, 5, 4)),
+      '2026-05-01 至 2026-05-03',
+    );
+    expect(
+      dateRangeLabel(DateTime(2026, 5, 9), DateTime(2026, 5, 10)),
+      '2026-05-09',
+    );
+  });
 }

@@ -11,6 +11,8 @@ class AIMemoApp extends StatelessWidget {
     const background = Color(0xFFF4F5F2);
     const surface = Color(0xFFFFFFFF);
     const border = Color(0xFFDDE2DC);
+    const ink = Color(0xFF202622);
+    const muted = Color(0xFF68716A);
 
     return MaterialApp(
       title: 'AIMemo',
@@ -52,11 +54,24 @@ class AIMemoApp extends StatelessWidget {
               const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
         ),
         chipTheme: ChipThemeData(
+          color: WidgetStateProperty.resolveWith((states) {
+            if (states.contains(WidgetState.selected)) {
+              return const Color(0xFFDCE9E3);
+            }
+            if (states.contains(WidgetState.disabled)) {
+              return const Color(0xFFE8ECE7);
+            }
+            return const Color(0xFFF2F4F1);
+          }),
           backgroundColor: const Color(0xFFF2F4F1),
           selectedColor: const Color(0xFFDCE9E3),
+          disabledColor: const Color(0xFFE8ECE7),
           side: const BorderSide(color: border),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(7)),
-          labelStyle: const TextStyle(fontSize: 12),
+          labelStyle: const TextStyle(fontSize: 12, color: ink),
+          secondaryLabelStyle: const TextStyle(fontSize: 12, color: ink),
+          checkmarkColor: accent,
+          deleteIconColor: muted,
           padding: const EdgeInsets.symmetric(horizontal: 6),
         ),
         filledButtonTheme: FilledButtonThemeData(

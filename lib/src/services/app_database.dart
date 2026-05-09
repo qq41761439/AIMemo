@@ -143,6 +143,36 @@ CREATE TABLE summaries (
   }
 
   @override
+  Future<void> updateTask({
+    required int taskId,
+    required String title,
+    required String content,
+    required List<String> tags,
+  }) async {
+    final db = await database;
+    final cleanTitle = title.trim();
+    if (cleanTitle.isEmpty) {
+      throw ArgumentError('任务标题不能为空。');
+    }
+
+    await db.transaction((txn) async {
+      final updatedRows = await txn.update(
+        'tasks',
+        {
+          'title': cleanTitle,
+          'content': content.trim(),
+        },
+        where: 'id = ? AND deleted_at IS NULL',
+        whereArgs: [taskId],
+      );
+      if (updatedRows == 0) {
+        return;
+      }
+      await _replaceTaskTags(txn, taskId, tags);
+    });
+  }
+
+  @override
   Future<List<TaskRecord>> listTasks({List<String> tagNames = const []}) async {
     final db = await database;
     final rows = await _queryTaskRows(db, tagNames: tagNames);
@@ -190,7 +220,17 @@ CREATE TABLE summaries (
   @override
   Future<List<String>> listTags() async {
     final db = await database;
-    final rows = await db.query('tags', orderBy: 'name COLLATE NOCASE ASC');
+    final rows = await db.rawQuery(
+      '''
+SELECT g.name
+FROM tags g
+JOIN task_tags tt ON tt.tag_id = g.id
+JOIN tasks t ON t.id = tt.task_id
+WHERE t.deleted_at IS NULL
+GROUP BY g.id
+ORDER BY g.created_at DESC, g.name COLLATE NOCASE ASC
+''',
+    );
     return rows.map((row) => row['name'] as String).toList();
   }
 
@@ -324,7 +364,7 @@ SELECT g.name
 FROM tags g
 JOIN task_tags tt ON tt.tag_id = g.id
 WHERE tt.task_id = ?
-ORDER BY g.name COLLATE NOCASE ASC
+ORDER BY g.created_at DESC, g.name COLLATE NOCASE ASC
 ''',
       [taskId],
     );
@@ -353,6 +393,7 @@ ORDER BY g.name COLLATE NOCASE ASC
   }
 
   Future<int> _getOrCreateTag(DatabaseExecutor executor, String name) async {
+    final now = DateTime.now().toIso8601String();
     final existing = await executor.query(
       'tags',
       columns: ['id'],
@@ -361,12 +402,18 @@ ORDER BY g.name COLLATE NOCASE ASC
       limit: 1,
     );
     if (existing.isNotEmpty) {
+      await executor.update(
+        'tags',
+        {'created_at': now},
+        where: 'id = ?',
+        whereArgs: [existing.first['id']],
+      );
       return existing.first['id'] as int;
     }
 
     return executor.insert('tags', {
       'name': name,
-      'created_at': DateTime.now().toIso8601String(),
+      'created_at': now,
     });
   }
 

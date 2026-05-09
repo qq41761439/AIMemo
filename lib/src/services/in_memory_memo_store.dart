@@ -12,6 +12,7 @@ class InMemoryMemoStore implements MemoStore {
 
   final List<TaskRecord> _tasks = <TaskRecord>[];
   final List<SummaryRecord> _summaries = <SummaryRecord>[];
+  final Map<String, DateTime> _tagTouchedAt = <String, DateTime>{};
   final Map<PeriodType, String> _templates = {
     for (final type in PeriodType.values) type: defaultSummaryTemplate,
   };
@@ -32,15 +33,49 @@ class InMemoryMemoStore implements MemoStore {
       throw ArgumentError('任务标题不能为空。');
     }
 
+    final cleanTags = _cleanTags(tags);
+    _touchTags(cleanTags);
+
     final task = TaskRecord(
       id: _nextTaskId++,
       title: cleanTitle,
       content: content.trim(),
-      tags: _cleanTags(tags),
+      tags: cleanTags,
       createdAt: DateTime.now(),
     );
     _tasks.add(task);
     return task.id;
+  }
+
+  @override
+  Future<void> updateTask({
+    required int taskId,
+    required String title,
+    required String content,
+    required List<String> tags,
+  }) async {
+    final cleanTitle = title.trim();
+    if (cleanTitle.isEmpty) {
+      throw ArgumentError('任务标题不能为空。');
+    }
+
+    final index = _tasks
+        .indexWhere((task) => task.id == taskId && task.deletedAt == null);
+    if (index == -1) {
+      return;
+    }
+    final task = _tasks[index];
+    final cleanTags = _cleanTags(tags);
+    _touchTags(cleanTags);
+    _tasks[index] = TaskRecord(
+      id: task.id,
+      title: cleanTitle,
+      content: content.trim(),
+      tags: cleanTags,
+      createdAt: task.createdAt,
+      completedAt: task.completedAt,
+      deletedAt: task.deletedAt,
+    );
   }
 
   @override
@@ -101,12 +136,26 @@ class InMemoryMemoStore implements MemoStore {
 
   @override
   Future<List<String>> listTags() async {
-    final tags = <String>{};
-    for (final task in _tasks.where((task) => task.deletedAt == null)) {
-      tags.addAll(task.tags);
+    final seen = <String>{};
+    final tags = <String>[];
+    final tasks = _tasks.where((task) => task.deletedAt == null).toList()
+      ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+    for (final task in tasks) {
+      for (final tag in task.tags) {
+        if (seen.add(tag.toLowerCase())) {
+          tags.add(tag);
+        }
+      }
     }
-    return tags.toList()
-      ..sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
+    tags.sort((a, b) {
+      final touchedCompare = (_tagTouchedAt[b.toLowerCase()] ?? DateTime(0))
+          .compareTo(_tagTouchedAt[a.toLowerCase()] ?? DateTime(0));
+      if (touchedCompare != 0) {
+        return touchedCompare;
+      }
+      return a.toLowerCase().compareTo(b.toLowerCase());
+    });
+    return tags;
   }
 
   @override
@@ -183,6 +232,12 @@ class InMemoryMemoStore implements MemoStore {
     return result;
   }
 
+  void _touchTags(List<String> tags) {
+    for (final tag in tags) {
+      _tagTouchedAt[tag.toLowerCase()] = DateTime.now();
+    }
+  }
+
   void _seedDemoData() {
     final now = DateTime.now();
     final todayMorning = DateTime(now.year, now.month, now.day, 9, 20);
@@ -227,6 +282,15 @@ class InMemoryMemoStore implements MemoStore {
         createdAt: yesterday.add(const Duration(hours: 8)),
       ),
     ]);
+    for (final task in _tasks) {
+      for (final tag in task.tags) {
+        final key = tag.toLowerCase();
+        final existing = _tagTouchedAt[key];
+        if (existing == null || task.createdAt.isAfter(existing)) {
+          _tagTouchedAt[key] = task.createdAt;
+        }
+      }
+    }
 
     _summaries.add(
       SummaryRecord(

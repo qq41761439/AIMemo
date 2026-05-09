@@ -35,6 +35,65 @@ void main() {
     expect(filtered, hasLength(2));
   });
 
+  test('lists most recently associated tags first', () async {
+    await database.addTask(
+      title: '先添加',
+      content: '',
+      tags: const ['旧标签'],
+    );
+    await Future<void>.delayed(const Duration(milliseconds: 2));
+    await database.addTask(
+      title: '后添加',
+      content: '',
+      tags: const ['新标签'],
+    );
+
+    final tags = await database.listTags();
+    expect(tags.take(2), ['新标签', '旧标签']);
+  });
+
+  test('moves reused tag to the front', () async {
+    await database.addTask(
+      title: '先添加',
+      content: '',
+      tags: const ['旧标签'],
+    );
+    await Future<void>.delayed(const Duration(milliseconds: 2));
+    await database.addTask(
+      title: '后添加',
+      content: '',
+      tags: const ['新标签'],
+    );
+    await Future<void>.delayed(const Duration(milliseconds: 2));
+    await database.addTask(
+      title: '再次关联旧标签',
+      content: '',
+      tags: const ['旧标签'],
+    );
+
+    final tags = await database.listTags();
+    expect(tags.take(2), ['旧标签', '新标签']);
+  });
+
+  test('hides tags that no active task uses', () async {
+    final deletedTaskId = await database.addTask(
+      title: '待删除任务',
+      content: '',
+      tags: const ['临时标签'],
+    );
+    await database.addTask(
+      title: '保留任务',
+      content: '',
+      tags: const ['保留标签'],
+    );
+
+    await database.deleteTask(deletedTaskId);
+
+    final tags = await database.listTags();
+    expect(tags, contains('保留标签'));
+    expect(tags, isNot(contains('临时标签')));
+  });
+
   test('tag filters match any selected tag', () async {
     await database.addTask(
       title: '工作任务',
@@ -75,6 +134,29 @@ void main() {
     await database.deleteTask(id);
     tasks = await database.listTasks();
     expect(tasks, isEmpty);
+  });
+
+  test('updates task details and tags', () async {
+    final id = await database.addTask(
+      title: '旧标题',
+      content: '旧内容',
+      tags: const ['工作'],
+    );
+
+    await database.updateTask(
+      taskId: id,
+      title: '新标题',
+      content: '新内容',
+      tags: const ['学习', '复盘'],
+    );
+
+    final tasks = await database.listTasks();
+    expect(tasks.single.title, '新标题');
+    expect(tasks.single.content, '新内容');
+    expect(tasks.single.tags, ['复盘', '学习']);
+
+    final filtered = await database.listTasks(tagNames: ['工作']);
+    expect(filtered, isEmpty);
   });
 
   test('completed tasks sink below open tasks', () async {

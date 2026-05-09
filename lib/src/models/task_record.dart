@@ -19,6 +19,26 @@ class TaskRecord {
 
   bool get isCompleted => completedAt != null;
 
+  TaskRecord copyWith({
+    String? title,
+    String? content,
+    List<String>? tags,
+    DateTime? createdAt,
+    DateTime? completedAt,
+    bool clearCompletedAt = false,
+    DateTime? deletedAt,
+  }) {
+    return TaskRecord(
+      id: id,
+      title: title ?? this.title,
+      content: content ?? this.content,
+      tags: tags ?? this.tags,
+      createdAt: createdAt ?? this.createdAt,
+      completedAt: clearCompletedAt ? null : completedAt ?? this.completedAt,
+      deletedAt: deletedAt ?? this.deletedAt,
+    );
+  }
+
   factory TaskRecord.fromDb(Map<String, Object?> row, List<String> tags) {
     return TaskRecord(
       id: row['id'] as int,

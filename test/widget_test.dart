@@ -24,7 +24,7 @@ void main() {
     await tester.pump(const Duration(milliseconds: 250));
 
     expect(find.text('AIMemo'), findsOneWidget);
-    expect(find.text('任务列表'), findsOneWidget);
+    expect(find.text('标签'), findsWidgets);
     expect(find.text('添加任务'), findsWidgets);
   });
 }

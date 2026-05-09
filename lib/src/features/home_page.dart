@@ -1,3 +1,4 @@
+import 'package:date_picker_plus/date_picker_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -66,15 +67,7 @@ class _TaskListPane extends ConsumerWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const _TaskPaneHeader(),
-          const SizedBox(height: 18),
-          Row(
-            children: [
-              Text('任务列表', style: Theme.of(context).textTheme.headlineSmall),
-            ],
-          ),
-          const SizedBox(height: 6),
-          Text('未完成任务优先显示，已完成会自动下沉。', style: _captionStyle(context)),
-          const SizedBox(height: 14),
+          const SizedBox(height: 16),
           _TaskFilterBar(selectedTags: selectedTags, tags: tags),
           const SizedBox(height: 16),
           Expanded(
@@ -85,7 +78,7 @@ class _TaskListPane extends ConsumerWidget {
                 }
                 return ListView.separated(
                   itemCount: items.length,
-                  separatorBuilder: (_, __) => const SizedBox(height: 8),
+                  separatorBuilder: (_, __) => const SizedBox(height: 6),
                   itemBuilder: (context, index) =>
                       _TaskTile(task: items[index]),
                 );
@@ -247,80 +240,142 @@ class _TaskTile extends ConsumerWidget {
             ? null
             : const [
                 BoxShadow(
-                  color: Color(0x0F101410),
-                  blurRadius: 12,
-                  offset: Offset(0, 5),
+                  color: Color(0x0A101410),
+                  blurRadius: 8,
+                  offset: Offset(0, 3),
                 ),
               ],
       ),
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(10, 12, 10, 12),
+        padding: const EdgeInsets.fromLTRB(8, 8, 8, 8),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Checkbox(
-              value: task.isCompleted,
-              onChanged: (value) async {
-                await ref
-                    .read(appDatabaseProvider)
-                    .setTaskCompleted(task.id, value ?? false);
-                ref.invalidate(taskListProvider);
-              },
-            ),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    task.title,
-                    style: theme.textTheme.titleMedium?.copyWith(
-                      color: completed ? _muted : _ink,
-                      decoration: completed ? TextDecoration.lineThrough : null,
-                    ),
-                  ),
-                  if (task.content.trim().isNotEmpty) ...[
-                    const SizedBox(height: 6),
-                    Text(
-                      task.content,
-                      maxLines: 3,
-                      overflow: TextOverflow.ellipsis,
-                      style: theme.textTheme.bodyMedium?.copyWith(
-                        color: completed ? _muted : const Color(0xFF3F4742),
-                      ),
-                    ),
-                  ],
-                  const SizedBox(height: 10),
-                  Wrap(
-                    spacing: 6,
-                    runSpacing: 6,
-                    crossAxisAlignment: WrapCrossAlignment.center,
-                    children: [
-                      Text(
-                        '创建 ${compactDateTime(task.createdAt)}',
-                        style: _captionStyle(context),
-                      ),
-                      if (task.completedAt != null)
-                        Text(
-                          '完成 ${compactDateTime(task.completedAt!)}',
-                          style: _captionStyle(context),
-                        ),
-                      for (final tag in task.tags)
-                        Chip(
-                          label: Text(tag),
-                          visualDensity: VisualDensity.compact,
-                        ),
-                    ],
-                  ),
-                ],
+            SizedBox(
+              width: 32,
+              height: 32,
+              child: Checkbox(
+                value: task.isCompleted,
+                materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                visualDensity: VisualDensity.compact,
+                onChanged: (value) async {
+                  final completed = value ?? false;
+                  await ref
+                      .read(appDatabaseProvider)
+                      .setTaskCompleted(task.id, completed);
+                  final completedAt = completed ? DateTime.now() : null;
+                  final selectedTask = ref.read(selectedTaskProvider);
+                  if (selectedTask?.id == task.id) {
+                    ref.read(selectedTaskProvider.notifier).state =
+                        selectedTask!.copyWith(
+                      completedAt: completedAt,
+                      clearCompletedAt: !completed,
+                    );
+                  }
+                  final editingTask = ref.read(editingTaskProvider);
+                  if (editingTask?.id == task.id) {
+                    ref.read(editingTaskProvider.notifier).state =
+                        editingTask!.copyWith(
+                      completedAt: completedAt,
+                      clearCompletedAt: !completed,
+                    );
+                  }
+                  ref.invalidate(taskListProvider);
+                },
               ),
             ),
-            IconButton(
-              tooltip: '删除任务',
-              onPressed: () async {
-                await ref.read(appDatabaseProvider).deleteTask(task.id);
-                ref.invalidate(taskListProvider);
-              },
-              icon: const Icon(Icons.delete_outline),
+            Expanded(
+              child: MouseRegion(
+                cursor: SystemMouseCursors.click,
+                child: GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: () {
+                    ref.read(editingTaskProvider.notifier).state = null;
+                    ref.read(selectedTaskProvider.notifier).state = task;
+                  },
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        task.title,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          color: completed ? _muted : _ink,
+                          decoration:
+                              completed ? TextDecoration.lineThrough : null,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      Wrap(
+                        spacing: 5,
+                        runSpacing: 4,
+                        crossAxisAlignment: WrapCrossAlignment.center,
+                        children: [
+                          Text(
+                            '创建 ${compactDateTime(task.createdAt)}',
+                            style: _captionStyle(context),
+                          ),
+                          if (task.completedAt != null)
+                            Text(
+                              '完成 ${compactDateTime(task.completedAt!)}',
+                              style: _captionStyle(context),
+                            ),
+                          for (final tag in task.tags) _TaskTagPill(tag),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+            SizedBox(
+              width: 32,
+              height: 32,
+              child: IconButton(
+                tooltip: '编辑任务',
+                padding: EdgeInsets.zero,
+                visualDensity: VisualDensity.compact,
+                onPressed: () {
+                  ref.read(selectedTaskProvider.notifier).state = task;
+                  ref.read(editingTaskProvider.notifier).state = task;
+                },
+                icon: const Icon(Icons.edit_outlined, size: 18),
+              ),
+            ),
+            SizedBox(
+              width: 32,
+              height: 32,
+              child: IconButton(
+                tooltip: '删除任务',
+                padding: EdgeInsets.zero,
+                visualDensity: VisualDensity.compact,
+                onPressed: () async {
+                  final database = ref.read(appDatabaseProvider);
+                  await database.deleteTask(task.id);
+                  final selectedTask = ref.read(selectedTaskProvider);
+                  if (selectedTask?.id == task.id) {
+                    ref.read(selectedTaskProvider.notifier).state = null;
+                  }
+                  final editingTask = ref.read(editingTaskProvider);
+                  if (editingTask?.id == task.id) {
+                    ref.read(editingTaskProvider.notifier).state = null;
+                  }
+                  final availableTags = (await database.listTags()).toSet();
+                  final selectedTags = ref.read(taskTagFilterProvider);
+                  final nextSelectedTags = selectedTags
+                      .where((tag) => availableTags.contains(tag))
+                      .toSet();
+                  if (nextSelectedTags.length != selectedTags.length) {
+                    ref.read(taskTagFilterProvider.notifier).state =
+                        nextSelectedTags;
+                  }
+                  ref.invalidate(taskListProvider);
+                  ref.invalidate(tagListProvider);
+                },
+                icon: const Icon(Icons.delete_outline, size: 18),
+              ),
             ),
           ],
         ),
@@ -329,38 +384,114 @@ class _TaskTile extends ConsumerWidget {
   }
 }
 
-class _ActionPane extends StatelessWidget {
-  const _ActionPane();
+class _TaskTagPill extends StatelessWidget {
+  const _TaskTagPill(this.label);
+
+  final String label;
 
   @override
   Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: const Color(0xFFF2F4F1),
+        borderRadius: BorderRadius.circular(5),
+        border: Border.all(color: _border),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+        child: Text(
+          label,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: _ink,
+                fontSize: 11,
+                height: 1.1,
+              ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ActionPane extends ConsumerStatefulWidget {
+  const _ActionPane();
+
+  @override
+  ConsumerState<_ActionPane> createState() => _ActionPaneState();
+}
+
+class _ActionPaneState extends ConsumerState<_ActionPane>
+    with SingleTickerProviderStateMixin {
+  late final TabController _tabController;
+
+  @override
+  void initState() {
+    super.initState();
+    _tabController = TabController(length: 4, vsync: this);
+  }
+
+  @override
+  void dispose() {
+    _tabController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final selectedTask = ref.watch(selectedTaskProvider);
+    final editingTask = ref.watch(editingTaskProvider);
+    final firstTabLabel = editingTask != null
+        ? '编辑'
+        : selectedTask != null
+            ? '查看'
+            : '添加';
+    final firstTabIcon = editingTask != null
+        ? Icons.edit_outlined
+        : selectedTask != null
+            ? Icons.visibility_outlined
+            : Icons.add_task;
+
+    ref.listen<TaskRecord?>(selectedTaskProvider, (_, next) {
+      if (next != null) {
+        _tabController.animateTo(0);
+      }
+    });
+    ref.listen<TaskRecord?>(editingTaskProvider, (_, next) {
+      if (next != null) {
+        _tabController.animateTo(0);
+      }
+    });
+
     return Container(
       color: _panel,
-      child: const DefaultTabController(
-        length: 4,
-        child: Column(
-          children: [
-            SizedBox(height: 4),
-            TabBar(
-              tabs: [
-                Tab(icon: Icon(Icons.add_task), text: '添加'),
-                Tab(icon: Icon(Icons.auto_awesome_outlined), text: '总结'),
-                Tab(icon: Icon(Icons.tune), text: '模板'),
-                Tab(icon: Icon(Icons.history), text: '历史'),
+      child: Column(
+        children: [
+          const SizedBox(height: 4),
+          TabBar(
+            controller: _tabController,
+            tabs: [
+              Tab(
+                icon: Icon(firstTabIcon),
+                text: firstTabLabel,
+              ),
+              const Tab(icon: Icon(Icons.auto_awesome_outlined), text: '总结'),
+              const Tab(icon: Icon(Icons.tune), text: '模板'),
+              const Tab(icon: Icon(Icons.history), text: '历史'),
+            ],
+          ),
+          Expanded(
+            child: TabBarView(
+              controller: _tabController,
+              children: const [
+                _AddTaskPanel(),
+                _SummaryPanel(),
+                _TemplatePanel(),
+                _HistoryPanel(),
               ],
             ),
-            Expanded(
-              child: TabBarView(
-                children: [
-                  _AddTaskPanel(),
-                  _SummaryPanel(),
-                  _TemplatePanel(),
-                  _HistoryPanel(),
-                ],
-              ),
-            ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
@@ -377,6 +508,7 @@ class _AddTaskPanelState extends ConsumerState<_AddTaskPanel> {
   final _titleController = TextEditingController();
   final _contentController = TextEditingController();
   final _tagsController = TextEditingController();
+  int? _loadedEditingTaskId;
 
   @override
   void dispose() {
@@ -388,16 +520,25 @@ class _AddTaskPanelState extends ConsumerState<_AddTaskPanel> {
 
   @override
   Widget build(BuildContext context) {
+    final editingTask = ref.watch(editingTaskProvider);
+    final selectedTask = ref.watch(selectedTaskProvider);
+    if (editingTask == null && selectedTask != null) {
+      _syncEditingTask(null);
+      return _TaskViewPanel(task: selectedTask);
+    }
+
     final tags = ref.watch(tagListProvider);
+    _syncEditingTask(editingTask);
+    final isEditing = editingTask != null;
 
     return _PanelPadding(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const _PanelHeader(
-            icon: Icons.add_task,
-            title: '添加任务',
-            subtitle: '记录事项，标签用逗号分隔。',
+          _PanelHeader(
+            icon: isEditing ? Icons.edit_outlined : Icons.add_task,
+            title: isEditing ? '编辑任务' : '添加任务',
+            subtitle: isEditing ? '修改标题、内容和标签。' : '记录事项，标签用逗号分隔。',
           ),
           const SizedBox(height: 16),
           TextField(
@@ -415,10 +556,7 @@ class _AddTaskPanelState extends ConsumerState<_AddTaskPanel> {
           const SizedBox(height: 12),
           TextField(
             controller: _tagsController,
-            decoration: const InputDecoration(
-              labelText: '标签',
-              hintText: '工作, 学习, 生活',
-            ),
+            decoration: const InputDecoration(labelText: '标签'),
           ),
           const SizedBox(height: 12),
           tags.when(
@@ -437,14 +575,48 @@ class _AddTaskPanelState extends ConsumerState<_AddTaskPanel> {
             error: (_, __) => const SizedBox.shrink(),
           ),
           const Spacer(),
-          FilledButton.icon(
-            onPressed: _submit,
-            icon: const Icon(Icons.add),
-            label: const Text('添加任务'),
+          Row(
+            children: [
+              if (isEditing) ...[
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: _cancelEditing,
+                    icon: const Icon(Icons.close),
+                    label: const Text('取消'),
+                  ),
+                ),
+                const SizedBox(width: 10),
+              ],
+              Expanded(
+                child: FilledButton.icon(
+                  onPressed: _submit,
+                  icon: Icon(isEditing ? Icons.save_outlined : Icons.add),
+                  label: Text(isEditing ? '保存修改' : '添加任务'),
+                ),
+              ),
+            ],
           ),
         ],
       ),
     );
+  }
+
+  void _syncEditingTask(TaskRecord? task) {
+    if (_loadedEditingTaskId == task?.id) {
+      return;
+    }
+    _loadedEditingTaskId = task?.id;
+
+    if (task == null) {
+      _titleController.clear();
+      _contentController.clear();
+      _tagsController.clear();
+      return;
+    }
+
+    _titleController.text = task.title;
+    _contentController.text = task.content;
+    _tagsController.text = task.tags.join(', ');
   }
 
   void _appendTag(String tag) {
@@ -459,19 +631,42 @@ class _AddTaskPanelState extends ConsumerState<_AddTaskPanel> {
 
   Future<void> _submit() async {
     try {
-      await ref.read(appDatabaseProvider).addTask(
-            title: _titleController.text,
-            content: _contentController.text,
-            tags: _parseTags(_tagsController.text),
-          );
+      final editingTask = ref.read(editingTaskProvider);
+      final title = _titleController.text;
+      final content = _contentController.text;
+      final taskTags = _parseTags(_tagsController.text);
+      if (editingTask == null) {
+        await ref.read(appDatabaseProvider).addTask(
+              title: title,
+              content: content,
+              tags: taskTags,
+            );
+      } else {
+        await ref.read(appDatabaseProvider).updateTask(
+              taskId: editingTask.id,
+              title: title,
+              content: content,
+              tags: taskTags,
+            );
+      }
       _titleController.clear();
       _contentController.clear();
       _tagsController.clear();
+      if (editingTask == null) {
+        ref.read(selectedTaskProvider.notifier).state = null;
+      } else {
+        ref.read(selectedTaskProvider.notifier).state = editingTask.copyWith(
+          title: title.trim(),
+          content: content.trim(),
+          tags: taskTags,
+        );
+      }
+      ref.read(editingTaskProvider.notifier).state = null;
       ref.invalidate(taskListProvider);
       ref.invalidate(tagListProvider);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('任务已添加。')),
+          SnackBar(content: Text(editingTask == null ? '任务已添加。' : '任务已更新。')),
         );
       }
     } catch (error) {
@@ -481,6 +676,135 @@ class _AddTaskPanelState extends ConsumerState<_AddTaskPanel> {
         );
       }
     }
+  }
+
+  void _cancelEditing() {
+    ref.read(editingTaskProvider.notifier).state = null;
+  }
+}
+
+class _TaskViewPanel extends ConsumerWidget {
+  const _TaskViewPanel({required this.task});
+
+  final TaskRecord task;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return _PanelPadding(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const _PanelHeader(
+            icon: Icons.visibility_outlined,
+            title: '查看任务',
+            subtitle: '查看当前任务的完整内容。',
+          ),
+          const SizedBox(height: 18),
+          Expanded(
+            child: SingleChildScrollView(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    task.title,
+                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                          color: task.isCompleted ? _muted : _ink,
+                          decoration: task.isCompleted
+                              ? TextDecoration.lineThrough
+                              : null,
+                        ),
+                  ),
+                  const SizedBox(height: 14),
+                  const _SectionLabel('内容'),
+                  const SizedBox(height: 6),
+                  SelectableText(
+                    task.content.trim().isEmpty ? '无内容' : task.content,
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          color: task.content.trim().isEmpty
+                              ? _muted
+                              : const Color(0xFF3F4742),
+                        ),
+                  ),
+                  const SizedBox(height: 16),
+                  const _SectionLabel('标签'),
+                  const SizedBox(height: 8),
+                  if (task.tags.isEmpty)
+                    Text('无标签', style: _captionStyle(context))
+                  else
+                    Wrap(
+                      spacing: 6,
+                      runSpacing: 6,
+                      children: [
+                        for (final tag in task.tags) _TaskTagPill(tag),
+                      ],
+                    ),
+                  const SizedBox(height: 16),
+                  const _SectionLabel('时间'),
+                  const SizedBox(height: 8),
+                  _TaskMetaLine(
+                    icon: Icons.calendar_today_outlined,
+                    text: '创建 ${compactDateTime(task.createdAt)}',
+                  ),
+                  if (task.completedAt != null) ...[
+                    const SizedBox(height: 6),
+                    _TaskMetaLine(
+                      icon: Icons.task_alt,
+                      text: '完成 ${compactDateTime(task.completedAt!)}',
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: () {
+                    ref.read(selectedTaskProvider.notifier).state = null;
+                    ref.read(editingTaskProvider.notifier).state = null;
+                  },
+                  icon: const Icon(Icons.add),
+                  label: const Text('新建任务'),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: FilledButton.icon(
+                  onPressed: () {
+                    ref.read(editingTaskProvider.notifier).state = task;
+                  },
+                  icon: const Icon(Icons.edit_outlined),
+                  label: const Text('编辑任务'),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _TaskMetaLine extends StatelessWidget {
+  const _TaskMetaLine({
+    required this.icon,
+    required this.text,
+  });
+
+  final IconData icon;
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Icon(icon, size: 15, color: _muted),
+        const SizedBox(width: 6),
+        Expanded(child: Text(text, style: _captionStyle(context))),
+      ],
+    );
   }
 }
 
@@ -493,10 +817,17 @@ class _SummaryPanel extends ConsumerStatefulWidget {
 
 class _SummaryPanelState extends ConsumerState<_SummaryPanel> {
   PeriodType _periodType = PeriodType.daily;
+  late PeriodRange _selectedRange;
   final Set<String> _selectedTags = <String>{};
   bool _isGenerating = false;
   String? _latestSummary;
   String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _selectedRange = periodRangeFor(_periodType, DateTime.now());
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -512,9 +843,12 @@ class _SummaryPanelState extends ConsumerState<_SummaryPanel> {
             subtitle: '按周期和标签收集任务，交给模型复盘。',
           ),
           const SizedBox(height: 16),
-          _PeriodSelector(
-            value: _periodType,
-            onChanged: (value) => setState(() => _periodType = value),
+          _SummaryRangeSelector(
+            periodType: _periodType,
+            range: _selectedRange,
+            onPeriodChanged: _changePeriod,
+            onPickRange: _pickDateRange,
+            onReset: _resetDateRange,
           ),
           const SizedBox(height: 14),
           const _SectionLabel('标签过滤'),
@@ -605,7 +939,7 @@ class _SummaryPanelState extends ConsumerState<_SummaryPanel> {
 
     try {
       final database = ref.read(appDatabaseProvider);
-      final range = periodRangeFor(_periodType, DateTime.now());
+      final range = _selectedRange;
       final selectedTags = _selectedTags.toList()..sort();
       final tasks = await database.listTasksForPeriod(
         start: range.start,
@@ -623,9 +957,10 @@ class _SummaryPanelState extends ConsumerState<_SummaryPanel> {
         periodType: _periodType,
         tasks: tasks,
         tags: selectedTags,
+        periodLabel: '${_periodType.placeholderName}（${range.label}）',
       );
       final summary = await ref.read(summaryApiClientProvider).generateSummary(
-            period: _periodType.placeholderName,
+            period: '${_periodType.placeholderName}（${range.label}）',
             tags: selectedTags,
             tasks: formatTasksForPrompt(tasks),
             template: template,
@@ -658,6 +993,85 @@ class _SummaryPanelState extends ConsumerState<_SummaryPanel> {
       }
     }
   }
+
+  void _changePeriod(PeriodType value) {
+    setState(() {
+      _periodType = value;
+      if (value == PeriodType.custom) {
+        _selectedRange = PeriodRange(
+          start: _selectedRange.start,
+          end: _selectedRange.end,
+          label: dateRangeLabel(_selectedRange.start, _selectedRange.end),
+        );
+      } else {
+        _selectedRange = periodRangeFor(value, DateTime.now());
+      }
+    });
+  }
+
+  void _resetDateRange() {
+    setState(() {
+      _selectedRange = periodRangeFor(_periodType, DateTime.now());
+    });
+  }
+
+  Future<void> _pickDateRange() async {
+    final now = DateTime.now();
+    final minDate = DateTime(2000);
+    final maxDate = DateTime(now.year + 5, 12, 31);
+
+    if (_periodType == PeriodType.custom) {
+      final initialEnd = _selectedRange.end.subtract(const Duration(days: 1));
+      final picked = await showRangePickerDialog(
+        context: context,
+        minDate: minDate,
+        maxDate: maxDate,
+        displayedDate: _selectedRange.start,
+        selectedRange: DateTimeRange(
+          start: _selectedRange.start,
+          end: initialEnd,
+        ),
+        initialPickerType: PickerType.days,
+      );
+      if (picked == null || !mounted) {
+        return;
+      }
+
+      final start = _dateOnly(picked.start);
+      final end = _dateOnly(picked.end).add(const Duration(days: 1));
+      setState(() {
+        _selectedRange = PeriodRange(
+          start: start,
+          end: end,
+          label: dateRangeLabel(start, end),
+        );
+      });
+      return;
+    }
+
+    final picked = await showDatePickerDialog(
+      context: context,
+      minDate: minDate,
+      maxDate: maxDate,
+      displayedDate: _selectedRange.start,
+      selectedDate: _selectedRange.start,
+      initialPickerType: switch (_periodType) {
+        PeriodType.monthly => PickerType.months,
+        PeriodType.yearly => PickerType.years,
+        _ => PickerType.days,
+      },
+    );
+    if (picked == null || !mounted) {
+      return;
+    }
+
+    setState(() {
+      _selectedRange = periodRangeFor(_periodType, picked);
+    });
+  }
+
+  DateTime _dateOnly(DateTime date) =>
+      DateTime(date.year, date.month, date.day);
 }
 
 class _TemplatePanel extends ConsumerStatefulWidget {
@@ -698,7 +1112,7 @@ class _TemplatePanelState extends ConsumerState<_TemplatePanel> {
             subtitle: '支持 {period}、{tasks}、{tags}。',
           ),
           const SizedBox(height: 16),
-          _PeriodSelector(
+          _TemplatePeriodSelector(
             value: _periodType,
             onChanged: (value) {
               setState(() {
@@ -901,8 +1315,101 @@ class _PanelHeader extends StatelessWidget {
   }
 }
 
-class _PeriodSelector extends StatelessWidget {
-  const _PeriodSelector({
+class _SummaryRangeSelector extends StatelessWidget {
+  const _SummaryRangeSelector({
+    required this.periodType,
+    required this.range,
+    required this.onPeriodChanged,
+    required this.onPickRange,
+    required this.onReset,
+  });
+
+  final PeriodType periodType;
+  final PeriodRange range;
+  final ValueChanged<PeriodType> onPeriodChanged;
+  final VoidCallback onPickRange;
+  final VoidCallback onReset;
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: const Color(0xFFFAFBF9),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: _border),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(10),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            SegmentedButton<PeriodType>(
+              showSelectedIcon: false,
+              segments: const [
+                ButtonSegment(value: PeriodType.daily, label: Text('日')),
+                ButtonSegment(value: PeriodType.weekly, label: Text('周')),
+                ButtonSegment(value: PeriodType.monthly, label: Text('月')),
+                ButtonSegment(value: PeriodType.yearly, label: Text('年')),
+                ButtonSegment(value: PeriodType.custom, label: Text('自定义')),
+              ],
+              selected: {periodType},
+              onSelectionChanged: (selected) {
+                onPeriodChanged(selected.first);
+              },
+            ),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Text('日期区间', style: _captionStyle(context)),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Text(
+                    range.label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          color: _ink,
+                          fontWeight: FontWeight.w600,
+                        ),
+                  ),
+                ),
+                IconButton(
+                  tooltip: '重置日期区间',
+                  visualDensity: VisualDensity.compact,
+                  onPressed: onReset,
+                  icon: const Icon(Icons.restart_alt, size: 20),
+                ),
+                IconButton(
+                  tooltip: '选择日期区间',
+                  visualDensity: VisualDensity.compact,
+                  onPressed: onPickRange,
+                  icon: const Icon(Icons.date_range_outlined, size: 20),
+                ),
+              ],
+            ),
+            Text(
+              _rangeHint(periodType),
+              style: _captionStyle(context),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  String _rangeHint(PeriodType type) {
+    return switch (type) {
+      PeriodType.daily => '选择任意日期后汇总当天任务。',
+      PeriodType.weekly => '选择任意日期后自动汇总所在周。',
+      PeriodType.monthly => '选择月份后汇总整月任务。',
+      PeriodType.yearly => '选择年份后汇总全年任务。',
+      PeriodType.custom => '选择开始和结束日期后汇总自定义区间。',
+    };
+  }
+}
+
+class _TemplatePeriodSelector extends StatelessWidget {
+  const _TemplatePeriodSelector({
     required this.value,
     required this.onChanged,
   });
@@ -922,7 +1429,7 @@ class _PeriodSelector extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         child: Row(
           children: [
-            Text('周期', style: _captionStyle(context)),
+            Text('总结类型', style: _captionStyle(context)),
             const SizedBox(width: 14),
             Expanded(
               child: DropdownButtonHideUnderline(

@@ -23,6 +23,10 @@ final summaryApiClientProvider = Provider<SummaryApiClient>((ref) {
 
 final taskTagFilterProvider = StateProvider<Set<String>>((ref) => <String>{});
 
+final selectedTaskProvider = StateProvider<TaskRecord?>((ref) => null);
+
+final editingTaskProvider = StateProvider<TaskRecord?>((ref) => null);
+
 final taskListProvider = FutureProvider<List<TaskRecord>>((ref) async {
   final database = ref.watch(appDatabaseProvider);
   final tags = ref.watch(taskTagFilterProvider);

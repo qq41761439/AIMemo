@@ -11,6 +11,13 @@ abstract class MemoStore {
     required List<String> tags,
   });
 
+  Future<void> updateTask({
+    required int taskId,
+    required String title,
+    required String content,
+    required List<String> tags,
+  });
+
   Future<List<TaskRecord>> listTasks({List<String> tagNames = const []});
 
   Future<List<TaskRecord>> listTasksForPeriod({
