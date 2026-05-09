@@ -9,6 +9,13 @@ void main() {
   test('returns generated summary text', () async {
     final client = SummaryApiClient(
       httpClient: MockClient((request) async {
+        final body = jsonDecode(request.body) as Map<String, dynamic>;
+        expect(body['prompt'], '最终提示词');
+        expect(body['template'], '{tasks}');
+        expect(body['tasks'], '任务');
+        expect(body['period'], '今天');
+        expect(body['tags'], isEmpty);
+
         return http.Response.bytes(
           utf8.encode('{"summary_text":"今天完成了核心任务。"}'),
           200,
@@ -22,7 +29,7 @@ void main() {
       tags: const [],
       tasks: '任务',
       template: '{tasks}',
-      prompt: '任务',
+      prompt: '最终提示词',
     );
 
     expect(summary, '今天完成了核心任务。');

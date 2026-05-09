@@ -13,11 +13,11 @@ String renderSummaryPrompt({
   required PeriodType periodType,
   required List<TaskRecord> tasks,
   required List<String> tags,
-  String? periodLabel,
+  String? periodText,
 }) {
   return template
       .replaceAll('{tasks}', formatTasksForPrompt(tasks))
-      .replaceAll('{period}', periodLabel ?? periodType.placeholderName)
+      .replaceAll('{period}', periodText ?? periodType.placeholderName)
       .replaceAll('{tags}', tags.isEmpty ? '全部标签' : tags.join('、'));
 }
 

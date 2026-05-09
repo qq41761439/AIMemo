@@ -37,4 +37,16 @@ void main() {
 
     expect(prompt, '全部标签');
   });
+
+  test('uses explicit period text when provided', () {
+    final prompt = renderSummaryPrompt(
+      template: '{period}',
+      periodType: PeriodType.custom,
+      tags: const [],
+      tasks: const [],
+      periodText: '自定义（2026-05-01 至 2026-05-03）',
+    );
+
+    expect(prompt, '自定义（2026-05-01 至 2026-05-03）');
+  });
 }

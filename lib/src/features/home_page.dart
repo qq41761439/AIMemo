@@ -952,15 +952,16 @@ class _SummaryPanelState extends ConsumerState<_SummaryPanel> {
       }
 
       final template = await database.getTemplate(_periodType);
+      final periodText = '${_periodType.placeholderName}（${range.label}）';
       final prompt = renderSummaryPrompt(
         template: template,
         periodType: _periodType,
         tasks: tasks,
         tags: selectedTags,
-        periodLabel: '${_periodType.placeholderName}（${range.label}）',
+        periodText: periodText,
       );
       final summary = await ref.read(summaryApiClientProvider).generateSummary(
-            period: '${_periodType.placeholderName}（${range.label}）',
+            period: periodText,
             tags: selectedTags,
             tasks: formatTasksForPrompt(tasks),
             template: template,
