@@ -1,0 +1,98 @@
+import 'package:aimemo/src/models/period_type.dart';
+import 'package:aimemo/src/services/app_database.dart';
+import 'package:aimemo/src/services/template_renderer.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:sqflite_common_ffi/sqflite_ffi.dart';
+
+void main() {
+  late AppDatabase database;
+
+  setUp(() {
+    sqfliteFfiInit();
+    database = AppDatabase(pathOverride: inMemoryDatabasePath);
+  });
+
+  tearDown(() async {
+    await database.close();
+  });
+
+  test('creates task and reuses tags', () async {
+    await database.addTask(
+      title: '写日报',
+      content: '整理今天完成事项',
+      tags: ['工作', '复盘'],
+    );
+    await database.addTask(
+      title: '读书',
+      content: '看 Flutter 文档',
+      tags: ['学习', '复盘'],
+    );
+
+    final tags = await database.listTags();
+    expect(tags, containsAll(['工作', '学习', '复盘']));
+
+    final filtered = await database.listTasks(tagNames: ['复盘']);
+    expect(filtered, hasLength(2));
+  });
+
+  test('complete, uncomplete, and delete task', () async {
+    final id = await database.addTask(
+      title: '测试任务',
+      content: '',
+      tags: const [],
+    );
+
+    await database.setTaskCompleted(id, true);
+    var tasks = await database.listTasks();
+    expect(tasks.single.completedAt, isNotNull);
+
+    await database.setTaskCompleted(id, false);
+    tasks = await database.listTasks();
+    expect(tasks.single.completedAt, isNull);
+
+    await database.deleteTask(id);
+    tasks = await database.listTasks();
+    expect(tasks, isEmpty);
+  });
+
+  test('completed tasks sink below open tasks', () async {
+    final firstId = await database.addTask(
+      title: '先创建但已完成',
+      content: '',
+      tags: const [],
+    );
+    await Future<void>.delayed(const Duration(milliseconds: 2));
+    await database.addTask(
+      title: '后创建但未完成',
+      content: '',
+      tags: const [],
+    );
+
+    await database.setTaskCompleted(firstId, true);
+
+    final tasks = await database.listTasks();
+    expect(tasks.first.title, '后创建但未完成');
+    expect(tasks.last.title, '先创建但已完成');
+  });
+
+  test('saves templates and summary history', () async {
+    await database.saveTemplate(PeriodType.daily, '模板 {tasks}');
+    expect(await database.getTemplate(PeriodType.daily), '模板 {tasks}');
+
+    final summaryId = await database.insertSummary(
+      periodType: PeriodType.daily,
+      periodLabel: '2026-05-09',
+      periodStart: DateTime(2026, 5, 9),
+      periodEnd: DateTime(2026, 5, 10),
+      tagFilter: const ['工作'],
+      taskIds: const [1, 2],
+      prompt: defaultSummaryTemplate,
+      output: '今天完成了核心设计。',
+    );
+
+    final summaries = await database.listSummaries();
+    expect(summaryId, greaterThan(0));
+    expect(summaries.single.output, '今天完成了核心设计。');
+    expect(summaries.single.tagFilter, ['工作']);
+  });
+}
