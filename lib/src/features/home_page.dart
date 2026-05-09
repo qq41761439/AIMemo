@@ -12,10 +12,8 @@ const _ink = Color(0xFF202622);
 const _muted = Color(0xFF68716A);
 const _faint = Color(0xFFF4F5F2);
 const _panel = Color(0xFFFFFFFF);
-const _sidebar = Color(0xFFEFF2ED);
 const _border = Color(0xFFDDE2DC);
 const _accent = Color(0xFF2F6F5E);
-const _warning = Color(0xFF9A5B13);
 
 class HomePage extends ConsumerWidget {
   const HomePage({super.key});
@@ -27,7 +25,7 @@ class HomePage extends ConsumerWidget {
         child: LayoutBuilder(
           builder: (context, constraints) {
             final workspaceWidth =
-                constraints.maxWidth < 1120 ? 1120.0 : constraints.maxWidth;
+                constraints.maxWidth < 980 ? 980.0 : constraints.maxWidth;
 
             return ColoredBox(
               color: _faint,
@@ -38,8 +36,6 @@ class HomePage extends ConsumerWidget {
                   height: constraints.maxHeight,
                   child: const Row(
                     children: [
-                      SizedBox(width: 260, child: _Sidebar()),
-                      VerticalDivider(width: 1),
                       Expanded(child: _TaskListPane()),
                       VerticalDivider(width: 1),
                       SizedBox(width: 440, child: _ActionPane()),
@@ -55,99 +51,13 @@ class HomePage extends ConsumerWidget {
   }
 }
 
-class _Sidebar extends ConsumerWidget {
-  const _Sidebar();
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final selectedTags = ref.watch(taskTagFilterProvider);
-    final tags = ref.watch(tagListProvider);
-
-    return Container(
-      color: _sidebar,
-      padding: const EdgeInsets.fromLTRB(18, 20, 18, 16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                width: 34,
-                height: 34,
-                decoration: BoxDecoration(
-                  color: _accent,
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: const Icon(
-                  Icons.checklist_rtl,
-                  color: Colors.white,
-                  size: 19,
-                ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Text(
-                  'AIMemo',
-                  style: Theme.of(context).textTheme.titleLarge,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          Text('待办、标签和周期总结', style: _captionStyle(context)),
-          const SizedBox(height: 26),
-          const _SectionLabel('标签筛选'),
-          const SizedBox(height: 10),
-          FilterChip(
-            label: const Text('全部任务'),
-            selected: selectedTags.isEmpty,
-            onSelected: (_) {
-              ref.read(taskTagFilterProvider.notifier).state = <String>{};
-            },
-          ),
-          const SizedBox(height: 8),
-          Expanded(
-            child: tags.when(
-              data: (items) {
-                if (items.isEmpty) {
-                  return const _EmptyHint(text: '添加任务后会出现标签。');
-                }
-                return SingleChildScrollView(
-                  child: Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: [
-                      for (final tag in items)
-                        FilterChip(
-                          label: Text(tag),
-                          selected: selectedTags.contains(tag),
-                          onSelected: (selected) {
-                            final next = {...selectedTags};
-                            selected ? next.add(tag) : next.remove(tag);
-                            ref.read(taskTagFilterProvider.notifier).state =
-                                next;
-                          },
-                        ),
-                    ],
-                  ),
-                );
-              },
-              loading: () => const Center(child: CircularProgressIndicator()),
-              error: (error, _) => _ErrorText(error.toString()),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
 class _TaskListPane extends ConsumerWidget {
   const _TaskListPane();
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final tasks = ref.watch(taskListProvider);
+    final tags = ref.watch(tagListProvider);
     final selectedTags = ref.watch(taskTagFilterProvider);
 
     return Padding(
@@ -155,22 +65,17 @@ class _TaskListPane extends ConsumerWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          const _TaskPaneHeader(),
+          const SizedBox(height: 18),
           Row(
             children: [
               Text('任务列表', style: Theme.of(context).textTheme.headlineSmall),
-              const Spacer(),
-              if (selectedTags.isNotEmpty)
-                TextButton.icon(
-                  onPressed: () {
-                    ref.read(taskTagFilterProvider.notifier).state = <String>{};
-                  },
-                  icon: const Icon(Icons.filter_alt_off_outlined),
-                  label: const Text('清除筛选'),
-                ),
             ],
           ),
-          const SizedBox(height: 4),
+          const SizedBox(height: 6),
           Text('未完成任务优先显示，已完成会自动下沉。', style: _captionStyle(context)),
+          const SizedBox(height: 14),
+          _TaskFilterBar(selectedTags: selectedTags, tags: tags),
           const SizedBox(height: 16),
           Expanded(
             child: tasks.when(
@@ -190,6 +95,132 @@ class _TaskListPane extends ConsumerWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _TaskPaneHeader extends StatelessWidget {
+  const _TaskPaneHeader();
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: _panel,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: _border),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
+        child: Row(
+          children: [
+            Container(
+              width: 38,
+              height: 38,
+              decoration: BoxDecoration(
+                color: _accent,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: const Icon(
+                Icons.checklist_rtl,
+                color: Colors.white,
+                size: 21,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('AIMemo', style: Theme.of(context).textTheme.titleLarge),
+                  const SizedBox(height: 3),
+                  Text('待办、标签和周期总结', style: _captionStyle(context)),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _TaskFilterBar extends ConsumerWidget {
+  const _TaskFilterBar({
+    required this.selectedTags,
+    required this.tags,
+  });
+
+  final Set<String> selectedTags;
+  final AsyncValue<List<String>> tags;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: _panel,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: _border),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(10),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Padding(
+              padding: EdgeInsets.only(top: 8, right: 10),
+              child: _SectionLabel('标签'),
+            ),
+            Expanded(
+              child: tags.when(
+                data: (items) {
+                  if (items.isEmpty) {
+                    return Text('添加任务后会出现标签。', style: _captionStyle(context));
+                  }
+
+                  return Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      FilterChip(
+                        label: const Text('全部'),
+                        selected: selectedTags.isEmpty,
+                        onSelected: (_) {
+                          ref.read(taskTagFilterProvider.notifier).state =
+                              <String>{};
+                        },
+                      ),
+                      for (final tag in items)
+                        FilterChip(
+                          label: Text(tag),
+                          selected: selectedTags.contains(tag),
+                          onSelected: (selected) {
+                            final next = {...selectedTags};
+                            selected ? next.add(tag) : next.remove(tag);
+                            ref.read(taskTagFilterProvider.notifier).state =
+                                next;
+                          },
+                        ),
+                    ],
+                  );
+                },
+                loading: () => const LinearProgressIndicator(),
+                error: (error, _) => _ErrorText(error.toString()),
+              ),
+            ),
+            if (selectedTags.isNotEmpty) ...[
+              const SizedBox(width: 10),
+              IconButton(
+                tooltip: '清除筛选',
+                onPressed: () {
+                  ref.read(taskTagFilterProvider.notifier).state = <String>{};
+                },
+                icon: const Icon(Icons.filter_alt_off_outlined),
+              ),
+            ],
+          ],
+        ),
       ),
     );
   }
@@ -273,7 +304,6 @@ class _TaskTile extends ConsumerWidget {
                           '完成 ${compactDateTime(task.completedAt!)}',
                           style: _captionStyle(context),
                         ),
-                      _StatusPill(completed: completed),
                       for (final tag in task.tags)
                         Chip(
                           label: Text(tag),
@@ -482,18 +512,9 @@ class _SummaryPanelState extends ConsumerState<_SummaryPanel> {
             subtitle: '按周期和标签收集任务，交给模型复盘。',
           ),
           const SizedBox(height: 16),
-          DropdownButtonFormField<PeriodType>(
-            initialValue: _periodType,
-            decoration: const InputDecoration(labelText: '周期'),
-            items: [
-              for (final type in PeriodType.values)
-                DropdownMenuItem(value: type, child: Text(type.title)),
-            ],
-            onChanged: (value) {
-              if (value != null) {
-                setState(() => _periodType = value);
-              }
-            },
+          _PeriodSelector(
+            value: _periodType,
+            onChanged: (value) => setState(() => _periodType = value),
           ),
           const SizedBox(height: 14),
           const _SectionLabel('标签过滤'),
@@ -677,17 +698,9 @@ class _TemplatePanelState extends ConsumerState<_TemplatePanel> {
             subtitle: '支持 {period}、{tasks}、{tags}。',
           ),
           const SizedBox(height: 16),
-          DropdownButtonFormField<PeriodType>(
-            initialValue: _periodType,
-            decoration: const InputDecoration(labelText: '周期'),
-            items: [
-              for (final type in PeriodType.values)
-                DropdownMenuItem(value: type, child: Text(type.title)),
-            ],
+          _PeriodSelector(
+            value: _periodType,
             onChanged: (value) {
-              if (value == null) {
-                return;
-              }
               setState(() {
                 _periodType = value;
                 _loaded = false;
@@ -888,6 +901,63 @@ class _PanelHeader extends StatelessWidget {
   }
 }
 
+class _PeriodSelector extends StatelessWidget {
+  const _PeriodSelector({
+    required this.value,
+    required this.onChanged,
+  });
+
+  final PeriodType value;
+  final ValueChanged<PeriodType> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: const Color(0xFFFAFBF9),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: _border),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        child: Row(
+          children: [
+            Text('周期', style: _captionStyle(context)),
+            const SizedBox(width: 14),
+            Expanded(
+              child: DropdownButtonHideUnderline(
+                child: DropdownButton<PeriodType>(
+                  value: value,
+                  isExpanded: true,
+                  borderRadius: BorderRadius.circular(8),
+                  dropdownColor: _panel,
+                  icon: const Icon(Icons.keyboard_arrow_down_rounded),
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: _ink,
+                        fontWeight: FontWeight.w600,
+                      ),
+                  items: [
+                    for (final type in PeriodType.values)
+                      DropdownMenuItem(
+                        value: type,
+                        child: Text(type.title),
+                      ),
+                  ],
+                  onChanged: (next) {
+                    if (next != null) {
+                      onChanged(next);
+                    }
+                  },
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class _SectionLabel extends StatelessWidget {
   const _SectionLabel(this.text);
 
@@ -901,36 +971,6 @@ class _SectionLabel extends StatelessWidget {
             color: _ink,
             letterSpacing: 0,
           ),
-    );
-  }
-}
-
-class _StatusPill extends StatelessWidget {
-  const _StatusPill({required this.completed});
-
-  final bool completed;
-
-  @override
-  Widget build(BuildContext context) {
-    final color = completed ? _muted : _warning;
-    final background =
-        completed ? const Color(0xFFE9ECE7) : const Color(0xFFF5EBDD);
-
-    return Container(
-      height: 24,
-      padding: const EdgeInsets.symmetric(horizontal: 8),
-      decoration: BoxDecoration(
-        color: background,
-        borderRadius: BorderRadius.circular(7),
-      ),
-      alignment: Alignment.center,
-      child: Text(
-        completed ? '已完成' : '进行中',
-        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-              color: color,
-              fontWeight: FontWeight.w600,
-            ),
-      ),
     );
   }
 }

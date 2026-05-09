@@ -299,10 +299,9 @@ JOIN task_tags tt ON tt.task_id = t.id
 JOIN tags g ON g.id = tt.tag_id
 WHERE ${where.join(' AND ')} AND lower(g.name) IN ($placeholders)
 GROUP BY t.id
-HAVING COUNT(DISTINCT lower(g.name)) = ?
 ORDER BY $taskListSqlOrder
 ''',
-      [...args, ...cleanTags, cleanTags.length],
+      [...args, ...cleanTags],
     );
   }
 

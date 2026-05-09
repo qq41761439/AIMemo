@@ -35,6 +35,28 @@ void main() {
     expect(filtered, hasLength(2));
   });
 
+  test('tag filters match any selected tag', () async {
+    await database.addTask(
+      title: '工作任务',
+      content: '',
+      tags: const ['工作'],
+    );
+    await database.addTask(
+      title: '学习任务',
+      content: '',
+      tags: const ['学习'],
+    );
+    await database.addTask(
+      title: '生活任务',
+      content: '',
+      tags: const ['生活'],
+    );
+
+    final filtered = await database.listTasks(tagNames: ['工作', '学习']);
+    expect(filtered.map((task) => task.title), containsAll(['工作任务', '学习任务']));
+    expect(filtered.map((task) => task.title), isNot(contains('生活任务')));
+  });
+
   test('complete, uncomplete, and delete task', () async {
     final id = await database.addTask(
       title: '测试任务',

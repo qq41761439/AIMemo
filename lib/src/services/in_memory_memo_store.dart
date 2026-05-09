@@ -6,6 +6,10 @@ import 'template_renderer.dart';
 import 'task_sorting.dart';
 
 class InMemoryMemoStore implements MemoStore {
+  InMemoryMemoStore() {
+    _seedDemoData();
+  }
+
   final List<TaskRecord> _tasks = <TaskRecord>[];
   final List<SummaryRecord> _summaries = <SummaryRecord>[];
   final Map<PeriodType, String> _templates = {
@@ -162,7 +166,7 @@ class InMemoryMemoStore implements MemoStore {
         return true;
       }
       final taskTagKeys = task.tags.map((tag) => tag.toLowerCase()).toSet();
-      return tagKeys.every(taskTagKeys.contains);
+      return tagKeys.any(taskTagKeys.contains);
     }).toList();
   }
 
@@ -177,5 +181,68 @@ class InMemoryMemoStore implements MemoStore {
       }
     }
     return result;
+  }
+
+  void _seedDemoData() {
+    final now = DateTime.now();
+    final todayMorning = DateTime(now.year, now.month, now.day, 9, 20);
+    final yesterday = todayMorning.subtract(const Duration(days: 1));
+
+    _tasks.addAll([
+      TaskRecord(
+        id: _nextTaskId++,
+        title: '梳理 AIMemo 第一版交互',
+        content: '确认任务列表、标签筛选、周期总结和模板配置的主流程。',
+        tags: const ['工作', '产品'],
+        createdAt: todayMorning,
+        completedAt: todayMorning.add(const Duration(hours: 1, minutes: 10)),
+      ),
+      TaskRecord(
+        id: _nextTaskId++,
+        title: '补充日报生成 Prompt',
+        content: '让总结突出亮点、风险、改进建议和下一步计划。',
+        tags: const ['工作', 'AI'],
+        createdAt: todayMorning.add(const Duration(hours: 2)),
+      ),
+      TaskRecord(
+        id: _nextTaskId++,
+        title: '检查 Xcode 安装进度',
+        content: 'Xcode 完成后切到 macOS 桌面版，验证 SQLite 持久化。',
+        tags: const ['工具', '环境'],
+        createdAt: todayMorning.add(const Duration(hours: 3, minutes: 25)),
+      ),
+      TaskRecord(
+        id: _nextTaskId++,
+        title: '阅读 Flutter 桌面布局文档',
+        content: '关注窗口尺寸、滚动容器和桌面端信息密度。',
+        tags: const ['学习', 'Flutter'],
+        createdAt: yesterday.add(const Duration(hours: 5)),
+        completedAt: yesterday.add(const Duration(hours: 6, minutes: 30)),
+      ),
+      TaskRecord(
+        id: _nextTaskId++,
+        title: '整理本周复盘素材',
+        content: '把产品推进、技术债和下周计划拆成三组。',
+        tags: const ['复盘', '生活'],
+        createdAt: yesterday.add(const Duration(hours: 8)),
+      ),
+    ]);
+
+    _summaries.add(
+      SummaryRecord(
+        id: _nextSummaryId++,
+        periodType: PeriodType.daily,
+        periodLabel:
+            '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}',
+        periodStart: DateTime(now.year, now.month, now.day),
+        periodEnd: DateTime(now.year, now.month, now.day + 1),
+        tagFilter: const ['工作'],
+        taskIds: const [1, 2],
+        prompt: defaultSummaryTemplate,
+        output:
+            '今天主要推进了 AIMemo 第一版的产品交互和总结模板设计。亮点是任务、标签、周期总结的主链路已经清晰；下一步可以优先验证模型生成质量，并在桌面端完成本地持久化验收。',
+        createdAt: now.subtract(const Duration(minutes: 20)),
+      ),
+    );
   }
 }
