@@ -1699,16 +1699,30 @@ class _SummaryRangeSelector extends StatelessWidget {
       children: [
         SizedBox(
           width: 108,
+          height: 40,
           child: DropdownButtonFormField<PeriodType>(
             decoration: const InputDecoration(
-              border: OutlineInputBorder(),
-              contentPadding: EdgeInsets.symmetric(
-                horizontal: 10,
-                vertical: 8,
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.all(Radius.circular(6)),
               ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.all(Radius.circular(6)),
+                borderSide: BorderSide(color: _border),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.all(Radius.circular(6)),
+                borderSide: BorderSide(color: _border),
+              ),
+              contentPadding: EdgeInsets.symmetric(horizontal: 10),
+              constraints: BoxConstraints.tightFor(height: 40),
             ),
             initialValue: periodType,
             isDense: true,
+            icon: const Icon(Icons.expand_more, size: 20),
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  color: _ink,
+                  fontWeight: FontWeight.w600,
+                ),
             items: PeriodType.values
                 .map(
                   (type) => DropdownMenuItem<PeriodType>(
