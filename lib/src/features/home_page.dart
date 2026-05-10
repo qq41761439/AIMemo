@@ -1207,7 +1207,7 @@ class _InlineTemplateEditor extends StatelessWidget {
             if (expanded) ...[
               const SizedBox(height: 10),
               SizedBox(
-                height: 170,
+                height: 220,
                 child: TextField(
                   controller: controller,
                   enabled: loaded,
