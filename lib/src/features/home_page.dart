@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:date_picker_plus/date_picker_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -6,6 +8,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/period_type.dart';
 import '../models/task_record.dart';
 import '../providers.dart';
+import '../services/memo_store.dart';
 import '../services/period_utils.dart';
 import '../services/template_renderer.dart';
 
@@ -20,15 +23,33 @@ const _minActionPaneWidth = 380.0;
 const _maxActionPaneWidth = 720.0;
 const _minTaskPaneWidth = 420.0;
 
-class HomePage extends StatefulWidget {
+class HomePage extends ConsumerStatefulWidget {
   const HomePage({super.key});
 
   @override
-  State<HomePage> createState() => _HomePageState();
+  ConsumerState<HomePage> createState() => _HomePageState();
 }
 
-class _HomePageState extends State<HomePage> {
+class _HomePageState extends ConsumerState<HomePage> {
   double _actionPaneWidth = _defaultActionPaneWidth;
+  late final MemoStore _database;
+  Timer? _saveActionPaneWidthTimer;
+
+  @override
+  void initState() {
+    super.initState();
+    _database = ref.read(appDatabaseProvider);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadActionPaneWidth();
+    });
+  }
+
+  @override
+  void dispose() {
+    _saveActionPaneWidthTimer?.cancel();
+    unawaited(_database.saveActionPaneWidth(_actionPaneWidth));
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -54,12 +75,14 @@ class _HomePageState extends State<HomePage> {
                       const Expanded(child: _TaskListPane()),
                       _PaneDivider(
                         onDragUpdate: (details) {
+                          final nextWidth = _clampActionPaneWidth(
+                            _actionPaneWidth - details.delta.dx,
+                            maxActionPaneWidth,
+                          );
                           setState(() {
-                            _actionPaneWidth = _clampActionPaneWidth(
-                              _actionPaneWidth - details.delta.dx,
-                              maxActionPaneWidth,
-                            );
+                            _actionPaneWidth = nextWidth;
                           });
+                          _scheduleActionPaneWidthSave(nextWidth);
                         },
                       ),
                       SizedBox(
@@ -87,6 +110,21 @@ class _HomePageState extends State<HomePage> {
 
   double _clampActionPaneWidth(double width, double maxWidth) {
     return width.clamp(_minActionPaneWidth, maxWidth).toDouble();
+  }
+
+  Future<void> _loadActionPaneWidth() async {
+    final savedWidth = await _database.getActionPaneWidth();
+    if (!mounted || savedWidth == null) {
+      return;
+    }
+    setState(() => _actionPaneWidth = savedWidth);
+  }
+
+  void _scheduleActionPaneWidthSave(double width) {
+    _saveActionPaneWidthTimer?.cancel();
+    _saveActionPaneWidthTimer = Timer(const Duration(milliseconds: 350), () {
+      unawaited(_database.saveActionPaneWidth(width));
+    });
   }
 }
 
@@ -417,29 +455,7 @@ class _TaskTile extends ConsumerWidget {
                 tooltip: '删除任务',
                 padding: EdgeInsets.zero,
                 visualDensity: VisualDensity.compact,
-                onPressed: () async {
-                  final database = ref.read(appDatabaseProvider);
-                  await database.deleteTask(task.id);
-                  final selectedTask = ref.read(selectedTaskProvider);
-                  if (selectedTask?.id == task.id) {
-                    ref.read(selectedTaskProvider.notifier).state = null;
-                  }
-                  final editingTask = ref.read(editingTaskProvider);
-                  if (editingTask?.id == task.id) {
-                    ref.read(editingTaskProvider.notifier).state = null;
-                  }
-                  final availableTags = (await database.listTags()).toSet();
-                  final selectedTags = ref.read(taskTagFilterProvider);
-                  final nextSelectedTags = selectedTags
-                      .where((tag) => availableTags.contains(tag))
-                      .toSet();
-                  if (nextSelectedTags.length != selectedTags.length) {
-                    ref.read(taskTagFilterProvider.notifier).state =
-                        nextSelectedTags;
-                  }
-                  ref.invalidate(taskListProvider);
-                  ref.invalidate(tagListProvider);
-                },
+                onPressed: () => _deleteTask(context, ref),
                 icon: const Icon(Icons.delete_outline, size: 18),
               ),
             ),
@@ -447,6 +463,65 @@ class _TaskTile extends ConsumerWidget {
         ),
       ),
     );
+  }
+
+  Future<void> _deleteTask(BuildContext context, WidgetRef ref) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('删除任务'),
+        content: Text('确定删除“${task.title}”吗？'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('取消'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('删除'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !context.mounted) {
+      return;
+    }
+
+    final database = ref.read(appDatabaseProvider);
+    await database.deleteTask(task.id);
+    final selectedTask = ref.read(selectedTaskProvider);
+    if (selectedTask?.id == task.id) {
+      ref.read(selectedTaskProvider.notifier).state = null;
+    }
+    final editingTask = ref.read(editingTaskProvider);
+    if (editingTask?.id == task.id) {
+      ref.read(editingTaskProvider.notifier).state = null;
+    }
+    ref.invalidate(taskListProvider);
+    ref.invalidate(tagListProvider);
+    await _pruneTaskTagFilter(ref, database);
+
+    if (!context.mounted) {
+      return;
+    }
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: const Text('任务已删除。'),
+        action: SnackBarAction(
+          label: '撤销',
+          onPressed: () {
+            unawaited(_restoreTask(ref, database));
+          },
+        ),
+      ),
+    );
+  }
+
+  Future<void> _restoreTask(WidgetRef ref, MemoStore database) async {
+    await database.restoreTask(task.id);
+    ref.invalidate(taskListProvider);
+    ref.invalidate(tagListProvider);
+    await _pruneTaskTagFilter(ref, database);
   }
 }
 
@@ -549,15 +624,36 @@ class _ActionPaneState extends ConsumerState<_ActionPane>
             child: TabBarView(
               controller: _tabController,
               children: const [
-                _AddTaskPanel(),
-                _SummaryPanel(),
-                _HistoryPanel(),
+                _KeepAlivePane(child: _AddTaskPanel()),
+                _KeepAlivePane(child: _SummaryPanel()),
+                _KeepAlivePane(child: _HistoryPanel()),
               ],
             ),
           ),
         ],
       ),
     );
+  }
+}
+
+class _KeepAlivePane extends StatefulWidget {
+  const _KeepAlivePane({required this.child});
+
+  final Widget child;
+
+  @override
+  State<_KeepAlivePane> createState() => _KeepAlivePaneState();
+}
+
+class _KeepAlivePaneState extends State<_KeepAlivePane>
+    with AutomaticKeepAliveClientMixin {
+  @override
+  bool get wantKeepAlive => true;
+
+  @override
+  Widget build(BuildContext context) {
+    super.build(context);
+    return widget.child;
   }
 }
 
@@ -573,6 +669,7 @@ class _AddTaskPanelState extends ConsumerState<_AddTaskPanel> {
   final _contentController = TextEditingController();
   final _tagsController = TextEditingController();
   int? _loadedEditingTaskId;
+  bool _isSaving = false;
 
   @override
   void dispose() {
@@ -644,7 +741,7 @@ class _AddTaskPanelState extends ConsumerState<_AddTaskPanel> {
               if (isEditing) ...[
                 Expanded(
                   child: OutlinedButton.icon(
-                    onPressed: _cancelEditing,
+                    onPressed: _isSaving ? null : _cancelEditing,
                     icon: const Icon(Icons.close),
                     label: const Text('取消'),
                   ),
@@ -653,9 +750,15 @@ class _AddTaskPanelState extends ConsumerState<_AddTaskPanel> {
               ],
               Expanded(
                 child: FilledButton.icon(
-                  onPressed: _submit,
+                  onPressed: _isSaving ? null : _submit,
                   icon: Icon(isEditing ? Icons.save_outlined : Icons.add),
-                  label: Text(isEditing ? '保存修改' : '添加任务'),
+                  label: Text(
+                    _isSaving
+                        ? '保存中'
+                        : isEditing
+                            ? '保存修改'
+                            : '添加任务',
+                  ),
                 ),
               ),
             ],
@@ -694,6 +797,10 @@ class _AddTaskPanelState extends ConsumerState<_AddTaskPanel> {
   }
 
   Future<void> _submit() async {
+    if (_isSaving) {
+      return;
+    }
+    setState(() => _isSaving = true);
     try {
       final editingTask = ref.read(editingTaskProvider);
       final title = _titleController.text;
@@ -728,6 +835,7 @@ class _AddTaskPanelState extends ConsumerState<_AddTaskPanel> {
       ref.read(editingTaskProvider.notifier).state = null;
       ref.invalidate(taskListProvider);
       ref.invalidate(tagListProvider);
+      await _pruneTaskTagFilter(ref, ref.read(appDatabaseProvider));
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(editingTask == null ? '任务已添加。' : '任务已更新。')),
@@ -738,6 +846,10 @@ class _AddTaskPanelState extends ConsumerState<_AddTaskPanel> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(error.toString())),
         );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isSaving = false);
       }
     }
   }
@@ -887,12 +999,17 @@ class _SummaryPanelState extends ConsumerState<_SummaryPanel> {
   bool _isGenerating = false;
   bool _templateLoaded = false;
   bool _templateExpanded = false;
+  String _loadedTemplateContent = '';
   String? _latestSummary;
   String? _error;
+
+  bool get _templateDirty =>
+      _templateLoaded && _templateController.text != _loadedTemplateContent;
 
   @override
   void initState() {
     super.initState();
+    _templateController.addListener(_handleTemplateChanged);
     _selectedRange = periodRangeFor(_periodType, DateTime.now());
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _loadTemplate();
@@ -901,6 +1018,7 @@ class _SummaryPanelState extends ConsumerState<_SummaryPanel> {
 
   @override
   void dispose() {
+    _templateController.removeListener(_handleTemplateChanged);
     _templateController.dispose();
     super.dispose();
   }
@@ -922,7 +1040,9 @@ class _SummaryPanelState extends ConsumerState<_SummaryPanel> {
           _SummaryRangeSelector(
             periodType: _periodType,
             range: _selectedRange,
-            onPeriodChanged: _changePeriod,
+            onPeriodChanged: (value) {
+              unawaited(_changePeriod(value));
+            },
             onPickRange: _pickDateRange,
             onReset: _resetDateRange,
           ),
@@ -932,39 +1052,47 @@ class _SummaryPanelState extends ConsumerState<_SummaryPanel> {
             controller: _templateController,
             loaded: _templateLoaded,
             expanded: _templateExpanded,
+            dirty: _templateDirty,
             onToggleExpanded: () {
               setState(() => _templateExpanded = !_templateExpanded);
             },
-            onSave: _saveTemplate,
-            onReset: _resetTemplate,
+            onSave: () {
+              unawaited(_saveTemplate());
+            },
+            onReset: () {
+              unawaited(_resetTemplate());
+            },
           ),
           const SizedBox(height: 14),
           const _SectionLabel('标签过滤'),
           const SizedBox(height: 8),
           tags.when(
-            data: (items) => Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: [
-                FilterChip(
-                  label: const Text('全部标签'),
-                  selected: _selectedTags.isEmpty,
-                  onSelected: (_) => setState(_selectedTags.clear),
-                ),
-                for (final tag in items)
+            data: (items) {
+              _pruneSummaryTags(items);
+              return Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
                   FilterChip(
-                    label: Text(tag),
-                    selected: _selectedTags.contains(tag),
-                    onSelected: (selected) {
-                      setState(() {
-                        selected
-                            ? _selectedTags.add(tag)
-                            : _selectedTags.remove(tag);
-                      });
-                    },
+                    label: const Text('全部标签'),
+                    selected: _selectedTags.isEmpty,
+                    onSelected: (_) => setState(_selectedTags.clear),
                   ),
-              ],
-            ),
+                  for (final tag in items)
+                    FilterChip(
+                      label: Text(tag),
+                      selected: _selectedTags.contains(tag),
+                      onSelected: (selected) {
+                        setState(() {
+                          selected
+                              ? _selectedTags.add(tag)
+                              : _selectedTags.remove(tag);
+                        });
+                      },
+                    ),
+                ],
+              );
+            },
             loading: () => const LinearProgressIndicator(),
             error: (error, _) => _ErrorText(error.toString()),
           ),
@@ -991,6 +1119,7 @@ class _SummaryPanelState extends ConsumerState<_SummaryPanel> {
                   tooltip: '复制总结',
                   onPressed: () {
                     Clipboard.setData(ClipboardData(text: _latestSummary!));
+                    _showSnackBar('总结已复制。');
                   },
                   icon: const Icon(Icons.copy_all_outlined),
                 ),
@@ -1020,9 +1149,20 @@ class _SummaryPanelState extends ConsumerState<_SummaryPanel> {
   }
 
   Future<void> _generate() async {
+    if (_templateDirty) {
+      final shouldSave = await _confirmSaveTemplateBeforeGenerate();
+      if (!shouldSave) {
+        return;
+      }
+      await _saveTemplate(showMessage: false);
+      if (!mounted) {
+        return;
+      }
+    }
     setState(() {
       _isGenerating = true;
       _error = null;
+      _latestSummary = null;
     });
 
     try {
@@ -1075,6 +1215,7 @@ class _SummaryPanelState extends ConsumerState<_SummaryPanel> {
         return;
       }
       setState(() => _latestSummary = summary);
+      _showSnackBar('总结已生成并保存到历史。');
     } catch (error) {
       if (mounted) {
         setState(() => _error = error.toString());
@@ -1086,7 +1227,13 @@ class _SummaryPanelState extends ConsumerState<_SummaryPanel> {
     }
   }
 
-  void _changePeriod(PeriodType value) {
+  Future<void> _changePeriod(PeriodType value) async {
+    if (value == _periodType) {
+      return;
+    }
+    if (_templateDirty && !await _confirmDiscardTemplateChanges()) {
+      return;
+    }
     setState(() {
       _periodType = value;
       _templateLoaded = false;
@@ -1173,22 +1320,25 @@ class _SummaryPanelState extends ConsumerState<_SummaryPanel> {
     if (!mounted || _periodType != periodType) {
       return;
     }
+    _replaceTemplateText(content);
     setState(() {
-      _templateController.text = content;
+      _loadedTemplateContent = content;
       _templateLoaded = true;
     });
   }
 
-  Future<void> _saveTemplate() async {
+  Future<void> _saveTemplate({bool showMessage = true}) async {
     await ref.read(appDatabaseProvider).saveTemplate(
           _periodType,
           _templateController.text,
         );
+    if (!mounted) {
+      return;
+    }
+    setState(() => _loadedTemplateContent = _templateController.text);
     ref.invalidate(templateProvider(_periodType));
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('模板已保存。')),
-      );
+    if (showMessage) {
+      _showSnackBar('模板已保存。');
     }
   }
 
@@ -1196,6 +1346,91 @@ class _SummaryPanelState extends ConsumerState<_SummaryPanel> {
     await ref.read(appDatabaseProvider).resetTemplate(_periodType);
     await _loadTemplate();
     ref.invalidate(templateProvider(_periodType));
+    if (mounted) {
+      _showSnackBar('模板已恢复默认。');
+    }
+  }
+
+  void _handleTemplateChanged() {
+    if (mounted) {
+      setState(() {});
+    }
+  }
+
+  void _replaceTemplateText(String content) {
+    _templateController.removeListener(_handleTemplateChanged);
+    _templateController.text = content;
+    _templateController.addListener(_handleTemplateChanged);
+  }
+
+  void _pruneSummaryTags(List<String> tags) {
+    if (_selectedTags.isEmpty) {
+      return;
+    }
+    final availableTags = tags.toSet();
+    final nextSelectedTags =
+        _selectedTags.where((tag) => availableTags.contains(tag)).toSet();
+    if (nextSelectedTags.length == _selectedTags.length) {
+      return;
+    }
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _selectedTags
+          ..clear()
+          ..addAll(nextSelectedTags);
+      });
+    });
+  }
+
+  Future<bool> _confirmDiscardTemplateChanges() async {
+    final discard = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('模板还未保存'),
+        content: const Text('切换总结类型会丢失当前模板编辑内容。'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('继续编辑'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('放弃修改'),
+          ),
+        ],
+      ),
+    );
+    return discard == true;
+  }
+
+  Future<bool> _confirmSaveTemplateBeforeGenerate() async {
+    final shouldSave = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('模板还未保存'),
+        content: const Text('生成总结前需要先保存当前模板修改。'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('取消'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('保存并生成'),
+          ),
+        ],
+      ),
+    );
+    return shouldSave == true;
+  }
+
+  void _showSnackBar(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message)),
+    );
   }
 }
 
@@ -1205,6 +1440,7 @@ class _InlineTemplateEditor extends StatelessWidget {
     required this.controller,
     required this.loaded,
     required this.expanded,
+    required this.dirty,
     required this.onToggleExpanded,
     required this.onSave,
     required this.onReset,
@@ -1214,6 +1450,7 @@ class _InlineTemplateEditor extends StatelessWidget {
   final TextEditingController controller;
   final bool loaded;
   final bool expanded;
+  final bool dirty;
   final VoidCallback onToggleExpanded;
   final VoidCallback onSave;
   final VoidCallback onReset;
@@ -1252,9 +1489,21 @@ class _InlineTemplateEditor extends StatelessWidget {
                         style: Theme.of(context).textTheme.titleSmall,
                       ),
                       const SizedBox(height: 2),
-                      Text(
-                        '支持 {period}、{period_days}、{tasks}、{tags}。',
-                        style: _captionStyle(context),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              '支持 {period}、{period_days}、{tasks}、{tags}。',
+                              style: _captionStyle(context),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          if (dirty) ...[
+                            const SizedBox(width: 8),
+                            Text('未保存', style: _captionStyle(context)),
+                          ],
+                        ],
                       ),
                     ],
                   ),
@@ -1301,7 +1550,7 @@ class _InlineTemplateEditor extends StatelessWidget {
                   const SizedBox(width: 10),
                   Expanded(
                     child: FilledButton.icon(
-                      onPressed: loaded ? onSave : null,
+                      onPressed: loaded && dirty ? onSave : null,
                       icon: const Icon(Icons.save_outlined),
                       label: const Text('保存模板'),
                     ),
@@ -1360,6 +1609,9 @@ class _HistoryPanel extends ConsumerWidget {
                             onPressed: () {
                               Clipboard.setData(
                                   ClipboardData(text: item.output));
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(content: Text('总结已复制。')),
+                              );
                             },
                             icon: const Icon(Icons.copy_all_outlined),
                           ),
@@ -1596,4 +1848,14 @@ List<String> _parseTags(String value) {
     }
   }
   return result;
+}
+
+Future<void> _pruneTaskTagFilter(WidgetRef ref, MemoStore database) async {
+  final availableTags = (await database.listTags()).toSet();
+  final selectedTags = ref.read(taskTagFilterProvider);
+  final nextSelectedTags =
+      selectedTags.where((tag) => availableTags.contains(tag)).toSet();
+  if (nextSelectedTags.length != selectedTags.length) {
+    ref.read(taskTagFilterProvider.notifier).state = nextSelectedTags;
+  }
 }

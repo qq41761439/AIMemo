@@ -134,6 +134,10 @@ void main() {
     await database.deleteTask(id);
     tasks = await database.listTasks();
     expect(tasks, isEmpty);
+
+    await database.restoreTask(id);
+    tasks = await database.listTasks();
+    expect(tasks.single.title, '测试任务');
   });
 
   test('updates task details and tags', () async {
@@ -207,5 +211,13 @@ void main() {
     expect(await database.getTemplate(PeriodType.yearly), contains('年度完成'));
     expect(await database.getTemplate(PeriodType.custom),
         contains('{period_days}'));
+  });
+
+  test('saves app layout settings', () async {
+    expect(await database.getActionPaneWidth(), isNull);
+
+    await database.saveActionPaneWidth(640);
+
+    expect(await database.getActionPaneWidth(), 640.0);
   });
 }

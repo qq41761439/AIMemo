@@ -13,6 +13,7 @@ class InMemoryMemoStore implements MemoStore {
   final List<TaskRecord> _tasks = <TaskRecord>[];
   final List<SummaryRecord> _summaries = <SummaryRecord>[];
   final Map<String, DateTime> _tagTouchedAt = <String, DateTime>{};
+  final Map<String, String> _settings = <String, String>{};
   final Map<PeriodType, String> _templates = {
     for (final type in PeriodType.values) type: defaultSummaryTemplateFor(type),
   };
@@ -135,6 +136,24 @@ class InMemoryMemoStore implements MemoStore {
   }
 
   @override
+  Future<void> restoreTask(int taskId) async {
+    final index = _tasks.indexWhere((task) => task.id == taskId);
+    if (index == -1) {
+      return;
+    }
+    final task = _tasks[index];
+    _tasks[index] = TaskRecord(
+      id: task.id,
+      title: task.title,
+      content: task.content,
+      tags: task.tags,
+      createdAt: task.createdAt,
+      completedAt: task.completedAt,
+    );
+    _touchTags(task.tags);
+  }
+
+  @override
   Future<List<String>> listTags() async {
     final seen = <String>{};
     final tags = <String>[];
@@ -156,6 +175,16 @@ class InMemoryMemoStore implements MemoStore {
       return a.toLowerCase().compareTo(b.toLowerCase());
     });
     return tags;
+  }
+
+  @override
+  Future<double?> getActionPaneWidth() async {
+    return double.tryParse(_settings['action_pane_width'] ?? '');
+  }
+
+  @override
+  Future<void> saveActionPaneWidth(double width) async {
+    _settings['action_pane_width'] = width.toString();
   }
 
   @override

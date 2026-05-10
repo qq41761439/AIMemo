@@ -30,7 +30,13 @@ abstract class MemoStore {
 
   Future<void> deleteTask(int taskId);
 
+  Future<void> restoreTask(int taskId);
+
   Future<List<String>> listTags();
+
+  Future<double?> getActionPaneWidth();
+
+  Future<void> saveActionPaneWidth(double width);
 
   Future<String> getTemplate(PeriodType type);
 

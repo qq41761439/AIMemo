@@ -33,9 +33,14 @@ class AppDatabase implements MemoStore {
     final db = await _factory.openDatabase(
       path,
       options: OpenDatabaseOptions(
-        version: 1,
+        version: 2,
         onConfigure: (db) async {
           await db.execute('PRAGMA foreign_keys = ON');
+        },
+        onUpgrade: (db, oldVersion, newVersion) async {
+          if (oldVersion < 2) {
+            await _createAppSettingsTable(db);
+          }
         },
         onCreate: (db, version) async {
           await _createSchema(db);
@@ -103,9 +108,19 @@ CREATE TABLE summaries (
   output TEXT NOT NULL,
   created_at TEXT NOT NULL
 )''');
+    await _createAppSettingsTable(db);
     await db.execute('CREATE INDEX idx_tasks_created_at ON tasks(created_at)');
     await db.execute('CREATE INDEX idx_tasks_deleted_at ON tasks(deleted_at)');
     await db.execute('CREATE INDEX idx_tags_name ON tags(name)');
+  }
+
+  Future<void> _createAppSettingsTable(Database db) async {
+    await db.execute('''
+CREATE TABLE IF NOT EXISTS app_settings (
+  key TEXT PRIMARY KEY,
+  value TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+)''');
   }
 
   Future<void> _seedTemplates(Database db) async {
@@ -218,6 +233,17 @@ CREATE TABLE summaries (
   }
 
   @override
+  Future<void> restoreTask(int taskId) async {
+    final db = await database;
+    await db.update(
+      'tasks',
+      {'deleted_at': null},
+      where: 'id = ?',
+      whereArgs: [taskId],
+    );
+  }
+
+  @override
   Future<List<String>> listTags() async {
     final db = await database;
     final rows = await db.rawQuery(
@@ -232,6 +258,36 @@ ORDER BY g.created_at DESC, g.name COLLATE NOCASE ASC
 ''',
     );
     return rows.map((row) => row['name'] as String).toList();
+  }
+
+  @override
+  Future<double?> getActionPaneWidth() async {
+    final db = await database;
+    final rows = await db.query(
+      'app_settings',
+      columns: ['value'],
+      where: 'key = ?',
+      whereArgs: ['action_pane_width'],
+      limit: 1,
+    );
+    if (rows.isEmpty) {
+      return null;
+    }
+    return double.tryParse(rows.first['value'] as String);
+  }
+
+  @override
+  Future<void> saveActionPaneWidth(double width) async {
+    final db = await database;
+    await db.insert(
+      'app_settings',
+      {
+        'key': 'action_pane_width',
+        'value': width.toString(),
+        'updated_at': DateTime.now().toIso8601String(),
+      },
+      conflictAlgorithm: ConflictAlgorithm.replace,
+    );
   }
 
   @override
