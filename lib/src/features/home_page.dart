@@ -886,30 +886,6 @@ class _SummaryPanelState extends ConsumerState<_SummaryPanel> {
             ),
             error: (error, _) => _ErrorText(error.toString()),
           ),
-          const SizedBox(height: 16),
-          Row(
-            children: [
-              Expanded(
-                child: FilledButton.icon(
-                  onPressed: _isGenerating ? null : _generate,
-                  icon: _isGenerating
-                      ? const SizedBox(
-                          width: 18,
-                          height: 18,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : const Icon(Icons.auto_awesome),
-                  label: Text(_isGenerating ? '生成中' : '生成总结'),
-                ),
-              ),
-              const SizedBox(width: 10),
-              OutlinedButton.icon(
-                onPressed: _openTemplateSettings,
-                icon: const Icon(Icons.tune, size: 18),
-                label: const Text('配置模板'),
-              ),
-            ],
-          ),
           const SizedBox(height: 18),
           if (_error != null) _ErrorText(_error!),
           if (_latestSummary != null) ...[
@@ -944,6 +920,12 @@ class _SummaryPanelState extends ConsumerState<_SummaryPanel> {
             const Expanded(
               child: _EmptyHint(text: '选择周期和标签后生成总结。'),
             ),
+          const SizedBox(height: 12),
+          _SummaryActionBar(
+            isGenerating: _isGenerating,
+            onGenerate: _generate,
+            onConfigureTemplate: _openTemplateSettings,
+          ),
         ],
       ),
     );
@@ -1119,6 +1101,54 @@ class _SummaryPanelState extends ConsumerState<_SummaryPanel> {
 
   DateTime _dateOnly(DateTime date) =>
       DateTime(date.year, date.month, date.day);
+}
+
+class _SummaryActionBar extends StatelessWidget {
+  const _SummaryActionBar({
+    required this.isGenerating,
+    required this.onGenerate,
+    required this.onConfigureTemplate,
+  });
+
+  final bool isGenerating;
+  final VoidCallback onGenerate;
+  final VoidCallback onConfigureTemplate;
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: const BoxDecoration(
+        color: _panel,
+        border: Border(top: BorderSide(color: _border)),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.only(top: 12),
+        child: Row(
+          children: [
+            Expanded(
+              child: FilledButton.icon(
+                onPressed: isGenerating ? null : onGenerate,
+                icon: isGenerating
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.auto_awesome),
+                label: Text(isGenerating ? '生成中' : '生成总结'),
+              ),
+            ),
+            const SizedBox(width: 10),
+            OutlinedButton.icon(
+              onPressed: onConfigureTemplate,
+              icon: const Icon(Icons.tune, size: 18),
+              label: const Text('配置模板'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }
 
 class _TemplatePanel extends ConsumerStatefulWidget {
