@@ -428,7 +428,7 @@ class _ActionPaneState extends ConsumerState<_ActionPane>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 3, vsync: this);
+    _tabController = TabController(length: 4, vsync: this);
   }
 
   @override
@@ -476,6 +476,7 @@ class _ActionPaneState extends ConsumerState<_ActionPane>
                 text: firstTabLabel,
               ),
               const Tab(icon: Icon(Icons.auto_awesome_outlined), text: '总结'),
+              const Tab(icon: Icon(Icons.tune), text: '模板'),
               const Tab(icon: Icon(Icons.history), text: '历史'),
             ],
           ),
@@ -485,6 +486,7 @@ class _ActionPaneState extends ConsumerState<_ActionPane>
               children: const [
                 _AddTaskPanel(),
                 _SummaryPanel(),
+                _TemplatePanel(),
                 _HistoryPanel(),
               ],
             ),
@@ -852,39 +854,43 @@ class _SummaryPanelState extends ConsumerState<_SummaryPanel> {
           const _SectionLabel('标签过滤'),
           const SizedBox(height: 8),
           tags.when(
-            data: (items) => ConstrainedBox(
-              constraints: const BoxConstraints(maxHeight: 118),
-              child: SingleChildScrollView(
-                child: Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: [
-                    FilterChip(
-                      label: const Text('全部标签'),
-                      selected: _selectedTags.isEmpty,
-                      onSelected: (_) => setState(_selectedTags.clear),
-                    ),
-                    for (final tag in items)
-                      FilterChip(
-                        label: Text(tag),
-                        selected: _selectedTags.contains(tag),
-                        onSelected: (selected) {
-                          setState(() {
-                            selected
-                                ? _selectedTags.add(tag)
-                                : _selectedTags.remove(tag);
-                          });
-                        },
-                      ),
-                  ],
+            data: (items) => Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                FilterChip(
+                  label: const Text('全部标签'),
+                  selected: _selectedTags.isEmpty,
+                  onSelected: (_) => setState(_selectedTags.clear),
                 ),
-              ),
+                for (final tag in items)
+                  FilterChip(
+                    label: Text(tag),
+                    selected: _selectedTags.contains(tag),
+                    onSelected: (selected) {
+                      setState(() {
+                        selected
+                            ? _selectedTags.add(tag)
+                            : _selectedTags.remove(tag);
+                      });
+                    },
+                  ),
+              ],
             ),
-            loading: () => const SizedBox(
-              height: 4,
-              child: LinearProgressIndicator(),
-            ),
+            loading: () => const LinearProgressIndicator(),
             error: (error, _) => _ErrorText(error.toString()),
+          ),
+          const SizedBox(height: 18),
+          FilledButton.icon(
+            onPressed: _isGenerating ? null : _generate,
+            icon: _isGenerating
+                ? const SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Icon(Icons.auto_awesome),
+            label: Text(_isGenerating ? '生成中' : '生成总结'),
           ),
           const SizedBox(height: 18),
           if (_error != null) _ErrorText(_error!),
@@ -920,39 +926,8 @@ class _SummaryPanelState extends ConsumerState<_SummaryPanel> {
             const Expanded(
               child: _EmptyHint(text: '选择周期和标签后生成总结。'),
             ),
-          const SizedBox(height: 12),
-          _SummaryActionBar(
-            isGenerating: _isGenerating,
-            onGenerate: _generate,
-            onConfigureTemplate: _openTemplateSettings,
-          ),
         ],
       ),
-    );
-  }
-
-  Future<void> _openTemplateSettings() {
-    return showDialog<void>(
-      context: context,
-      builder: (dialogContext) {
-        final viewportHeight = MediaQuery.sizeOf(dialogContext).height;
-        final dialogHeight = viewportHeight < 760 ? viewportHeight - 48 : 720.0;
-
-        return Dialog(
-          insetPadding: const EdgeInsets.symmetric(
-            horizontal: 24,
-            vertical: 24,
-          ),
-          child: SizedBox(
-            width: 660,
-            height: dialogHeight,
-            child: _TemplatePanel(
-              initialPeriodType: _periodType,
-              onClose: () => Navigator.of(dialogContext).pop(),
-            ),
-          ),
-        );
-      },
     );
   }
 
@@ -1103,62 +1078,8 @@ class _SummaryPanelState extends ConsumerState<_SummaryPanel> {
       DateTime(date.year, date.month, date.day);
 }
 
-class _SummaryActionBar extends StatelessWidget {
-  const _SummaryActionBar({
-    required this.isGenerating,
-    required this.onGenerate,
-    required this.onConfigureTemplate,
-  });
-
-  final bool isGenerating;
-  final VoidCallback onGenerate;
-  final VoidCallback onConfigureTemplate;
-
-  @override
-  Widget build(BuildContext context) {
-    return DecoratedBox(
-      decoration: const BoxDecoration(
-        color: _panel,
-        border: Border(top: BorderSide(color: _border)),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.only(top: 12),
-        child: Row(
-          children: [
-            Expanded(
-              child: FilledButton.icon(
-                onPressed: isGenerating ? null : onGenerate,
-                icon: isGenerating
-                    ? const SizedBox(
-                        width: 18,
-                        height: 18,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : const Icon(Icons.auto_awesome),
-                label: Text(isGenerating ? '生成中' : '生成总结'),
-              ),
-            ),
-            const SizedBox(width: 10),
-            OutlinedButton.icon(
-              onPressed: onConfigureTemplate,
-              icon: const Icon(Icons.tune, size: 18),
-              label: const Text('配置模板'),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
 class _TemplatePanel extends ConsumerStatefulWidget {
-  const _TemplatePanel({
-    this.initialPeriodType = PeriodType.daily,
-    this.onClose,
-  });
-
-  final PeriodType initialPeriodType;
-  final VoidCallback? onClose;
+  const _TemplatePanel();
 
   @override
   ConsumerState<_TemplatePanel> createState() => _TemplatePanelState();
@@ -1166,13 +1087,12 @@ class _TemplatePanel extends ConsumerStatefulWidget {
 
 class _TemplatePanelState extends ConsumerState<_TemplatePanel> {
   final _controller = TextEditingController();
-  late PeriodType _periodType;
+  PeriodType _periodType = PeriodType.daily;
   bool _loaded = false;
 
   @override
   void initState() {
     super.initState();
-    _periodType = widget.initialPeriodType;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _loadTemplate();
     });
@@ -1190,17 +1110,10 @@ class _TemplatePanelState extends ConsumerState<_TemplatePanel> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          _PanelHeader(
+          const _PanelHeader(
             icon: Icons.tune,
             title: '模板配置',
             subtitle: '支持 {period}、{period_days}、{tasks}、{tags}。',
-            trailing: widget.onClose == null
-                ? null
-                : IconButton(
-                    tooltip: '关闭',
-                    onPressed: widget.onClose,
-                    icon: const Icon(Icons.close),
-                  ),
           ),
           const SizedBox(height: 16),
           _TemplatePeriodSelector(
@@ -1370,13 +1283,11 @@ class _PanelHeader extends StatelessWidget {
     required this.icon,
     required this.title,
     required this.subtitle,
-    this.trailing,
   });
 
   final IconData icon;
   final String title;
   final String subtitle;
-  final Widget? trailing;
 
   @override
   Widget build(BuildContext context) {
@@ -1403,10 +1314,6 @@ class _PanelHeader extends StatelessWidget {
             ],
           ),
         ),
-        if (trailing != null) ...[
-          const SizedBox(width: 10),
-          trailing!,
-        ],
       ],
     );
   }
