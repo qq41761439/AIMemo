@@ -1725,12 +1725,13 @@ class _SummaryRangeSelector extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: const Color(0xFFFAFBF9),
+    return Material(
+      color: const Color(0xFFFAFBF9),
+      shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: _border),
+        side: const BorderSide(color: _border),
       ),
+      clipBehavior: Clip.antiAlias,
       child: Padding(
         padding: const EdgeInsets.all(10),
         child: Column(
@@ -1753,30 +1754,57 @@ class _SummaryRangeSelector extends StatelessWidget {
             const SizedBox(height: 8),
             Row(
               children: [
-                Text('日期区间', style: _captionStyle(context)),
-                const SizedBox(width: 14),
                 Expanded(
-                  child: Text(
-                    range.label,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          color: _ink,
-                          fontWeight: FontWeight.w600,
+                  child: Tooltip(
+                    message: '选择日期区间',
+                    child: InkWell(
+                      onTap: onPickRange,
+                      mouseCursor: SystemMouseCursors.click,
+                      borderRadius: BorderRadius.circular(6),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 2,
+                          vertical: 5,
                         ),
+                        child: Row(
+                          children: [
+                            Text('日期区间', style: _captionStyle(context)),
+                            const SizedBox(width: 14),
+                            Expanded(
+                              child: Text(
+                                range.label,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: Theme.of(context)
+                                    .textTheme
+                                    .bodyMedium
+                                    ?.copyWith(
+                                      color: _ink,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            const SizedBox(
+                              width: 32,
+                              height: 32,
+                              child: Icon(
+                                Icons.date_range_outlined,
+                                size: 20,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
                   ),
                 ),
+                const SizedBox(width: 4),
                 IconButton(
                   tooltip: '重置日期区间',
                   visualDensity: VisualDensity.compact,
                   onPressed: onReset,
                   icon: const Icon(Icons.restart_alt, size: 20),
-                ),
-                IconButton(
-                  tooltip: '选择日期区间',
-                  visualDensity: VisualDensity.compact,
-                  onPressed: onPickRange,
-                  icon: const Icon(Icons.date_range_outlined, size: 20),
                 ),
               ],
             ),
