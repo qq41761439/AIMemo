@@ -1726,17 +1726,26 @@ class _SummaryRangeSelector extends StatelessWidget {
         Expanded(
           child: Tooltip(
             message: '选择日期区间',
-            child: InkWell(
-              onTap: onPickRange,
-              mouseCursor: SystemMouseCursors.click,
-              borderRadius: BorderRadius.circular(6),
-              child: Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 4,
-                  vertical: 6,
+            child: SizedBox(
+              height: 40,
+              child: OutlinedButton(
+                onPressed: onPickRange,
+                style: OutlinedButton.styleFrom(
+                  alignment: Alignment.centerLeft,
+                  foregroundColor: _ink,
+                  padding: const EdgeInsets.symmetric(horizontal: 10),
+                  side: const BorderSide(color: _border),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(6),
+                  ),
                 ),
                 child: Row(
                   children: [
+                    const Icon(
+                      Icons.date_range_outlined,
+                      size: 18,
+                    ),
+                    const SizedBox(width: 8),
                     Expanded(
                       child: Text(
                         range.label,
@@ -1747,11 +1756,6 @@ class _SummaryRangeSelector extends StatelessWidget {
                               fontWeight: FontWeight.w600,
                             ),
                       ),
-                    ),
-                    const SizedBox(width: 8),
-                    const Icon(
-                      Icons.date_range_outlined,
-                      size: 20,
                     ),
                   ],
                 ),
