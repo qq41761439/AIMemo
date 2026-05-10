@@ -1737,23 +1737,34 @@ class _SummaryRangeSelector extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            SegmentedButton<PeriodType>(
-              showSelectedIcon: false,
-              segments: const [
-                ButtonSegment(value: PeriodType.daily, label: Text('日')),
-                ButtonSegment(value: PeriodType.weekly, label: Text('周')),
-                ButtonSegment(value: PeriodType.monthly, label: Text('月')),
-                ButtonSegment(value: PeriodType.yearly, label: Text('年')),
-                ButtonSegment(value: PeriodType.custom, label: Text('自定义')),
-              ],
-              selected: {periodType},
-              onSelectionChanged: (selected) {
-                onPeriodChanged(selected.first);
-              },
-            ),
-            const SizedBox(height: 8),
             Row(
               children: [
+                SizedBox(
+                  width: 108,
+                  child: DropdownButtonFormField<PeriodType>(
+                    decoration: const InputDecoration(
+                      border: OutlineInputBorder(),
+                      contentPadding: EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 8,
+                      ),
+                    ),
+                    initialValue: periodType,
+                    isDense: true,
+                    items: PeriodType.values
+                        .map(
+                          (type) => DropdownMenuItem<PeriodType>(
+                            value: type,
+                            child: Text(type.title),
+                          ),
+                        )
+                        .toList(),
+                    onChanged: (value) {
+                      if (value != null) onPeriodChanged(value);
+                    },
+                  ),
+                ),
+                const SizedBox(width: 8),
                 Expanded(
                   child: Tooltip(
                     message: '选择日期区间',
@@ -1808,6 +1819,7 @@ class _SummaryRangeSelector extends StatelessWidget {
                 ),
               ],
             ),
+            const SizedBox(height: 6),
             Text(
               _rangeHint(periodType),
               style: _captionStyle(context),
