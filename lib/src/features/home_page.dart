@@ -1046,7 +1046,7 @@ class _SummaryPanelState extends ConsumerState<_SummaryPanel> {
             onPickRange: _pickDateRange,
             onReset: _resetDateRange,
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 8),
           _InlineTemplateEditor(
             periodType: _periodType,
             controller: _templateController,
@@ -1063,7 +1063,7 @@ class _SummaryPanelState extends ConsumerState<_SummaryPanel> {
               unawaited(_resetTemplate());
             },
           ),
-          const SizedBox(height: 14),
+          const SizedBox(height: 12),
           const _SectionLabel('标签过滤'),
           const SizedBox(height: 8),
           tags.when(
@@ -1457,130 +1457,100 @@ class _InlineTemplateEditor extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: const Color(0xFFFAFBF9),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(8),
-        side: const BorderSide(color: _border),
-      ),
-      clipBehavior: Clip.antiAlias,
-      child: Padding(
-        padding: const EdgeInsets.all(10),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Tooltip(
-              message: expanded ? '收起模板' : '编辑模板',
-              child: InkWell(
-                onTap: onToggleExpanded,
-                mouseCursor: SystemMouseCursors.click,
-                borderRadius: BorderRadius.circular(6),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 2,
-                    vertical: 4,
-                  ),
-                  child: Row(
-                    children: [
-                      Container(
-                        width: 30,
-                        height: 30,
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFE4ECE7),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: const Icon(
-                          Icons.tune,
-                          size: 18,
-                          color: _accent,
-                        ),
-                      ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              '当前模板 · ${periodType.title}',
-                              style: Theme.of(context).textTheme.titleSmall,
-                            ),
-                            const SizedBox(height: 2),
-                            Row(
-                              children: [
-                                Expanded(
-                                  child: Text(
-                                    '支持 {period}、{period_days}、{tasks}、{tags}。',
-                                    style: _captionStyle(context),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                ),
-                                if (dirty) ...[
-                                  const SizedBox(width: 8),
-                                  Text('未保存', style: _captionStyle(context)),
-                                ],
-                              ],
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(width: 4),
-                      SizedBox(
-                        width: 40,
-                        height: 40,
-                        child: Icon(
-                          expanded
-                              ? Icons.keyboard_arrow_up
-                              : Icons.keyboard_arrow_down,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-            if (expanded) ...[
-              const SizedBox(height: 10),
-              SizedBox(
-                height: 220,
-                child: TextField(
-                  controller: controller,
-                  enabled: loaded,
-                  decoration: const InputDecoration(
-                    alignLabelWithHint: true,
-                    labelText: '提示词模板',
-                    hintText: '{period} {period_days} {tasks} {tags}',
-                  ),
-                  expands: true,
-                  minLines: null,
-                  maxLines: null,
-                  textAlignVertical: TextAlignVertical.top,
-                ),
-              ),
-              const SizedBox(height: 10),
-              Row(
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Tooltip(
+          message: expanded ? '收起模板' : '编辑模板',
+          child: InkWell(
+            onTap: onToggleExpanded,
+            mouseCursor: SystemMouseCursors.click,
+            borderRadius: BorderRadius.circular(6),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 2),
+              child: Row(
                 children: [
-                  Expanded(
-                    child: OutlinedButton.icon(
-                      onPressed: loaded ? onReset : null,
-                      icon: const Icon(Icons.restore),
-                      label: const Text('恢复默认'),
+                  Container(
+                    width: 28,
+                    height: 28,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFE4ECE7),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: const Icon(
+                      Icons.tune,
+                      size: 17,
+                      color: _accent,
                     ),
                   ),
-                  const SizedBox(width: 10),
+                  const SizedBox(width: 8),
                   Expanded(
-                    child: FilledButton.icon(
-                      onPressed: loaded && dirty ? onSave : null,
-                      icon: const Icon(Icons.save_outlined),
-                      label: const Text('保存模板'),
+                    child: Text(
+                      '当前模板 · ${periodType.title}',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.titleSmall,
+                    ),
+                  ),
+                  if (dirty) ...[
+                    const SizedBox(width: 8),
+                    Text('未保存', style: _captionStyle(context)),
+                  ],
+                  const SizedBox(width: 4),
+                  SizedBox(
+                    width: 32,
+                    height: 32,
+                    child: Icon(
+                      expanded
+                          ? Icons.keyboard_arrow_up
+                          : Icons.keyboard_arrow_down,
                     ),
                   ),
                 ],
               ),
-            ],
-          ],
+            ),
+          ),
         ),
-      ),
+        if (expanded) ...[
+          const SizedBox(height: 8),
+          SizedBox(
+            height: 180,
+            child: TextField(
+              controller: controller,
+              enabled: loaded,
+              decoration: const InputDecoration(
+                alignLabelWithHint: true,
+                labelText: '提示词模板',
+                hintText: '{period} {period_days} {tasks} {tags}',
+              ),
+              expands: true,
+              minLines: null,
+              maxLines: null,
+              textAlignVertical: TextAlignVertical.top,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: loaded ? onReset : null,
+                  icon: const Icon(Icons.restore),
+                  label: const Text('恢复默认'),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: FilledButton.icon(
+                  onPressed: loaded && dirty ? onSave : null,
+                  icon: const Icon(Icons.save_outlined),
+                  label: const Text('保存模板'),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ],
     );
   }
 }
@@ -1725,119 +1695,79 @@ class _SummaryRangeSelector extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: const Color(0xFFFAFBF9),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(8),
-        side: const BorderSide(color: _border),
-      ),
-      clipBehavior: Clip.antiAlias,
-      child: Padding(
-        padding: const EdgeInsets.all(10),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Row(
-              children: [
-                SizedBox(
-                  width: 108,
-                  child: DropdownButtonFormField<PeriodType>(
-                    decoration: const InputDecoration(
-                      border: OutlineInputBorder(),
-                      contentPadding: EdgeInsets.symmetric(
-                        horizontal: 10,
-                        vertical: 8,
-                      ),
-                    ),
-                    initialValue: periodType,
-                    isDense: true,
-                    items: PeriodType.values
-                        .map(
-                          (type) => DropdownMenuItem<PeriodType>(
-                            value: type,
-                            child: Text(type.title),
-                          ),
-                        )
-                        .toList(),
-                    onChanged: (value) {
-                      if (value != null) onPeriodChanged(value);
-                    },
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Tooltip(
-                    message: '选择日期区间',
-                    child: InkWell(
-                      onTap: onPickRange,
-                      mouseCursor: SystemMouseCursors.click,
-                      borderRadius: BorderRadius.circular(6),
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 2,
-                          vertical: 5,
-                        ),
-                        child: Row(
-                          children: [
-                            Text('日期区间', style: _captionStyle(context)),
-                            const SizedBox(width: 14),
-                            Expanded(
-                              child: Text(
-                                range.label,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: Theme.of(context)
-                                    .textTheme
-                                    .bodyMedium
-                                    ?.copyWith(
-                                      color: _ink,
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            const SizedBox(
-                              width: 32,
-                              height: 32,
-                              child: Icon(
-                                Icons.date_range_outlined,
-                                size: 20,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 4),
-                IconButton(
-                  tooltip: '重置日期区间',
-                  visualDensity: VisualDensity.compact,
-                  onPressed: onReset,
-                  icon: const Icon(Icons.restart_alt, size: 20),
-                ),
-              ],
+    return Row(
+      children: [
+        SizedBox(
+          width: 108,
+          child: DropdownButtonFormField<PeriodType>(
+            decoration: const InputDecoration(
+              border: OutlineInputBorder(),
+              contentPadding: EdgeInsets.symmetric(
+                horizontal: 10,
+                vertical: 8,
+              ),
             ),
-            const SizedBox(height: 6),
-            Text(
-              _rangeHint(periodType),
-              style: _captionStyle(context),
-            ),
-          ],
+            initialValue: periodType,
+            isDense: true,
+            items: PeriodType.values
+                .map(
+                  (type) => DropdownMenuItem<PeriodType>(
+                    value: type,
+                    child: Text(type.title),
+                  ),
+                )
+                .toList(),
+            onChanged: (value) {
+              if (value != null) onPeriodChanged(value);
+            },
+          ),
         ),
-      ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Tooltip(
+            message: '选择日期区间',
+            child: InkWell(
+              onTap: onPickRange,
+              mouseCursor: SystemMouseCursors.click,
+              borderRadius: BorderRadius.circular(6),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 4,
+                  vertical: 6,
+                ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        range.label,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                              color: _ink,
+                              fontWeight: FontWeight.w600,
+                            ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    const Icon(
+                      Icons.date_range_outlined,
+                      size: 20,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(width: 4),
+        IconButton(
+          tooltip: '重置日期区间',
+          visualDensity: VisualDensity.compact,
+          onPressed: onReset,
+          icon: const Icon(Icons.restart_alt, size: 20),
+        ),
+      ],
     );
-  }
-
-  String _rangeHint(PeriodType type) {
-    return switch (type) {
-      PeriodType.daily => '选择任意日期后汇总当天任务。',
-      PeriodType.weekly => '选择任意日期后自动汇总所在周。',
-      PeriodType.monthly => '选择月份后汇总整月任务。',
-      PeriodType.yearly => '选择年份后汇总全年任务。',
-      PeriodType.custom => '选择开始和结束日期后汇总自定义区间。',
-    };
   }
 }
 
