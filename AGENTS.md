@@ -73,3 +73,11 @@ Always close the old app before opening the newly built app, otherwise macOS may
 - Daily and weekly templates should stay simple: completed work and next plan.
 - Monthly and yearly templates can include richer review structure.
 - Custom summary templates should behave like weekly summaries for ranges of 7 days or less, and like monthly summaries for longer ranges.
+
+## UI Style Expectations
+
+- Keep the summary generation controls compact; avoid wrapping small control groups in large card-like frames unless there is a clear need.
+- Controls in the same row should share the same visual language. For example, the summary period selector and date range picker should both use a 40px height, 6px radius, `_border` outline, `_ink` text, and similar icon sizing.
+- Date range selection must look clickable. Use a compact outlined button with a calendar icon instead of plain text.
+- Do not add explanatory helper text below obvious controls when the same meaning is already communicated by labels, icons, or tooltips.
+- Keep the template module lightweight: use a compact title row for expand/collapse, and avoid an outer card frame around the collapsed template header.
