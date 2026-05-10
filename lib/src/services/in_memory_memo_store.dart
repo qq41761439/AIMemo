@@ -179,12 +179,22 @@ class InMemoryMemoStore implements MemoStore {
 
   @override
   Future<double?> getActionPaneWidth() async {
-    return double.tryParse(_settings['action_pane_width'] ?? '');
+    return double.tryParse(await getAppSetting('action_pane_width') ?? '');
   }
 
   @override
   Future<void> saveActionPaneWidth(double width) async {
-    _settings['action_pane_width'] = width.toString();
+    await saveAppSetting('action_pane_width', width.toString());
+  }
+
+  @override
+  Future<String?> getAppSetting(String key) async {
+    return _settings[key];
+  }
+
+  @override
+  Future<void> saveAppSetting(String key, String value) async {
+    _settings[key] = value;
   }
 
   @override

@@ -38,6 +38,10 @@ abstract class MemoStore {
 
   Future<void> saveActionPaneWidth(double width);
 
+  Future<String?> getAppSetting(String key);
+
+  Future<void> saveAppSetting(String key, String value);
+
   Future<String> getTemplate(PeriodType type);
 
   Future<void> saveTemplate(PeriodType type, String content);

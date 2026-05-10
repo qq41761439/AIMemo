@@ -1,5 +1,7 @@
+import 'package:aimemo/src/models/model_settings.dart';
 import 'package:aimemo/src/models/period_type.dart';
 import 'package:aimemo/src/services/app_database.dart';
+import 'package:aimemo/src/services/model_settings_repository.dart';
 import 'package:aimemo/src/services/template_renderer.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
@@ -219,5 +221,31 @@ void main() {
     await database.saveActionPaneWidth(640);
 
     expect(await database.getActionPaneWidth(), 640.0);
+  });
+
+  test('saves model settings without writing API key to SQLite', () async {
+    final vault = MemoryApiKeyVault();
+    final repository = ModelSettingsRepository(
+      store: database,
+      apiKeyVault: vault,
+    );
+
+    await repository.save(
+      mode: ModelMode.custom,
+      baseUrl: 'https://example.test/v1',
+      model: 'custom-model',
+      apiKey: 'placeholder-token',
+    );
+
+    final settings = await repository.load();
+    expect(settings.mode, ModelMode.custom);
+    expect(settings.baseUrl, 'https://example.test/v1');
+    expect(settings.model, 'custom-model');
+    expect(settings.hasApiKey, isTrue);
+
+    final db = await database.database;
+    final rows = await db.query('app_settings');
+    expect(rows.toString(), isNot(contains('placeholder-token')));
+    expect(await vault.readApiKey(), 'placeholder-token');
   });
 }

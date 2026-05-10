@@ -61,6 +61,10 @@ Always close the old app before opening the newly built app, otherwise macOS may
 ## Local LLM Proxy
 
 - The app talks to `http://localhost:8787` by default.
+- Users can configure custom OpenAI-compatible model services inside the Summary page model settings.
+- Store real model API keys in system secure storage only; do not write real API keys to SQLite, README, `.env`, tests, or git.
+- `mode`, `baseUrl`, and `model` may be saved in local `app_settings`.
+- The official AIMemo hosted model is currently a placeholder and should show a clear unavailable state until backend auth, quota, and billing exist.
 - The Node proxy prefers `server/.env`.
 - If `LLM_API_KEY` is not configured, the proxy tries local CLIProxyAPI config at `/opt/homebrew/etc/cliproxyapi.conf`.
 - Do not commit `server/.env`.

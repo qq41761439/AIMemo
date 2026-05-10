@@ -5,10 +5,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../models/model_settings.dart';
 import '../models/period_type.dart';
 import '../models/task_record.dart';
 import '../providers.dart';
 import '../services/memo_store.dart';
+import '../services/model_settings_repository.dart';
 import '../services/period_utils.dart';
 import '../services/template_renderer.dart';
 
@@ -1026,15 +1028,22 @@ class _SummaryPanelState extends ConsumerState<_SummaryPanel> {
   @override
   Widget build(BuildContext context) {
     final tags = ref.watch(tagListProvider);
+    final modelSettings = ref.watch(modelSettingsProvider);
 
     return _PanelPadding(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const _PanelHeader(
+          _PanelHeader(
             icon: Icons.auto_awesome_outlined,
             title: '生成总结',
             subtitle: '按周期和标签收集任务，交给模型复盘。',
+            trailing: _ModelSettingsButton(
+              settings: modelSettings,
+              onPressed: () {
+                unawaited(_openModelSettings());
+              },
+            ),
           ),
           const SizedBox(height: 16),
           _SummaryRangeSelector(
@@ -1179,6 +1188,8 @@ class _SummaryPanelState extends ConsumerState<_SummaryPanel> {
       }
 
       final template = await database.getTemplate(_periodType);
+      final llmConfig =
+          await ref.read(modelSettingsRepositoryProvider).requestConfig();
       final periodText = '${_periodType.placeholderName}（${range.label}）';
       final periodDays = range.end.difference(range.start).inDays;
       final prompt = renderSummaryPrompt(
@@ -1196,6 +1207,7 @@ class _SummaryPanelState extends ConsumerState<_SummaryPanel> {
             template: template,
             prompt: prompt,
             periodDays: periodDays,
+            llmConfig: llmConfig,
           );
 
       await database.insertSummary(
@@ -1223,6 +1235,25 @@ class _SummaryPanelState extends ConsumerState<_SummaryPanel> {
       if (mounted) {
         setState(() => _isGenerating = false);
       }
+    }
+  }
+
+  Future<void> _openModelSettings() async {
+    final repository = ref.read(modelSettingsRepositoryProvider);
+    final settings = await repository.load();
+    if (!mounted) {
+      return;
+    }
+    final saved = await showDialog<bool>(
+      context: context,
+      builder: (context) => _ModelSettingsDialog(
+        initialSettings: settings,
+        repository: repository,
+      ),
+    );
+    if (saved == true && mounted) {
+      ref.invalidate(modelSettingsProvider);
+      _showSnackBar('模型设置已保存。');
     }
   }
 
@@ -1424,6 +1455,235 @@ class _SummaryPanelState extends ConsumerState<_SummaryPanel> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(message)),
     );
+  }
+}
+
+class _ModelSettingsButton extends StatelessWidget {
+  const _ModelSettingsButton({
+    required this.settings,
+    required this.onPressed,
+  });
+
+  final AsyncValue<ModelSettings> settings;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    final label = settings.when(
+      data: (settings) => '模型：${settings.statusLabel}',
+      loading: () => '模型：读取中',
+      error: (_, __) => '模型：读取失败',
+    );
+
+    return SizedBox(
+      width: 136,
+      height: 34,
+      child: OutlinedButton.icon(
+        onPressed: onPressed,
+        icon: const Icon(Icons.settings_outlined, size: 16),
+        label: Text(label),
+        style: OutlinedButton.styleFrom(
+          foregroundColor: _ink,
+          padding: const EdgeInsets.symmetric(horizontal: 10),
+          side: const BorderSide(color: _border),
+          textStyle: Theme.of(context).textTheme.bodySmall?.copyWith(
+                fontWeight: FontWeight.w600,
+              ),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(6),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ModelSettingsDialog extends StatefulWidget {
+  const _ModelSettingsDialog({
+    required this.initialSettings,
+    required this.repository,
+  });
+
+  final ModelSettings initialSettings;
+  final ModelSettingsRepository repository;
+
+  @override
+  State<_ModelSettingsDialog> createState() => _ModelSettingsDialogState();
+}
+
+class _ModelSettingsDialogState extends State<_ModelSettingsDialog> {
+  late ModelMode _mode;
+  late final TextEditingController _apiKeyController;
+  late final TextEditingController _baseUrlController;
+  late final TextEditingController _modelController;
+  bool _saving = false;
+  bool _clearingKey = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _mode = widget.initialSettings.mode;
+    _apiKeyController = TextEditingController();
+    _baseUrlController = TextEditingController(
+      text: widget.initialSettings.baseUrl,
+    );
+    _modelController = TextEditingController(
+      text: widget.initialSettings.model,
+    );
+  }
+
+  @override
+  void dispose() {
+    _apiKeyController.dispose();
+    _baseUrlController.dispose();
+    _modelController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final hasSavedApiKey = widget.initialSettings.hasApiKey && !_clearingKey;
+    final isCustom = _mode == ModelMode.custom;
+
+    return AlertDialog(
+      title: const Text('模型设置'),
+      content: SizedBox(
+        width: 440,
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              RadioGroup<ModelMode>(
+                groupValue: _mode,
+                onChanged: _saving ? (_) {} : _changeMode,
+                child: Column(
+                  children: [
+                    RadioListTile<ModelMode>(
+                      value: ModelMode.custom,
+                      enabled: !_saving,
+                      contentPadding: EdgeInsets.zero,
+                      title: const Text('使用自己的模型服务'),
+                      subtitle: const Text('兼容 OpenAI /chat/completions 的服务。'),
+                    ),
+                    RadioListTile<ModelMode>(
+                      value: ModelMode.hosted,
+                      enabled: !_saving,
+                      contentPadding: EdgeInsets.zero,
+                      title: const Text('使用 AIMemo 官方托管模型'),
+                      subtitle: const Text('暂未开放，后续支持登录和额度后使用。'),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 10),
+              if (isCustom) ...[
+                TextField(
+                  controller: _apiKeyController,
+                  enabled: !_saving,
+                  obscureText: true,
+                  decoration: InputDecoration(
+                    labelText: 'API Key',
+                    hintText: hasSavedApiKey ? '已保存，留空则继续使用' : '输入 API Key',
+                  ),
+                ),
+                if (hasSavedApiKey)
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: TextButton.icon(
+                      onPressed: _saving ? null : _clearApiKey,
+                      icon: const Icon(Icons.key_off_outlined, size: 18),
+                      label: const Text('清除已保存密钥'),
+                    ),
+                  ),
+                const SizedBox(height: 10),
+                TextField(
+                  controller: _baseUrlController,
+                  enabled: !_saving,
+                  decoration: const InputDecoration(
+                    labelText: 'Base URL',
+                    hintText: 'https://api.openai.com/v1',
+                  ),
+                ),
+                const SizedBox(height: 10),
+                TextField(
+                  controller: _modelController,
+                  enabled: !_saving,
+                  decoration: const InputDecoration(
+                    labelText: 'Model',
+                    hintText: 'gpt-4o-mini',
+                  ),
+                ),
+              ] else
+                DecoratedBox(
+                  decoration: BoxDecoration(
+                    color: _faint,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: _border),
+                  ),
+                  child: const Padding(
+                    padding: EdgeInsets.all(12),
+                    child: Text(
+                      '官方托管模型暂未开放。本次先保留入口，之后接入登录、额度和计费后即可使用。',
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: _saving ? null : () => Navigator.of(context).pop(false),
+          child: const Text('取消'),
+        ),
+        FilledButton.icon(
+          onPressed: _saving ? null : _save,
+          icon: _saving
+              ? const SizedBox(
+                  width: 16,
+                  height: 16,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+              : const Icon(Icons.save_outlined),
+          label: const Text('保存'),
+        ),
+      ],
+    );
+  }
+
+  void _changeMode(ModelMode? mode) {
+    if (mode == null) {
+      return;
+    }
+    setState(() => _mode = mode);
+  }
+
+  Future<void> _clearApiKey() async {
+    setState(() => _saving = true);
+    await widget.repository.clearApiKey();
+    if (!mounted) {
+      return;
+    }
+    setState(() {
+      _saving = false;
+      _clearingKey = true;
+      _apiKeyController.clear();
+    });
+  }
+
+  Future<void> _save() async {
+    setState(() => _saving = true);
+    await widget.repository.save(
+      mode: _mode,
+      baseUrl: _baseUrlController.text,
+      model: _modelController.text,
+      apiKey: _apiKeyController.text,
+    );
+    if (!mounted) {
+      return;
+    }
+    Navigator.of(context).pop(true);
   }
 }
 
@@ -1635,11 +1895,13 @@ class _PanelHeader extends StatelessWidget {
     required this.icon,
     required this.title,
     required this.subtitle,
+    this.trailing,
   });
 
   final IconData icon;
   final String title;
   final String subtitle;
+  final Widget? trailing;
 
   @override
   Widget build(BuildContext context) {
@@ -1666,6 +1928,10 @@ class _PanelHeader extends StatelessWidget {
             ],
           ),
         ),
+        if (trailing != null) ...[
+          const SizedBox(width: 8),
+          trailing!,
+        ],
       ],
     );
   }

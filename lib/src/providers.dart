@@ -7,6 +7,7 @@ import 'models/task_record.dart';
 import 'services/app_database.dart';
 import 'services/in_memory_memo_store.dart';
 import 'services/memo_store.dart';
+import 'services/model_settings_repository.dart';
 import 'services/summary_api_client.dart';
 
 final appDatabaseProvider = Provider<MemoStore>((ref) {
@@ -19,6 +20,22 @@ final appDatabaseProvider = Provider<MemoStore>((ref) {
 
 final summaryApiClientProvider = Provider<SummaryApiClient>((ref) {
   return SummaryApiClient();
+});
+
+final apiKeyVaultProvider = Provider<ApiKeyVault>((ref) {
+  return const SecureApiKeyVault();
+});
+
+final modelSettingsRepositoryProvider =
+    Provider<ModelSettingsRepository>((ref) {
+  return ModelSettingsRepository(
+    store: ref.watch(appDatabaseProvider),
+    apiKeyVault: ref.watch(apiKeyVaultProvider),
+  );
+});
+
+final modelSettingsProvider = FutureProvider((ref) {
+  return ref.watch(modelSettingsRepositoryProvider).load();
 });
 
 final taskTagFilterProvider = StateProvider<Set<String>>((ref) => <String>{});

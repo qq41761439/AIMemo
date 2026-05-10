@@ -262,28 +262,38 @@ ORDER BY g.created_at DESC, g.name COLLATE NOCASE ASC
 
   @override
   Future<double?> getActionPaneWidth() async {
+    return double.tryParse(await getAppSetting('action_pane_width') ?? '');
+  }
+
+  @override
+  Future<void> saveActionPaneWidth(double width) async {
+    await saveAppSetting('action_pane_width', width.toString());
+  }
+
+  @override
+  Future<String?> getAppSetting(String key) async {
     final db = await database;
     final rows = await db.query(
       'app_settings',
       columns: ['value'],
       where: 'key = ?',
-      whereArgs: ['action_pane_width'],
+      whereArgs: [key],
       limit: 1,
     );
     if (rows.isEmpty) {
       return null;
     }
-    return double.tryParse(rows.first['value'] as String);
+    return rows.first['value'] as String;
   }
 
   @override
-  Future<void> saveActionPaneWidth(double width) async {
+  Future<void> saveAppSetting(String key, String value) async {
     final db = await database;
     await db.insert(
       'app_settings',
       {
-        'key': 'action_pane_width',
-        'value': width.toString(),
+        'key': key,
+        'value': value,
         'updated_at': DateTime.now().toIso8601String(),
       },
       conflictAlgorithm: ConflictAlgorithm.replace,

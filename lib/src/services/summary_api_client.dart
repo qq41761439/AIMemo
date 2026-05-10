@@ -21,6 +21,7 @@ class SummaryApiClient {
     required String template,
     required String prompt,
     int? periodDays,
+    Map<String, Object?>? llmConfig,
   }) async {
     final uri = Uri.parse('$baseUrl/api/generate-summary');
     final http.Response response;
@@ -35,6 +36,7 @@ class SummaryApiClient {
           'template': template,
           'prompt': prompt,
           if (periodDays != null) 'period_days': periodDays,
+          if (llmConfig != null) 'llm_config': llmConfig,
         }),
       );
     } on http.ClientException catch (error) {
@@ -80,7 +82,10 @@ class SummaryApiClient {
       final error = body['error'];
       final detail = body['detail'];
       if (error == 'LLM_API_KEY is not configured') {
-        return '生成失败：总结代理缺少 LLM_API_KEY，请配置 server/.env 后重启 npm run dev。';
+        return '生成失败：请先配置模型服务，或等待 AIMemo 官方托管开放。也可以配置 server/.env 后重启 npm run dev。';
+      }
+      if (error == 'HOSTED_LLM_NOT_AVAILABLE') {
+        return '生成失败：AIMemo 官方托管模型暂未开放，请先使用自定义模型服务。';
       }
       if (error is String && detail is String && detail.trim().isNotEmpty) {
         return '生成失败：$error。$detail';
