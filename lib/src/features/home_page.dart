@@ -848,7 +848,31 @@ class _SummaryPanelState extends ConsumerState<_SummaryPanel> {
             onPickRange: _pickDateRange,
             onReset: _resetDateRange,
           ),
-          const SizedBox(height: 14),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: FilledButton.icon(
+                  onPressed: _isGenerating ? null : _generate,
+                  icon: _isGenerating
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.auto_awesome),
+                  label: Text(_isGenerating ? '生成中' : '生成总结'),
+                ),
+              ),
+              const SizedBox(width: 10),
+              OutlinedButton.icon(
+                onPressed: _openTemplateSettings,
+                icon: const Icon(Icons.tune, size: 18),
+                label: const Text('配置模板'),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
           const _SectionLabel('标签过滤'),
           const SizedBox(height: 8),
           tags.when(
@@ -877,30 +901,6 @@ class _SummaryPanelState extends ConsumerState<_SummaryPanel> {
             ),
             loading: () => const LinearProgressIndicator(),
             error: (error, _) => _ErrorText(error.toString()),
-          ),
-          const SizedBox(height: 18),
-          Row(
-            children: [
-              Expanded(
-                child: FilledButton.icon(
-                  onPressed: _isGenerating ? null : _generate,
-                  icon: _isGenerating
-                      ? const SizedBox(
-                          width: 18,
-                          height: 18,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : const Icon(Icons.auto_awesome),
-                  label: Text(_isGenerating ? '生成中' : '生成总结'),
-                ),
-              ),
-              const SizedBox(width: 10),
-              OutlinedButton.icon(
-                onPressed: _openTemplateSettings,
-                icon: const Icon(Icons.tune, size: 18),
-                label: const Text('配置模板'),
-              ),
-            ],
           ),
           const SizedBox(height: 18),
           if (_error != null) _ErrorText(_error!),
