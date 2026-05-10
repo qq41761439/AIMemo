@@ -1457,67 +1457,87 @@ class _InlineTemplateEditor extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: const Color(0xFFFAFBF9),
+    return Material(
+      color: const Color(0xFFFAFBF9),
+      shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: _border),
+        side: const BorderSide(color: _border),
       ),
+      clipBehavior: Clip.antiAlias,
       child: Padding(
         padding: const EdgeInsets.all(10),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Row(
-              children: [
-                Container(
-                  width: 30,
-                  height: 30,
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFE4ECE7),
-                    borderRadius: BorderRadius.circular(8),
+            Tooltip(
+              message: expanded ? '收起模板' : '编辑模板',
+              child: InkWell(
+                onTap: onToggleExpanded,
+                mouseCursor: SystemMouseCursors.click,
+                borderRadius: BorderRadius.circular(6),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 2,
+                    vertical: 4,
                   ),
-                  child: const Icon(Icons.tune, size: 18, color: _accent),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+                  child: Row(
                     children: [
-                      Text(
-                        '当前模板 · ${periodType.title}',
-                        style: Theme.of(context).textTheme.titleSmall,
+                      Container(
+                        width: 30,
+                        height: 30,
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFE4ECE7),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: const Icon(
+                          Icons.tune,
+                          size: 18,
+                          color: _accent,
+                        ),
                       ),
-                      const SizedBox(height: 2),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: Text(
-                              '支持 {period}、{period_days}、{tasks}、{tags}。',
-                              style: _captionStyle(context),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              '当前模板 · ${periodType.title}',
+                              style: Theme.of(context).textTheme.titleSmall,
                             ),
-                          ),
-                          if (dirty) ...[
-                            const SizedBox(width: 8),
-                            Text('未保存', style: _captionStyle(context)),
+                            const SizedBox(height: 2),
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: Text(
+                                    '支持 {period}、{period_days}、{tasks}、{tags}。',
+                                    style: _captionStyle(context),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                                if (dirty) ...[
+                                  const SizedBox(width: 8),
+                                  Text('未保存', style: _captionStyle(context)),
+                                ],
+                              ],
+                            ),
                           ],
-                        ],
+                        ),
+                      ),
+                      const SizedBox(width: 4),
+                      SizedBox(
+                        width: 40,
+                        height: 40,
+                        child: Icon(
+                          expanded
+                              ? Icons.keyboard_arrow_up
+                              : Icons.keyboard_arrow_down,
+                        ),
                       ),
                     ],
                   ),
                 ),
-                IconButton(
-                  tooltip: expanded ? '收起模板' : '编辑模板',
-                  onPressed: onToggleExpanded,
-                  icon: Icon(
-                    expanded
-                        ? Icons.keyboard_arrow_up
-                        : Icons.keyboard_arrow_down,
-                  ),
-                ),
-              ],
+              ),
             ),
             if (expanded) ...[
               const SizedBox(height: 10),
