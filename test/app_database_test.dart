@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:aimemo/src/models/model_settings.dart';
 import 'package:aimemo/src/models/period_type.dart';
 import 'package:aimemo/src/services/app_database.dart';
@@ -248,4 +250,33 @@ void main() {
     expect(rows.toString(), isNot(contains('placeholder-token')));
     expect(await vault.readApiKey(), 'placeholder-token');
   });
+
+  test('times out when secure model key storage hangs', () async {
+    final repository = ModelSettingsRepository(
+      store: database,
+      apiKeyVault: _HangingApiKeyVault(),
+      secureStorageTimeout: const Duration(milliseconds: 10),
+    );
+
+    await expectLater(
+      repository.save(
+        mode: ModelMode.custom,
+        baseUrl: 'http://127.0.0.1:8317/v1',
+        model: 'gpt-5.4-mini',
+        apiKey: 'placeholder-token',
+      ),
+      throwsA(isA<ModelSettingsException>()),
+    );
+  });
+}
+
+class _HangingApiKeyVault implements ApiKeyVault {
+  @override
+  Future<String?> readApiKey() => Completer<String?>().future;
+
+  @override
+  Future<void> saveApiKey(String apiKey) => Completer<void>().future;
+
+  @override
+  Future<void> deleteApiKey() => Completer<void>().future;
 }

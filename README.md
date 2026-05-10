@@ -133,6 +133,17 @@ AIMemo 的 Node 代理优先读取 `server/.env`。如果没有配置 `LLM_API_K
 
 因此本机已经运行 CLIProxyAPI 时，可以直接启动 AIMemo 代理；默认会转发到 `http://127.0.0.1:8317/v1`，模型默认使用 `gpt-5.4-mini`。
 
+应用内“使用自己的模型服务”也可以直接填写 CLIProxyAPI 参数。注意不要填写管理面板页面地址
+`http://localhost:8317/management.html#/`，应填写 OpenAI-compatible API 地址：
+
+```text
+Base URL: http://127.0.0.1:8317/v1
+Model: CLIProxyAPI 管理页里配置的模型名或别名
+API Key: CLIProxyAPI 配置中的 api-keys 值
+```
+
+macOS 桌面版会把 API Key 写入系统钥匙串。若钥匙串暂时无响应，模型设置保存会超时并在弹窗里显示错误，不会一直停留在保存中。
+
 如果不用 CLIProxyAPI，或想手动指定模型服务，可以复制并编辑 `.env`：
 
 ```bash

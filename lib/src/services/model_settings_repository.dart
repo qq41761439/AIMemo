@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 import '../models/model_settings.dart';
@@ -13,7 +15,9 @@ abstract class ApiKeyVault {
 
 class SecureApiKeyVault implements ApiKeyVault {
   const SecureApiKeyVault({
-    FlutterSecureStorage storage = const FlutterSecureStorage(),
+    FlutterSecureStorage storage = const FlutterSecureStorage(
+      mOptions: MacOsOptions(usesDataProtectionKeychain: false),
+    ),
   }) : _storage = storage;
 
   static const _apiKeyKey = 'aimemo_llm_api_key';
@@ -58,8 +62,10 @@ class ModelSettingsRepository {
   const ModelSettingsRepository({
     required MemoStore store,
     required ApiKeyVault apiKeyVault,
+    Duration secureStorageTimeout = const Duration(seconds: 8),
   })  : _store = store,
-        _apiKeyVault = apiKeyVault;
+        _apiKeyVault = apiKeyVault,
+        _secureStorageTimeout = secureStorageTimeout;
 
   static const _modeKey = 'model_mode';
   static const _baseUrlKey = 'model_base_url';
@@ -67,10 +73,14 @@ class ModelSettingsRepository {
 
   final MemoStore _store;
   final ApiKeyVault _apiKeyVault;
+  final Duration _secureStorageTimeout;
 
   Future<ModelSettings> load() async {
     final defaults = ModelSettings.defaults();
-    final apiKey = await _apiKeyVault.readApiKey();
+    final apiKey = await _secureStorageOperation(
+      () => _apiKeyVault.readApiKey(),
+      timeoutMessage: '读取模型密钥超时，请检查 macOS 钥匙串权限后重试。',
+    );
     return ModelSettings(
       mode: ModelMode.fromValue(await _store.getAppSetting(_modeKey)),
       baseUrl: (await _store.getAppSetting(_baseUrlKey)) ?? defaults.baseUrl,
@@ -91,12 +101,18 @@ class ModelSettingsRepository {
 
     final cleanApiKey = apiKey?.trim();
     if (cleanApiKey != null && cleanApiKey.isNotEmpty) {
-      await _apiKeyVault.saveApiKey(cleanApiKey);
+      await _secureStorageOperation(
+        () => _apiKeyVault.saveApiKey(cleanApiKey),
+        timeoutMessage: '保存模型密钥超时，请检查 macOS 钥匙串权限后重试。',
+      );
     }
   }
 
   Future<void> clearApiKey() async {
-    await _apiKeyVault.deleteApiKey();
+    await _secureStorageOperation(
+      () => _apiKeyVault.deleteApiKey(),
+      timeoutMessage: '清除模型密钥超时，请检查 macOS 钥匙串权限后重试。',
+    );
   }
 
   Future<Map<String, Object?>?> requestConfig() async {
@@ -105,7 +121,10 @@ class ModelSettingsRepository {
       return const {'mode': 'hosted'};
     }
 
-    final apiKey = await _apiKeyVault.readApiKey();
+    final apiKey = await _secureStorageOperation(
+      () => _apiKeyVault.readApiKey(),
+      timeoutMessage: '读取模型密钥超时，请检查 macOS 钥匙串权限后重试。',
+    );
     if (apiKey == null ||
         apiKey.trim().isEmpty ||
         settings.baseUrl.trim().isEmpty ||
@@ -120,4 +139,31 @@ class ModelSettingsRepository {
       'model': settings.model.trim(),
     };
   }
+
+  Future<T> _secureStorageOperation<T>(
+    Future<T> Function() operation, {
+    required String timeoutMessage,
+  }) async {
+    try {
+      return await operation().timeout(
+        _secureStorageTimeout,
+        onTimeout: () => throw ModelSettingsException(timeoutMessage),
+      );
+    } on ModelSettingsException {
+      rethrow;
+    } on TimeoutException {
+      throw ModelSettingsException(timeoutMessage);
+    } catch (error) {
+      throw ModelSettingsException('模型密钥存储失败：$error');
+    }
+  }
+}
+
+class ModelSettingsException implements Exception {
+  const ModelSettingsException(this.message);
+
+  final String message;
+
+  @override
+  String toString() => message;
 }

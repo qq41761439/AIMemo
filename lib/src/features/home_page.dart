@@ -1556,6 +1556,7 @@ class _ModelSettingsDialogState extends State<_ModelSettingsDialog> {
   late final TextEditingController _modelController;
   bool _saving = false;
   bool _clearingKey = false;
+  String? _error;
 
   @override
   void initState() {
@@ -1666,6 +1667,10 @@ class _ModelSettingsDialogState extends State<_ModelSettingsDialog> {
                     ),
                   ),
                 ),
+              if (_error != null) ...[
+                const SizedBox(height: 10),
+                _ErrorText(_error!),
+              ],
             ],
           ),
         ),
@@ -1694,34 +1699,62 @@ class _ModelSettingsDialogState extends State<_ModelSettingsDialog> {
     if (mode == null) {
       return;
     }
-    setState(() => _mode = mode);
-  }
-
-  Future<void> _clearApiKey() async {
-    setState(() => _saving = true);
-    await widget.repository.clearApiKey();
-    if (!mounted) {
-      return;
-    }
     setState(() {
-      _saving = false;
-      _clearingKey = true;
-      _apiKeyController.clear();
+      _mode = mode;
+      _error = null;
     });
   }
 
-  Future<void> _save() async {
-    setState(() => _saving = true);
-    await widget.repository.save(
-      mode: _mode,
-      baseUrl: _baseUrlController.text,
-      model: _modelController.text,
-      apiKey: _apiKeyController.text,
-    );
-    if (!mounted) {
-      return;
+  Future<void> _clearApiKey() async {
+    setState(() {
+      _saving = true;
+      _error = null;
+    });
+    try {
+      await widget.repository.clearApiKey();
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _clearingKey = true;
+        _apiKeyController.clear();
+      });
+    } catch (error) {
+      if (mounted) {
+        setState(() => _error = error.toString());
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _saving = false);
+      }
     }
-    Navigator.of(context).pop(true);
+  }
+
+  Future<void> _save() async {
+    setState(() {
+      _saving = true;
+      _error = null;
+    });
+    try {
+      await widget.repository.save(
+        mode: _mode,
+        baseUrl: _baseUrlController.text,
+        model: _modelController.text,
+        apiKey: _apiKeyController.text,
+      );
+      if (!mounted) {
+        return;
+      }
+      Navigator.of(context).pop(true);
+    } catch (error) {
+      if (mounted) {
+        setState(() => _error = error.toString());
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _saving = false);
+      }
+    }
   }
 }
 
