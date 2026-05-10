@@ -835,15 +835,10 @@ class _SummaryPanelState extends ConsumerState<_SummaryPanel> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          _PanelHeader(
+          const _PanelHeader(
             icon: Icons.auto_awesome_outlined,
             title: '生成总结',
             subtitle: '按周期和标签收集任务，交给模型复盘。',
-            trailing: OutlinedButton.icon(
-              onPressed: _openTemplateSettings,
-              icon: const Icon(Icons.tune, size: 18),
-              label: const Text('配置模板'),
-            ),
           ),
           const SizedBox(height: 16),
           _SummaryRangeSelector(
@@ -884,16 +879,28 @@ class _SummaryPanelState extends ConsumerState<_SummaryPanel> {
             error: (error, _) => _ErrorText(error.toString()),
           ),
           const SizedBox(height: 18),
-          FilledButton.icon(
-            onPressed: _isGenerating ? null : _generate,
-            icon: _isGenerating
-                ? const SizedBox(
-                    width: 18,
-                    height: 18,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
-                : const Icon(Icons.auto_awesome),
-            label: Text(_isGenerating ? '生成中' : '生成总结'),
+          Row(
+            children: [
+              Expanded(
+                child: FilledButton.icon(
+                  onPressed: _isGenerating ? null : _generate,
+                  icon: _isGenerating
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.auto_awesome),
+                  label: Text(_isGenerating ? '生成中' : '生成总结'),
+                ),
+              ),
+              const SizedBox(width: 10),
+              OutlinedButton.icon(
+                onPressed: _openTemplateSettings,
+                icon: const Icon(Icons.tune, size: 18),
+                label: const Text('配置模板'),
+              ),
+            ],
           ),
           const SizedBox(height: 18),
           if (_error != null) _ErrorText(_error!),
