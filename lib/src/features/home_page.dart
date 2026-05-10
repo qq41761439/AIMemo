@@ -1044,7 +1044,6 @@ class _SummaryPanelState extends ConsumerState<_SummaryPanel> {
               unawaited(_changePeriod(value));
             },
             onPickRange: _pickDateRange,
-            onReset: _resetDateRange,
           ),
           const SizedBox(height: 8),
           _InlineTemplateEditor(
@@ -1248,12 +1247,6 @@ class _SummaryPanelState extends ConsumerState<_SummaryPanel> {
       }
     });
     _loadTemplate();
-  }
-
-  void _resetDateRange() {
-    setState(() {
-      _selectedRange = periodRangeFor(_periodType, DateTime.now());
-    });
   }
 
   Future<void> _pickDateRange() async {
@@ -1684,14 +1677,12 @@ class _SummaryRangeSelector extends StatelessWidget {
     required this.range,
     required this.onPeriodChanged,
     required this.onPickRange,
-    required this.onReset,
   });
 
   final PeriodType periodType;
   final PeriodRange range;
   final ValueChanged<PeriodType> onPeriodChanged;
   final VoidCallback onPickRange;
-  final VoidCallback onReset;
 
   @override
   Widget build(BuildContext context) {
@@ -1773,13 +1764,6 @@ class _SummaryRangeSelector extends StatelessWidget {
               ),
             ),
           ),
-        ),
-        const SizedBox(width: 4),
-        IconButton(
-          tooltip: '重置日期区间',
-          visualDensity: VisualDensity.compact,
-          onPressed: onReset,
-          icon: const Icon(Icons.restart_alt, size: 20),
         ),
       ],
     );
