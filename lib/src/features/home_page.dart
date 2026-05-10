@@ -15,18 +15,32 @@ const _faint = Color(0xFFF4F5F2);
 const _panel = Color(0xFFFFFFFF);
 const _border = Color(0xFFDDE2DC);
 const _accent = Color(0xFF2F6F5E);
+const _defaultActionPaneWidth = 520.0;
+const _minActionPaneWidth = 380.0;
+const _maxActionPaneWidth = 720.0;
+const _minTaskPaneWidth = 420.0;
 
-class HomePage extends ConsumerWidget {
+class HomePage extends StatefulWidget {
   const HomePage({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  State<HomePage> createState() => _HomePageState();
+}
+
+class _HomePageState extends State<HomePage> {
+  double _actionPaneWidth = _defaultActionPaneWidth;
+
+  @override
+  Widget build(BuildContext context) {
     return Scaffold(
       body: SafeArea(
         child: LayoutBuilder(
           builder: (context, constraints) {
             final workspaceWidth =
                 constraints.maxWidth < 980 ? 980.0 : constraints.maxWidth;
+            final maxActionPaneWidth = _maxActionPaneWidthFor(workspaceWidth);
+            final actionPaneWidth =
+                _clampActionPaneWidth(_actionPaneWidth, maxActionPaneWidth);
 
             return ColoredBox(
               color: _faint,
@@ -35,17 +49,69 @@ class HomePage extends ConsumerWidget {
                 child: SizedBox(
                   width: workspaceWidth,
                   height: constraints.maxHeight,
-                  child: const Row(
+                  child: Row(
                     children: [
-                      Expanded(child: _TaskListPane()),
-                      VerticalDivider(width: 1),
-                      SizedBox(width: 440, child: _ActionPane()),
+                      const Expanded(child: _TaskListPane()),
+                      _PaneDivider(
+                        onDragUpdate: (details) {
+                          setState(() {
+                            _actionPaneWidth = _clampActionPaneWidth(
+                              _actionPaneWidth - details.delta.dx,
+                              maxActionPaneWidth,
+                            );
+                          });
+                        },
+                      ),
+                      SizedBox(
+                        width: actionPaneWidth,
+                        child: const _ActionPane(),
+                      ),
                     ],
                   ),
                 ),
               ),
             );
           },
+        ),
+      ),
+    );
+  }
+
+  double _maxActionPaneWidthFor(double workspaceWidth) {
+    final availableWidth =
+        workspaceWidth - _minTaskPaneWidth - _PaneDivider.width;
+    return availableWidth
+        .clamp(_minActionPaneWidth, _maxActionPaneWidth)
+        .toDouble();
+  }
+
+  double _clampActionPaneWidth(double width, double maxWidth) {
+    return width.clamp(_minActionPaneWidth, maxWidth).toDouble();
+  }
+}
+
+class _PaneDivider extends StatelessWidget {
+  const _PaneDivider({required this.onDragUpdate});
+
+  static const width = 10.0;
+
+  final GestureDragUpdateCallback onDragUpdate;
+
+  @override
+  Widget build(BuildContext context) {
+    return MouseRegion(
+      cursor: SystemMouseCursors.resizeLeftRight,
+      child: GestureDetector(
+        behavior: HitTestBehavior.translucent,
+        onHorizontalDragUpdate: onDragUpdate,
+        child: SizedBox(
+          width: width,
+          child: Center(
+            child: Container(
+              width: 1,
+              color: _border,
+            ),
+          ),
         ),
       ),
     );
