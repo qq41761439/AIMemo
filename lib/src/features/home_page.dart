@@ -848,7 +848,45 @@ class _SummaryPanelState extends ConsumerState<_SummaryPanel> {
             onPickRange: _pickDateRange,
             onReset: _resetDateRange,
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 14),
+          const _SectionLabel('标签过滤'),
+          const SizedBox(height: 8),
+          tags.when(
+            data: (items) => ConstrainedBox(
+              constraints: const BoxConstraints(maxHeight: 118),
+              child: SingleChildScrollView(
+                child: Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    FilterChip(
+                      label: const Text('全部标签'),
+                      selected: _selectedTags.isEmpty,
+                      onSelected: (_) => setState(_selectedTags.clear),
+                    ),
+                    for (final tag in items)
+                      FilterChip(
+                        label: Text(tag),
+                        selected: _selectedTags.contains(tag),
+                        onSelected: (selected) {
+                          setState(() {
+                            selected
+                                ? _selectedTags.add(tag)
+                                : _selectedTags.remove(tag);
+                          });
+                        },
+                      ),
+                  ],
+                ),
+              ),
+            ),
+            loading: () => const SizedBox(
+              height: 4,
+              child: LinearProgressIndicator(),
+            ),
+            error: (error, _) => _ErrorText(error.toString()),
+          ),
+          const SizedBox(height: 16),
           Row(
             children: [
               Expanded(
@@ -871,36 +909,6 @@ class _SummaryPanelState extends ConsumerState<_SummaryPanel> {
                 label: const Text('配置模板'),
               ),
             ],
-          ),
-          const SizedBox(height: 16),
-          const _SectionLabel('标签过滤'),
-          const SizedBox(height: 8),
-          tags.when(
-            data: (items) => Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: [
-                FilterChip(
-                  label: const Text('全部标签'),
-                  selected: _selectedTags.isEmpty,
-                  onSelected: (_) => setState(_selectedTags.clear),
-                ),
-                for (final tag in items)
-                  FilterChip(
-                    label: Text(tag),
-                    selected: _selectedTags.contains(tag),
-                    onSelected: (selected) {
-                      setState(() {
-                        selected
-                            ? _selectedTags.add(tag)
-                            : _selectedTags.remove(tag);
-                      });
-                    },
-                  ),
-              ],
-            ),
-            loading: () => const LinearProgressIndicator(),
-            error: (error, _) => _ErrorText(error.toString()),
           ),
           const SizedBox(height: 18),
           if (_error != null) _ErrorText(_error!),
