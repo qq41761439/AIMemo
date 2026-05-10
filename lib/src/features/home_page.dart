@@ -1700,40 +1700,37 @@ class _SummaryRangeSelector extends StatelessWidget {
         SizedBox(
           width: 108,
           height: 40,
-          child: DropdownButtonFormField<PeriodType>(
-            decoration: const InputDecoration(
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.all(Radius.circular(6)),
-              ),
-              enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.all(Radius.circular(6)),
-                borderSide: BorderSide(color: _border),
-              ),
-              focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.all(Radius.circular(6)),
-                borderSide: BorderSide(color: _border),
-              ),
-              contentPadding: EdgeInsets.symmetric(horizontal: 10),
-              constraints: BoxConstraints.tightFor(height: 40),
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              border: Border.all(color: _border),
+              borderRadius: BorderRadius.circular(6),
             ),
-            initialValue: periodType,
-            isDense: true,
-            icon: const Icon(Icons.expand_more, size: 20),
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: _ink,
-                  fontWeight: FontWeight.w600,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 10),
+              child: DropdownButtonHideUnderline(
+                child: DropdownButton<PeriodType>(
+                  value: periodType,
+                  isExpanded: true,
+                  borderRadius: BorderRadius.circular(6),
+                  icon: const Icon(Icons.expand_more, size: 20),
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: _ink,
+                        fontWeight: FontWeight.w600,
+                      ),
+                  items: PeriodType.values
+                      .map(
+                        (type) => DropdownMenuItem<PeriodType>(
+                          value: type,
+                          child: Text(type.title),
+                        ),
+                      )
+                      .toList(),
+                  onChanged: (value) {
+                    if (value != null) onPeriodChanged(value);
+                  },
                 ),
-            items: PeriodType.values
-                .map(
-                  (type) => DropdownMenuItem<PeriodType>(
-                    value: type,
-                    child: Text(type.title),
-                  ),
-                )
-                .toList(),
-            onChanged: (value) {
-              if (value != null) onPeriodChanged(value);
-            },
+              ),
+            ),
           ),
         ),
         const SizedBox(width: 8),
