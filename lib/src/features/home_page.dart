@@ -428,7 +428,7 @@ class _ActionPaneState extends ConsumerState<_ActionPane>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 4, vsync: this);
+    _tabController = TabController(length: 3, vsync: this);
   }
 
   @override
@@ -476,7 +476,6 @@ class _ActionPaneState extends ConsumerState<_ActionPane>
                 text: firstTabLabel,
               ),
               const Tab(icon: Icon(Icons.auto_awesome_outlined), text: '总结'),
-              const Tab(icon: Icon(Icons.tune), text: '模板'),
               const Tab(icon: Icon(Icons.history), text: '历史'),
             ],
           ),
@@ -486,7 +485,6 @@ class _ActionPaneState extends ConsumerState<_ActionPane>
               children: const [
                 _AddTaskPanel(),
                 _SummaryPanel(),
-                _TemplatePanel(),
                 _HistoryPanel(),
               ],
             ),
@@ -818,8 +816,11 @@ class _SummaryPanel extends ConsumerStatefulWidget {
 class _SummaryPanelState extends ConsumerState<_SummaryPanel> {
   PeriodType _periodType = PeriodType.daily;
   late PeriodRange _selectedRange;
+  final _templateController = TextEditingController();
   final Set<String> _selectedTags = <String>{};
   bool _isGenerating = false;
+  bool _templateLoaded = false;
+  bool _templateExpanded = false;
   String? _latestSummary;
   String? _error;
 
@@ -827,6 +828,15 @@ class _SummaryPanelState extends ConsumerState<_SummaryPanel> {
   void initState() {
     super.initState();
     _selectedRange = periodRangeFor(_periodType, DateTime.now());
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadTemplate();
+    });
+  }
+
+  @override
+  void dispose() {
+    _templateController.dispose();
+    super.dispose();
   }
 
   @override
@@ -849,6 +859,18 @@ class _SummaryPanelState extends ConsumerState<_SummaryPanel> {
             onPeriodChanged: _changePeriod,
             onPickRange: _pickDateRange,
             onReset: _resetDateRange,
+          ),
+          const SizedBox(height: 12),
+          _InlineTemplateEditor(
+            periodType: _periodType,
+            controller: _templateController,
+            loaded: _templateLoaded,
+            expanded: _templateExpanded,
+            onToggleExpanded: () {
+              setState(() => _templateExpanded = !_templateExpanded);
+            },
+            onSave: _saveTemplate,
+            onReset: _resetTemplate,
           ),
           const SizedBox(height: 14),
           const _SectionLabel('标签过滤'),
@@ -1001,6 +1023,7 @@ class _SummaryPanelState extends ConsumerState<_SummaryPanel> {
   void _changePeriod(PeriodType value) {
     setState(() {
       _periodType = value;
+      _templateLoaded = false;
       if (value == PeriodType.custom) {
         _selectedRange = PeriodRange(
           start: _selectedRange.start,
@@ -1011,6 +1034,7 @@ class _SummaryPanelState extends ConsumerState<_SummaryPanel> {
         _selectedRange = periodRangeFor(value, DateTime.now());
       }
     });
+    _loadTemplate();
   }
 
   void _resetDateRange() {
@@ -1076,113 +1100,23 @@ class _SummaryPanelState extends ConsumerState<_SummaryPanel> {
 
   DateTime _dateOnly(DateTime date) =>
       DateTime(date.year, date.month, date.day);
-}
-
-class _TemplatePanel extends ConsumerStatefulWidget {
-  const _TemplatePanel();
-
-  @override
-  ConsumerState<_TemplatePanel> createState() => _TemplatePanelState();
-}
-
-class _TemplatePanelState extends ConsumerState<_TemplatePanel> {
-  final _controller = TextEditingController();
-  PeriodType _periodType = PeriodType.daily;
-  bool _loaded = false;
-
-  @override
-  void initState() {
-    super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _loadTemplate();
-    });
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return _PanelPadding(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          const _PanelHeader(
-            icon: Icons.tune,
-            title: '模板配置',
-            subtitle: '支持 {period}、{period_days}、{tasks}、{tags}。',
-          ),
-          const SizedBox(height: 16),
-          _TemplatePeriodSelector(
-            value: _periodType,
-            onChanged: (value) {
-              setState(() {
-                _periodType = value;
-                _loaded = false;
-              });
-              _loadTemplate();
-            },
-          ),
-          const SizedBox(height: 12),
-          Expanded(
-            child: TextField(
-              controller: _controller,
-              enabled: _loaded,
-              decoration: const InputDecoration(
-                alignLabelWithHint: true,
-                labelText: '提示词模板',
-                hintText: '{period} {period_days} {tasks} {tags}',
-              ),
-              expands: true,
-              minLines: null,
-              maxLines: null,
-              textAlignVertical: TextAlignVertical.top,
-            ),
-          ),
-          const SizedBox(height: 12),
-          Row(
-            children: [
-              Expanded(
-                child: OutlinedButton.icon(
-                  onPressed: _loaded ? _reset : null,
-                  icon: const Icon(Icons.restore),
-                  label: const Text('恢复默认'),
-                ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: FilledButton.icon(
-                  onPressed: _loaded ? _save : null,
-                  icon: const Icon(Icons.save_outlined),
-                  label: const Text('保存模板'),
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
 
   Future<void> _loadTemplate() async {
-    final content =
-        await ref.read(appDatabaseProvider).getTemplate(_periodType);
-    if (!mounted) {
+    final periodType = _periodType;
+    final content = await ref.read(appDatabaseProvider).getTemplate(periodType);
+    if (!mounted || _periodType != periodType) {
       return;
     }
     setState(() {
-      _controller.text = content;
-      _loaded = true;
+      _templateController.text = content;
+      _templateLoaded = true;
     });
   }
 
-  Future<void> _save() async {
+  Future<void> _saveTemplate() async {
     await ref.read(appDatabaseProvider).saveTemplate(
           _periodType,
-          _controller.text,
+          _templateController.text,
         );
     ref.invalidate(templateProvider(_periodType));
     if (mounted) {
@@ -1192,10 +1126,127 @@ class _TemplatePanelState extends ConsumerState<_TemplatePanel> {
     }
   }
 
-  Future<void> _reset() async {
+  Future<void> _resetTemplate() async {
     await ref.read(appDatabaseProvider).resetTemplate(_periodType);
     await _loadTemplate();
     ref.invalidate(templateProvider(_periodType));
+  }
+}
+
+class _InlineTemplateEditor extends StatelessWidget {
+  const _InlineTemplateEditor({
+    required this.periodType,
+    required this.controller,
+    required this.loaded,
+    required this.expanded,
+    required this.onToggleExpanded,
+    required this.onSave,
+    required this.onReset,
+  });
+
+  final PeriodType periodType;
+  final TextEditingController controller;
+  final bool loaded;
+  final bool expanded;
+  final VoidCallback onToggleExpanded;
+  final VoidCallback onSave;
+  final VoidCallback onReset;
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: const Color(0xFFFAFBF9),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: _border),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(10),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              children: [
+                Container(
+                  width: 30,
+                  height: 30,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFE4ECE7),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Icon(Icons.tune, size: 18, color: _accent),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        '当前模板 · ${periodType.title}',
+                        style: Theme.of(context).textTheme.titleSmall,
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        '支持 {period}、{period_days}、{tasks}、{tags}。',
+                        style: _captionStyle(context),
+                      ),
+                    ],
+                  ),
+                ),
+                IconButton(
+                  tooltip: expanded ? '收起模板' : '编辑模板',
+                  onPressed: onToggleExpanded,
+                  icon: Icon(
+                    expanded
+                        ? Icons.keyboard_arrow_up
+                        : Icons.keyboard_arrow_down,
+                  ),
+                ),
+              ],
+            ),
+            if (expanded) ...[
+              const SizedBox(height: 10),
+              SizedBox(
+                height: 170,
+                child: TextField(
+                  controller: controller,
+                  enabled: loaded,
+                  decoration: const InputDecoration(
+                    alignLabelWithHint: true,
+                    labelText: '提示词模板',
+                    hintText: '{period} {period_days} {tasks} {tags}',
+                  ),
+                  expands: true,
+                  minLines: null,
+                  maxLines: null,
+                  textAlignVertical: TextAlignVertical.top,
+                ),
+              ),
+              const SizedBox(height: 10),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: loaded ? onReset : null,
+                      icon: const Icon(Icons.restore),
+                      label: const Text('恢复默认'),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: FilledButton.icon(
+                      onPressed: loaded ? onSave : null,
+                      icon: const Icon(Icons.save_outlined),
+                      label: const Text('保存模板'),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
   }
 }
 
@@ -1409,63 +1460,6 @@ class _SummaryRangeSelector extends StatelessWidget {
       PeriodType.yearly => '选择年份后汇总全年任务。',
       PeriodType.custom => '选择开始和结束日期后汇总自定义区间。',
     };
-  }
-}
-
-class _TemplatePeriodSelector extends StatelessWidget {
-  const _TemplatePeriodSelector({
-    required this.value,
-    required this.onChanged,
-  });
-
-  final PeriodType value;
-  final ValueChanged<PeriodType> onChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: const Color(0xFFFAFBF9),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: _border),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-        child: Row(
-          children: [
-            Text('总结类型', style: _captionStyle(context)),
-            const SizedBox(width: 14),
-            Expanded(
-              child: DropdownButtonHideUnderline(
-                child: DropdownButton<PeriodType>(
-                  value: value,
-                  isExpanded: true,
-                  borderRadius: BorderRadius.circular(8),
-                  dropdownColor: _panel,
-                  icon: const Icon(Icons.keyboard_arrow_down_rounded),
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: _ink,
-                        fontWeight: FontWeight.w600,
-                      ),
-                  items: [
-                    for (final type in PeriodType.values)
-                      DropdownMenuItem(
-                        value: type,
-                        child: Text(type.title),
-                      ),
-                  ],
-                  onChanged: (next) {
-                    if (next != null) {
-                      onChanged(next);
-                    }
-                  },
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
   }
 }
 
