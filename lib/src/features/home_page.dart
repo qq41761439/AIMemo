@@ -697,6 +697,9 @@ class _AddTaskPanelState extends ConsumerState<_AddTaskPanel> {
     final tags = ref.watch(tagListProvider);
     _syncEditingTask(editingTask);
     final isEditing = editingTask != null;
+    final selectedTagKeys = _parseTags(_tagsController.text)
+        .map((tag) => tag.toLowerCase())
+        .toSet();
 
     return _PanelPadding(
       child: Column(
@@ -721,6 +724,45 @@ class _AddTaskPanelState extends ConsumerState<_AddTaskPanel> {
           TextField(
             controller: _tagsController,
             decoration: const InputDecoration(labelText: '标签'),
+            onChanged: (_) => setState(() {}),
+          ),
+          const SizedBox(height: 10),
+          tags.when(
+            data: (items) {
+              final availableTags = items
+                  .where((tag) => !selectedTagKeys.contains(tag.toLowerCase()))
+                  .toList();
+              if (availableTags.isEmpty) {
+                return const SizedBox.shrink();
+              }
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    '可添加标签',
+                    style: _captionStyle(context)?.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      for (final tag in availableTags)
+                        ActionChip(
+                          label: Text(tag),
+                          side: const BorderSide(color: _border),
+                          backgroundColor: _faint,
+                          onPressed: () => _appendTag(tag),
+                        ),
+                    ],
+                  ),
+                ],
+              );
+            },
+            loading: () => const SizedBox.shrink(),
+            error: (_, __) => const SizedBox.shrink(),
           ),
           if (isEditing) ...[
             const SizedBox(height: 12),
@@ -751,22 +793,6 @@ class _AddTaskPanelState extends ConsumerState<_AddTaskPanel> {
               ],
             ),
           ],
-          const SizedBox(height: 12),
-          tags.when(
-            data: (items) => Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: [
-                for (final tag in items)
-                  ActionChip(
-                    label: Text(tag),
-                    onPressed: () => _appendTag(tag),
-                  ),
-              ],
-            ),
-            loading: () => const SizedBox.shrink(),
-            error: (_, __) => const SizedBox.shrink(),
-          ),
           const SizedBox(height: 18),
           Row(
             children: [
@@ -826,7 +852,9 @@ class _AddTaskPanelState extends ConsumerState<_AddTaskPanel> {
         .map((item) => item.toLowerCase())
         .contains(tag.toLowerCase())) {
       current.add(tag);
-      _tagsController.text = current.join(', ');
+      setState(() {
+        _tagsController.text = current.join(', ');
+      });
     }
   }
 
