@@ -1451,7 +1451,6 @@ class _SummaryPanelState extends ConsumerState<_SummaryPanel> {
     );
     if (saved == true && mounted) {
       ref.invalidate(modelSettingsProvider);
-      _showSnackBar('模型设置已保存。');
     }
   }
 
@@ -1773,7 +1772,9 @@ class _ModelSettingsDialogState extends State<_ModelSettingsDialog> {
       text: widget.initialSettings.model,
     );
     _hostedBaseUrlController = TextEditingController(
-      text: widget.initialSettings.hostedBaseUrl,
+      text: widget.initialSettings.hostedBaseUrl.trim().isEmpty
+          ? ModelSettings.defaults().hostedBaseUrl
+          : widget.initialSettings.hostedBaseUrl,
     );
     _hostedEmailController = TextEditingController();
     _hostedCodeController = TextEditingController();
@@ -1877,23 +1878,38 @@ class _ModelSettingsDialogState extends State<_ModelSettingsDialog> {
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    TextField(
-                      controller: _hostedBaseUrlController,
-                      enabled: !_saving && !_loggingIn && !_sendingCode,
-                      decoration: const InputDecoration(
-                        labelText: '后端地址',
-                        hintText: 'http://127.0.0.1:8787',
-                      ),
-                    ),
-                    const SizedBox(height: 10),
-                    TextField(
-                      controller: _hostedEmailController,
-                      enabled: !_saving && !_loggingIn && !_sendingCode,
-                      keyboardType: TextInputType.emailAddress,
-                      decoration: const InputDecoration(
-                        labelText: '邮箱',
-                        hintText: 'you@example.com',
-                      ),
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(
+                          child: TextField(
+                            controller: _hostedEmailController,
+                            enabled: !_saving && !_loggingIn && !_sendingCode,
+                            keyboardType: TextInputType.emailAddress,
+                            decoration: const InputDecoration(
+                              labelText: '邮箱',
+                              hintText: 'you@example.com',
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        OutlinedButton.icon(
+                          style: compactOutlinedButtonStyle,
+                          onPressed: _saving || _loggingIn || _sendingCode
+                              ? null
+                              : _sendHostedCode,
+                          icon: _sendingCode
+                              ? const SizedBox(
+                                  width: 16,
+                                  height: 16,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                  ),
+                                )
+                              : const Icon(Icons.mail_outline),
+                          label: const Text('发送验证码'),
+                        ),
+                      ],
                     ),
                     const SizedBox(height: 10),
                     TextField(
@@ -1905,46 +1921,19 @@ class _ModelSettingsDialogState extends State<_ModelSettingsDialog> {
                       ),
                     ),
                     const SizedBox(height: 10),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: OutlinedButton.icon(
-                            style: compactOutlinedButtonStyle,
-                            onPressed: _saving || _loggingIn || _sendingCode
-                                ? null
-                                : _sendHostedCode,
-                            icon: _sendingCode
-                                ? const SizedBox(
-                                    width: 16,
-                                    height: 16,
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 2,
-                                    ),
-                                  )
-                                : const Icon(Icons.mail_outline),
-                            label: const Text('发送验证码'),
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: FilledButton.icon(
-                            style: compactButtonStyle,
-                            onPressed: _saving || _loggingIn || _sendingCode
-                                ? null
-                                : _loginHosted,
-                            icon: _loggingIn
-                                ? const SizedBox(
-                                    width: 16,
-                                    height: 16,
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 2,
-                                    ),
-                                  )
-                                : const Icon(Icons.login_outlined),
-                            label: const Text('登录'),
-                          ),
-                        ),
-                      ],
+                    FilledButton.icon(
+                      style: compactButtonStyle,
+                      onPressed: _saving || _loggingIn || _sendingCode
+                          ? null
+                          : _loginHosted,
+                      icon: _loggingIn
+                          ? const SizedBox(
+                              width: 16,
+                              height: 16,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : const Icon(Icons.login_outlined),
+                      label: const Text('登录/注册'),
                     ),
                     if (_hasHostedSession)
                       Align(
@@ -1967,24 +1956,27 @@ class _ModelSettingsDialogState extends State<_ModelSettingsDialog> {
           ),
         ),
       ),
-      actions: [
-        TextButton(
-          onPressed: _saving ? null : () => Navigator.of(context).pop(false),
-          child: const Text('取消'),
-        ),
-        FilledButton.icon(
-          style: compactButtonStyle,
-          onPressed: _saving ? null : _save,
-          icon: _saving
-              ? const SizedBox(
-                  width: 16,
-                  height: 16,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                )
-              : const Icon(Icons.save_outlined),
-          label: const Text('保存'),
-        ),
-      ],
+      actions: isCustom
+          ? [
+              TextButton(
+                onPressed:
+                    _saving ? null : () => Navigator.of(context).pop(false),
+                child: const Text('取消'),
+              ),
+              FilledButton.icon(
+                style: compactButtonStyle,
+                onPressed: _saving ? null : _save,
+                icon: _saving
+                    ? const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.save_outlined),
+                label: const Text('保存'),
+              ),
+            ]
+          : null,
     );
   }
 
@@ -2030,7 +2022,7 @@ class _ModelSettingsDialogState extends State<_ModelSettingsDialog> {
     });
     try {
       await widget.repository.startHostedEmailLogin(
-        hostedBaseUrl: _hostedBaseUrlController.text,
+        hostedBaseUrl: _hostedBaseUrl,
         email: _hostedEmailController.text,
       );
       if (mounted) {
@@ -2056,9 +2048,16 @@ class _ModelSettingsDialogState extends State<_ModelSettingsDialog> {
     });
     try {
       await widget.repository.verifyHostedEmailLogin(
-        hostedBaseUrl: _hostedBaseUrlController.text,
+        hostedBaseUrl: _hostedBaseUrl,
         email: _hostedEmailController.text,
         code: _hostedCodeController.text,
+      );
+      await widget.repository.save(
+        mode: ModelMode.hosted,
+        baseUrl: _baseUrlController.text,
+        model: _modelController.text,
+        hostedBaseUrl: _hostedBaseUrl,
+        apiKey: _apiKeyController.text,
       );
       if (mounted) {
         setState(() {
@@ -2068,6 +2067,7 @@ class _ModelSettingsDialogState extends State<_ModelSettingsDialog> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('官方托管模型已登录。')),
         );
+        Navigator.of(context).pop(true);
       }
     } catch (error) {
       if (mounted) {
@@ -2121,6 +2121,9 @@ class _ModelSettingsDialogState extends State<_ModelSettingsDialog> {
       if (!mounted) {
         return;
       }
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('模型设置已保存。')),
+      );
       Navigator.of(context).pop(true);
     } catch (error) {
       if (mounted) {
@@ -2131,6 +2134,11 @@ class _ModelSettingsDialogState extends State<_ModelSettingsDialog> {
         setState(() => _saving = false);
       }
     }
+  }
+
+  String get _hostedBaseUrl {
+    final value = _hostedBaseUrlController.text.trim();
+    return value.isEmpty ? ModelSettings.defaults().hostedBaseUrl : value;
   }
 }
 

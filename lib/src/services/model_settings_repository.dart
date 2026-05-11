@@ -182,8 +182,11 @@ class ModelSettingsRepository {
   }) async {
     final baseUrl = hostedBaseUrl.trim();
     final cleanEmail = email.trim();
-    if (baseUrl.isEmpty || cleanEmail.isEmpty) {
-      throw const ModelSettingsException('请先填写后端地址和邮箱。');
+    if (baseUrl.isEmpty) {
+      throw const ModelSettingsException('官方模型服务地址未配置。');
+    }
+    if (cleanEmail.isEmpty) {
+      throw const ModelSettingsException('请先填写邮箱。');
     }
     await _postHostedJson(
       hostedBaseUrl: baseUrl,
@@ -201,8 +204,11 @@ class ModelSettingsRepository {
     final baseUrl = hostedBaseUrl.trim();
     final cleanEmail = email.trim();
     final cleanCode = code.trim();
-    if (baseUrl.isEmpty || cleanEmail.isEmpty || cleanCode.isEmpty) {
-      throw const ModelSettingsException('请填写后端地址、邮箱和验证码。');
+    if (baseUrl.isEmpty) {
+      throw const ModelSettingsException('官方模型服务地址未配置。');
+    }
+    if (cleanEmail.isEmpty || cleanCode.isEmpty) {
+      throw const ModelSettingsException('请填写邮箱和验证码。');
     }
     final body = await _postHostedJson(
       hostedBaseUrl: baseUrl,
