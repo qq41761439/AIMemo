@@ -174,6 +174,38 @@ npm run dev
 
 本地开发默认 `DATA_STORE=memory`，不需要先启动 Postgres；邮箱验证码会打印到后端控制台，重启后登录码、会话和云端数据会清空。后端默认监听 `127.0.0.1:8787`，如果端口已被旧服务占用，请先结束旧进程再重新运行。
 
+如果要稳定查看后端用户记录，把后端切到本地 Postgres 持久化模式：
+
+```bash
+cd backend
+npm run db:up
+```
+
+然后把 `backend/.env` 里的 `DATA_STORE` 改成 `prisma`，确认 `DATABASE_URL` 是：
+
+```text
+DATABASE_URL=postgresql://aimemo:aimemo@localhost:5432/aimemo
+```
+
+首次启用或模型变更后同步数据库结构，再启动后端：
+
+```bash
+npm run prisma:push
+npm run dev
+```
+
+查看用户记录可以用命令行列表：
+
+```bash
+npm run users:list
+```
+
+也可以打开 Prisma Studio，在浏览器里查看 `User`、`Task`、`Summary`、`RefreshSession` 和 `UsageQuota` 表：
+
+```bash
+npm run db:studio
+```
+
 如果要用“官方托管模型”生成总结，后端还需要配置托管模型服务。默认后端模型服务为 DeepSeek：`LLM_BASE_URL=https://api.deepseek.com`、`LLM_MODEL=deepseek-v4-flash`。本地 macOS 开发建议把真实密钥保存到系统钥匙串，后端会在 `LLM_API_KEY` 为空时读取 service `AIMemo Backend LLM API Key`、account `deepseek` 的密钥；如果密钥缺失，用户侧只会看到“官方托管模型暂不可用”，后端日志会提示具体缺少的配置。
 
 如果本机 npm registry 访问很慢，可以临时指定镜像源：
@@ -196,7 +228,7 @@ LLM_MODEL=deepseek-v4-flash
 FREE_MONTHLY_SUMMARY_LIMIT=30
 ```
 
-如果本地开发也需要持久化后端数据，可以把 `.env` 里的 `DATA_STORE` 改为 `prisma`，并提供可连接且已迁移的 `DATABASE_URL`。上线前需要把控制台验证码替换为真实邮件服务。微信小程序登录需要配置：
+如果本地开发也需要持久化后端数据，可以把 `.env` 里的 `DATA_STORE` 改为 `prisma`，并提供可连接且已迁移的 `DATABASE_URL`；仓库内的 `backend/docker-compose.yml` 已经提供了本地 Postgres。上线前需要把控制台验证码替换为真实邮件服务。微信小程序登录需要配置：
 
 ```text
 WECHAT_MINI_PROGRAM_APP_ID=小程序 AppID

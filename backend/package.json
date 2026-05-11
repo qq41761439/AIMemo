@@ -7,7 +7,11 @@
     "dev": "tsx src/index.ts",
     "build": "tsc --noEmit",
     "test": "vitest run",
+    "db:up": "docker compose up -d postgres",
+    "db:studio": "prisma studio",
+    "users:list": "tsx src/scripts/listUsers.ts",
     "prisma:generate": "prisma generate",
+    "prisma:push": "prisma db push",
     "prisma:migrate": "prisma migrate dev"
   },
   "dependencies": {
