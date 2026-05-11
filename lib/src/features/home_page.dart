@@ -1232,7 +1232,7 @@ class _SummaryPanelState extends ConsumerState<_SummaryPanel> {
           ),
           const SizedBox(height: 16),
           _ConfigRow(
-            label: '模型配置',
+            label: '模型',
             icon: Icons.settings_outlined,
             child: _ModelSettingsButton(
               settings: modelSettings,
@@ -1243,7 +1243,7 @@ class _SummaryPanelState extends ConsumerState<_SummaryPanel> {
           ),
           const SizedBox(height: 10),
           _ConfigRow(
-            label: '周期日期',
+            label: '周期',
             icon: Icons.date_range_outlined,
             child: _SummaryRangeSelector(
               periodType: _periodType,
@@ -1278,7 +1278,7 @@ class _SummaryPanelState extends ConsumerState<_SummaryPanel> {
           ),
           const SizedBox(height: 10),
           _ConfigRow(
-            label: '标签过滤',
+            label: '标签',
             icon: Icons.filter_alt_outlined,
             alignTop: true,
             child: _SummaryTagFilter(
@@ -1704,9 +1704,9 @@ class _ModelSettingsButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final label = settings.when(
-      data: (settings) => '模型：${settings.statusLabel}',
-      loading: () => '模型：读取中',
-      error: (_, __) => '模型：读取失败',
+      data: (settings) => settings.statusLabel,
+      loading: () => '读取中',
+      error: (_, __) => '读取失败',
     );
 
     return SizedBox(
@@ -1993,7 +1993,7 @@ class _InlineTemplateEditor extends StatelessWidget {
                   const SizedBox(width: 7),
                   Expanded(
                     child: Text(
-                      '当前模板 · ${periodType.title}',
+                      '模板 · ${periodType.title}',
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: _configControlStyle(context),
@@ -2034,7 +2034,7 @@ class _InlineTemplateEditor extends StatelessWidget {
               enabled: loaded,
               decoration: const InputDecoration(
                 alignLabelWithHint: true,
-                labelText: '提示词模板',
+                labelText: '模板',
                 hintText: '{period} {period_days} {tasks} {tags}',
               ),
               expands: true,

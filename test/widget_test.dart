@@ -47,7 +47,7 @@ void main() {
       openSummary: true,
     );
 
-    expect(find.text('模型：未配置'), findsOneWidget);
+    expect(find.text('未配置'), findsOneWidget);
 
     await database.close();
   });
@@ -64,7 +64,7 @@ void main() {
       openSummary: true,
     );
 
-    expect(find.text('模型：custom-model'), findsOneWidget);
+    expect(find.text('custom-model'), findsOneWidget);
 
     await database.close();
   });
@@ -81,7 +81,7 @@ void main() {
       openSummary: true,
     );
 
-    expect(find.text('模型：官方托管'), findsOneWidget);
+    expect(find.text('官方托管'), findsOneWidget);
 
     await database.close();
   });
