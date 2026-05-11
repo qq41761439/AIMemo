@@ -1,0 +1,84 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id             String           @id @default(cuid())
+  email          String?          @unique
+  wechatOpenId   String?          @unique
+  wechatUnionId  String?
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+  refreshSessions RefreshSession[]
+  tasks          Task[]
+  summaries      Summary[]
+  quotas         UsageQuota[]
+}
+
+model EmailLoginCode {
+  email     String   @id
+  codeHash  String
+  expiresAt DateTime
+  attempts  Int      @default(0)
+  createdAt DateTime @default(now())
+}
+
+model RefreshSession {
+  id        String   @id @default(cuid())
+  userId    String
+  tokenHash String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model Task {
+  id          String    @id @default(cuid())
+  userId      String
+  body        String
+  tags        String[]
+  isCompleted Boolean   @default(false)
+  createdAt   DateTime  @default(now())
+  completedAt DateTime?
+  updatedAt   DateTime  @updatedAt
+  deletedAt   DateTime?
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, updatedAt])
+  @@index([userId, deletedAt])
+}
+
+model Summary {
+  id          String   @id @default(cuid())
+  userId      String
+  periodType  String
+  periodLabel String
+  periodStart DateTime
+  periodEnd   DateTime
+  tags        String[]
+  output      String
+  model       String
+  createdAt   DateTime @default(now())
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+}
+
+model UsageQuota {
+  id        String   @id @default(cuid())
+  userId    String
+  period    String
+  limit     Int
+  used      Int      @default(0)
+  updatedAt DateTime @updatedAt
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, period])
+}
