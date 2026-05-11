@@ -9,6 +9,12 @@ if (-not $versionMatch) {
 }
 
 $appVersion = $versionMatch.Matches[0].Groups[1].Value.Trim().Split('+')[0]
+$languageFile = Join-Path $repoRoot 'installer\windows\ChineseSimplified.isl'
+$languageFileUrl = 'https://raw.githubusercontent.com/jrsoftware/issrc/main/Files/Languages/Unofficial/ChineseSimplified.isl'
+
+if (-not (Test-Path $languageFile)) {
+  Invoke-WebRequest -Uri $languageFileUrl -OutFile $languageFile
+}
 
 flutter config --enable-windows-desktop
 flutter pub get

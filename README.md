@@ -114,7 +114,7 @@ brew install cocoapods
 AIMemoSetup-版本号.exe
 ```
 
-这个安装包会安装 AIMemo Windows 桌面版，并在安装完成后提供启动选项。
+这个安装包会安装 AIMemo Windows 桌面版，并在安装完成后提供启动选项；安装界面会按系统语言自动显示简体中文或英文。
 
 ### 在 Windows 本地生成安装包
 
