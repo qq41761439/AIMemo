@@ -70,6 +70,7 @@ class ModelSettingsRepository {
   static const _modeKey = 'model_mode';
   static const _baseUrlKey = 'model_base_url';
   static const _modelKey = 'model_name';
+  static const _hasApiKeyKey = 'model_has_api_key';
 
   final MemoStore _store;
   final ApiKeyVault _apiKeyVault;
@@ -77,15 +78,12 @@ class ModelSettingsRepository {
 
   Future<ModelSettings> load() async {
     final defaults = ModelSettings.defaults();
-    final apiKey = await _secureStorageOperation(
-      () => _apiKeyVault.readApiKey(),
-      timeoutMessage: '读取模型密钥超时，请检查 macOS 钥匙串权限后重试。',
-    );
+    final hasApiKey = await _store.getAppSetting(_hasApiKeyKey);
     return ModelSettings(
       mode: ModelMode.fromValue(await _store.getAppSetting(_modeKey)),
       baseUrl: (await _store.getAppSetting(_baseUrlKey)) ?? defaults.baseUrl,
       model: (await _store.getAppSetting(_modelKey)) ?? defaults.model,
-      hasApiKey: apiKey?.trim().isNotEmpty == true,
+      hasApiKey: hasApiKey == 'true',
     );
   }
 
@@ -105,6 +103,7 @@ class ModelSettingsRepository {
         () => _apiKeyVault.saveApiKey(cleanApiKey),
         timeoutMessage: '保存模型密钥超时，请检查 macOS 钥匙串权限后重试。',
       );
+      await _store.saveAppSetting(_hasApiKeyKey, 'true');
     }
   }
 
@@ -113,6 +112,7 @@ class ModelSettingsRepository {
       () => _apiKeyVault.deleteApiKey(),
       timeoutMessage: '清除模型密钥超时，请检查 macOS 钥匙串权限后重试。',
     );
+    await _store.saveAppSetting(_hasApiKeyKey, 'false');
   }
 
   Future<Map<String, Object?>?> requestConfig() async {
@@ -129,7 +129,11 @@ class ModelSettingsRepository {
         apiKey.trim().isEmpty ||
         settings.baseUrl.trim().isEmpty ||
         settings.model.trim().isEmpty) {
+      await _store.saveAppSetting(_hasApiKeyKey, 'false');
       return null;
+    }
+    if (!settings.hasApiKey) {
+      await _store.saveAppSetting(_hasApiKeyKey, 'true');
     }
 
     return {

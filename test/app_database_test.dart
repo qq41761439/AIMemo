@@ -255,6 +255,25 @@ void main() {
     expect(await vault.readApiKey(), 'placeholder-token');
   });
 
+  test('loads model settings without reading secure API key storage', () async {
+    final repository = ModelSettingsRepository(
+      store: database,
+      apiKeyVault: _HangingApiKeyVault(),
+      secureStorageTimeout: const Duration(milliseconds: 10),
+    );
+
+    await database.saveAppSetting('model_mode', ModelMode.custom.value);
+    await database.saveAppSetting('model_base_url', 'https://example.test/v1');
+    await database.saveAppSetting('model_name', 'custom-model');
+    await database.saveAppSetting('model_has_api_key', 'true');
+
+    final settings = await repository.load();
+    expect(settings.mode, ModelMode.custom);
+    expect(settings.baseUrl, 'https://example.test/v1');
+    expect(settings.model, 'custom-model');
+    expect(settings.hasApiKey, isTrue);
+  });
+
   test('times out when secure model key storage hangs', () async {
     final repository = ModelSettingsRepository(
       store: database,

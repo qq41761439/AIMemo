@@ -142,7 +142,7 @@ dist\windows\AIMemoSetup-版本号.exe
 打开 AIMemo 后，进入“总结”页，点击标题右侧的“模型”按钮：
 
 - 选择“使用自己的模型服务”时，填写 OpenAI-compatible 服务的 `API Key`、`Base URL` 和 `Model`。例如 `https://api.openai.com/v1` 与 `gpt-4o-mini`。
-- `API Key` 会保存到系统安全存储，`Base URL` 和 `Model` 会保存到本地 SQLite 的 `app_settings`。
+- `API Key` 会保存到系统安全存储，`Base URL`、`Model` 和“是否已保存密钥”的状态会保存到本地 SQLite 的 `app_settings`。应用打开总结页时不会主动读取钥匙串，只有保存、清除密钥或生成总结需要真实密钥时才访问系统安全存储。
 - 生成总结时，桌面客户端会直接请求 `{Base URL}/chat/completions`，不需要本地 Node 代理。
 - “使用 AIMemo 官方托管模型”目前只是占位入口，后续接入正式后端的登录、额度和计费后开放；暂时没有自己模型的用户会看到未开放提示。
 
