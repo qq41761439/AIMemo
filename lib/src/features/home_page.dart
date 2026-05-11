@@ -674,6 +674,8 @@ class _AddTaskPanelState extends ConsumerState<_AddTaskPanel> {
   final _contentController = TextEditingController();
   final _tagsController = TextEditingController();
   int? _loadedEditingTaskId;
+  DateTime? _createdAt;
+  DateTime? _completedAt;
   bool _isSaving = false;
 
   @override
@@ -724,6 +726,35 @@ class _AddTaskPanelState extends ConsumerState<_AddTaskPanel> {
             controller: _tagsController,
             decoration: const InputDecoration(labelText: '标签'),
           ),
+          if (isEditing) ...[
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  child: _TaskDateTimeButton(
+                    label: '创建时间',
+                    icon: Icons.schedule_outlined,
+                    value: _createdAt,
+                    emptyText: '选择创建时间',
+                    onPressed: _pickCreatedAt,
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: _TaskDateTimeButton(
+                    label: '完成时间',
+                    icon: Icons.check_circle_outline,
+                    value: _completedAt,
+                    emptyText: '未完成',
+                    onPressed: _pickCompletedAt,
+                    onClear: _completedAt == null
+                        ? null
+                        : () => setState(() => _completedAt = null),
+                  ),
+                ),
+              ],
+            ),
+          ],
           const SizedBox(height: 12),
           tags.when(
             data: (items) => Wrap(
@@ -783,12 +814,16 @@ class _AddTaskPanelState extends ConsumerState<_AddTaskPanel> {
       _titleController.clear();
       _contentController.clear();
       _tagsController.clear();
+      _createdAt = null;
+      _completedAt = null;
       return;
     }
 
     _titleController.text = task.title;
     _contentController.text = task.content;
     _tagsController.text = task.tags.join(', ');
+    _createdAt = task.createdAt;
+    _completedAt = task.completedAt;
   }
 
   void _appendTag(String tag) {
@@ -811,6 +846,11 @@ class _AddTaskPanelState extends ConsumerState<_AddTaskPanel> {
       final title = _titleController.text;
       final content = _contentController.text;
       final taskTags = _parseTags(_tagsController.text);
+      final createdAt = _createdAt ?? editingTask?.createdAt ?? DateTime.now();
+      final completedAt = _completedAt;
+      if (completedAt != null && completedAt.isBefore(createdAt)) {
+        throw ArgumentError('完成时间不能早于创建时间。');
+      }
       if (editingTask == null) {
         await ref.read(appDatabaseProvider).addTask(
               title: title,
@@ -823,11 +863,15 @@ class _AddTaskPanelState extends ConsumerState<_AddTaskPanel> {
               title: title,
               content: content,
               tags: taskTags,
+              createdAt: createdAt,
+              completedAt: completedAt,
             );
       }
       _titleController.clear();
       _contentController.clear();
       _tagsController.clear();
+      _createdAt = null;
+      _completedAt = null;
       if (editingTask == null) {
         ref.read(selectedTaskProvider.notifier).state = null;
       } else {
@@ -835,6 +879,9 @@ class _AddTaskPanelState extends ConsumerState<_AddTaskPanel> {
           title: title.trim(),
           content: content.trim(),
           tags: taskTags,
+          createdAt: createdAt,
+          completedAt: completedAt,
+          clearCompletedAt: completedAt == null,
         );
       }
       ref.read(editingTaskProvider.notifier).state = null;
@@ -861,6 +908,53 @@ class _AddTaskPanelState extends ConsumerState<_AddTaskPanel> {
 
   void _cancelEditing() {
     ref.read(editingTaskProvider.notifier).state = null;
+  }
+
+  Future<void> _pickCreatedAt() async {
+    final picked = await _pickTaskDateTime(_createdAt ?? DateTime.now());
+    if (picked == null || !mounted) {
+      return;
+    }
+    setState(() => _createdAt = picked);
+  }
+
+  Future<void> _pickCompletedAt() async {
+    final picked = await _pickTaskDateTime(
+      _completedAt ?? _createdAt ?? DateTime.now(),
+    );
+    if (picked == null || !mounted) {
+      return;
+    }
+    setState(() => _completedAt = picked);
+  }
+
+  Future<DateTime?> _pickTaskDateTime(DateTime initial) async {
+    final firstDate = DateTime(2000);
+    final lastDate = DateTime(DateTime.now().year + 5, 12, 31);
+    final initialDate = initial.isBefore(firstDate)
+        ? firstDate
+        : initial.isAfter(lastDate)
+            ? lastDate
+            : initial;
+    final date = await showDatePicker(
+      context: context,
+      initialDate: initialDate,
+      firstDate: firstDate,
+      lastDate: lastDate,
+    );
+    if (date == null || !mounted) {
+      return null;
+    }
+
+    final time = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay.fromDateTime(initial),
+    );
+    if (time == null) {
+      return null;
+    }
+
+    return DateTime(date.year, date.month, date.day, time.hour, time.minute);
   }
 }
 
@@ -963,6 +1057,86 @@ class _TaskViewPanel extends ConsumerWidget {
             ],
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _TaskDateTimeButton extends StatelessWidget {
+  const _TaskDateTimeButton({
+    required this.label,
+    required this.icon,
+    required this.value,
+    required this.emptyText,
+    required this.onPressed,
+    this.onClear,
+  });
+
+  final String label;
+  final IconData icon;
+  final DateTime? value;
+  final String emptyText;
+  final VoidCallback onPressed;
+  final VoidCallback? onClear;
+
+  @override
+  Widget build(BuildContext context) {
+    final displayText = value == null ? emptyText : compactDateTime(value!);
+
+    return SizedBox(
+      height: 56,
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: _panel,
+          border: Border.all(color: _border),
+          borderRadius: BorderRadius.circular(_controlRadius),
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(_controlRadius),
+          child: Row(
+            children: [
+              Expanded(
+                child: Material(
+                  color: Colors.transparent,
+                  child: InkWell(
+                    onTap: onPressed,
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 10),
+                      child: Row(
+                        children: [
+                          Icon(icon, size: 18, color: _accent),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(label, style: _configLabelStyle(context)),
+                                const SizedBox(height: 2),
+                                Text(
+                                  displayText,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: _configControlStyle(context),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              if (onClear != null)
+                IconButton(
+                  tooltip: '清空$label',
+                  onPressed: onClear,
+                  icon: const Icon(Icons.close, size: 18),
+                ),
+            ],
+          ),
+        ),
       ),
     );
   }

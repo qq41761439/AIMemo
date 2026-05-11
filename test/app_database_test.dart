@@ -156,12 +156,16 @@ void main() {
       title: '新标题',
       content: '新内容',
       tags: const ['学习', '复盘'],
+      createdAt: DateTime(2026, 5, 8, 9, 30),
+      completedAt: DateTime(2026, 5, 8, 18),
     );
 
     final tasks = await database.listTasks();
     expect(tasks.single.title, '新标题');
     expect(tasks.single.content, '新内容');
     expect(tasks.single.tags, ['复盘', '学习']);
+    expect(tasks.single.createdAt, DateTime(2026, 5, 8, 9, 30));
+    expect(tasks.single.completedAt, DateTime(2026, 5, 8, 18));
 
     final filtered = await database.listTasks(tagNames: ['工作']);
     expect(filtered, isEmpty);

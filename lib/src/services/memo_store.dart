@@ -16,6 +16,8 @@ abstract class MemoStore {
     required String title,
     required String content,
     required List<String> tags,
+    required DateTime createdAt,
+    DateTime? completedAt,
   });
 
   Future<List<TaskRecord>> listTasks({List<String> tagNames = const []});

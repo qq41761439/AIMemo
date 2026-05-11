@@ -54,6 +54,8 @@ class InMemoryMemoStore implements MemoStore {
     required String title,
     required String content,
     required List<String> tags,
+    required DateTime createdAt,
+    DateTime? completedAt,
   }) async {
     final cleanTitle = title.trim();
     if (cleanTitle.isEmpty) {
@@ -73,8 +75,8 @@ class InMemoryMemoStore implements MemoStore {
       title: cleanTitle,
       content: content.trim(),
       tags: cleanTags,
-      createdAt: task.createdAt,
-      completedAt: task.completedAt,
+      createdAt: createdAt,
+      completedAt: completedAt,
       deletedAt: task.deletedAt,
     );
   }

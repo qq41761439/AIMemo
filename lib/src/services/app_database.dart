@@ -163,6 +163,8 @@ CREATE TABLE IF NOT EXISTS app_settings (
     required String title,
     required String content,
     required List<String> tags,
+    required DateTime createdAt,
+    DateTime? completedAt,
   }) async {
     final db = await database;
     final cleanTitle = title.trim();
@@ -176,6 +178,8 @@ CREATE TABLE IF NOT EXISTS app_settings (
         {
           'title': cleanTitle,
           'content': content.trim(),
+          'created_at': createdAt.toIso8601String(),
+          'completed_at': completedAt?.toIso8601String(),
         },
         where: 'id = ? AND deleted_at IS NULL',
         whereArgs: [taskId],
