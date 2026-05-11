@@ -91,12 +91,107 @@ void main() {
 
     await database.close();
   });
+
+  testWidgets('hosted login shows signed-in settings page', (tester) async {
+    final database = AppDatabase(pathOverride: inMemoryDatabasePath);
+    final apiKeyVault = MemoryApiKeyVault();
+    final repository = _FakeHostedLoginRepository(
+      store: database,
+      apiKeyVault: apiKeyVault,
+    );
+
+    await _pumpApp(
+      tester,
+      database: database,
+      apiKeyVault: apiKeyVault,
+      modelSettingsRepository: repository,
+      openSummary: true,
+    );
+
+    await tester.tap(find.byIcon(Icons.storage_outlined));
+    await _pumpFrame(tester);
+    await tester.tap(find.text('使用官方模型'));
+    await _pumpFrame(tester);
+    await tester.enterText(find.byType(TextField).at(0), 'user@example.com');
+    await tester.tap(find.text('发送验证码'));
+    await _pumpFrame(tester);
+    await tester.enterText(find.byType(TextField).at(1), '123456');
+    await tester.tap(find.text('登录/注册'));
+    await _pumpFrame(tester);
+
+    expect(find.text('官方托管模型已登录'), findsOneWidget);
+    expect(find.text('登录/注册'), findsNothing);
+    expect(find.widgetWithText(TextField, '验证码'), findsNothing);
+
+    await tester.tap(find.text('完成'));
+    await _pumpFrame(tester);
+
+    expect(find.text('官方托管'), findsOneWidget);
+
+    await database.close();
+  });
+}
+
+Future<void> _pumpFrame(WidgetTester tester) async {
+  await tester.pump();
+  for (var i = 0; i < 10; i += 1) {
+    await tester.pump(const Duration(milliseconds: 100));
+  }
+}
+
+class _FakeHostedLoginRepository extends ModelSettingsRepository {
+  _FakeHostedLoginRepository({
+    required super.store,
+    required super.apiKeyVault,
+  });
+
+  ModelSettings _settings = ModelSettings.defaults();
+
+  @override
+  Future<ModelSettings> load() async => _settings;
+
+  @override
+  Future<void> startHostedEmailLogin({
+    required String hostedBaseUrl,
+    required String email,
+  }) async {}
+
+  @override
+  Future<void> verifyHostedEmailLogin({
+    required String hostedBaseUrl,
+    required String email,
+    required String code,
+  }) async {}
+
+  @override
+  Future<void> save({
+    required ModelMode mode,
+    required String baseUrl,
+    required String model,
+    required String hostedBaseUrl,
+    String? apiKey,
+  }) async {
+    _settings = _settings.copyWith(
+      mode: mode,
+      baseUrl: baseUrl,
+      model: model,
+      hostedBaseUrl: hostedBaseUrl,
+      hasHostedSession:
+          mode == ModelMode.hosted ? true : _settings.hasHostedSession,
+    );
+  }
+
+  @override
+  Future<void> clearHostedSession() async {
+    _settings = _settings.copyWith(hasHostedSession: false);
+  }
 }
 
 Future<AppDatabase> _pumpApp(
   WidgetTester tester, {
   AppDatabase? database,
   MemoryApiKeyVault? apiKeyVault,
+  ModelSettingsRepository? modelSettingsRepository,
   ModelSettings? modelSettings,
   bool openSummary = false,
 }) async {
@@ -115,6 +210,10 @@ Future<AppDatabase> _pumpApp(
       overrides: [
         appDatabaseProvider.overrideWithValue(appDatabase),
         apiKeyVaultProvider.overrideWithValue(vault),
+        if (modelSettingsRepository != null)
+          modelSettingsRepositoryProvider.overrideWithValue(
+            modelSettingsRepository,
+          ),
         if (modelSettings != null)
           modelSettingsProvider.overrideWith((ref) async => modelSettings),
       ],

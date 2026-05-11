@@ -1757,6 +1757,7 @@ class _ModelSettingsDialogState extends State<_ModelSettingsDialog> {
   bool _clearingKey = false;
   bool _sendingCode = false;
   bool _loggingIn = false;
+  bool _settingsChanged = false;
   late bool _hasHostedSession;
   String? _error;
 
@@ -1878,74 +1879,110 @@ class _ModelSettingsDialogState extends State<_ModelSettingsDialog> {
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Expanded(
-                          child: TextField(
-                            controller: _hostedEmailController,
-                            enabled: !_saving && !_loggingIn && !_sendingCode,
-                            keyboardType: TextInputType.emailAddress,
-                            decoration: const InputDecoration(
-                              labelText: '邮箱',
-                              hintText: 'you@example.com',
+                    if (_hasHostedSession) ...[
+                      Row(
+                        children: [
+                          const Icon(
+                            Icons.check_circle_outline,
+                            size: 22,
+                            color: Colors.green,
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  '官方托管模型已登录',
+                                  style: Theme.of(context).textTheme.titleSmall,
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  _hostedBaseUrl,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: Theme.of(context)
+                                      .textTheme
+                                      .bodySmall
+                                      ?.copyWith(color: _muted),
+                                ),
+                              ],
                             ),
                           ),
-                        ),
-                        const SizedBox(width: 8),
-                        OutlinedButton.icon(
-                          style: compactOutlinedButtonStyle,
-                          onPressed: _saving || _loggingIn || _sendingCode
-                              ? null
-                              : _sendHostedCode,
-                          icon: _sendingCode
-                              ? const SizedBox(
-                                  width: 16,
-                                  height: 16,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                  ),
-                                )
-                              : const Icon(Icons.mail_outline),
-                          label: const Text('发送验证码'),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 10),
-                    TextField(
-                      controller: _hostedCodeController,
-                      enabled: !_saving && !_loggingIn && !_sendingCode,
-                      decoration: const InputDecoration(
-                        labelText: '验证码',
-                        hintText: '6 位验证码',
+                        ],
                       ),
-                    ),
-                    const SizedBox(height: 10),
-                    FilledButton.icon(
-                      style: compactButtonStyle,
-                      onPressed: _saving || _loggingIn || _sendingCode
-                          ? null
-                          : _loginHosted,
-                      icon: _loggingIn
-                          ? const SizedBox(
-                              width: 16,
-                              height: 16,
-                              child: CircularProgressIndicator(strokeWidth: 2),
-                            )
-                          : const Icon(Icons.login_outlined),
-                      label: const Text('登录/注册'),
-                    ),
-                    if (_hasHostedSession)
+                      const SizedBox(height: 12),
                       Align(
                         alignment: Alignment.centerRight,
-                        child: TextButton.icon(
+                        child: OutlinedButton.icon(
+                          style: compactOutlinedButtonStyle,
                           onPressed: _saving || _loggingIn || _sendingCode
                               ? null
                               : _clearHostedSession,
                           icon: const Icon(Icons.logout_outlined, size: 18),
-                          label: const Text('退出官方托管登录'),
+                          label: const Text('退出登录'),
                         ),
                       ),
+                    ] else ...[
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Expanded(
+                            child: TextField(
+                              controller: _hostedEmailController,
+                              enabled: !_saving && !_loggingIn && !_sendingCode,
+                              keyboardType: TextInputType.emailAddress,
+                              decoration: const InputDecoration(
+                                labelText: '邮箱',
+                                hintText: 'you@example.com',
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          OutlinedButton.icon(
+                            style: compactOutlinedButtonStyle,
+                            onPressed: _saving || _loggingIn || _sendingCode
+                                ? null
+                                : _sendHostedCode,
+                            icon: _sendingCode
+                                ? const SizedBox(
+                                    width: 16,
+                                    height: 16,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                    ),
+                                  )
+                                : const Icon(Icons.mail_outline),
+                            label: const Text('发送验证码'),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 10),
+                      TextField(
+                        controller: _hostedCodeController,
+                        enabled: !_saving && !_loggingIn && !_sendingCode,
+                        decoration: const InputDecoration(
+                          labelText: '验证码',
+                          hintText: '6 位验证码',
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      FilledButton.icon(
+                        style: compactButtonStyle,
+                        onPressed: _saving || _loggingIn || _sendingCode
+                            ? null
+                            : _loginHosted,
+                        icon: _loggingIn
+                            ? const SizedBox(
+                                width: 16,
+                                height: 16,
+                                child:
+                                    CircularProgressIndicator(strokeWidth: 2),
+                              )
+                            : const Icon(Icons.login_outlined),
+                        label: const Text('登录/注册'),
+                      ),
+                    ],
                   ],
                 ),
               if (_error != null) ...[
@@ -1959,8 +1996,9 @@ class _ModelSettingsDialogState extends State<_ModelSettingsDialog> {
       actions: isCustom
           ? [
               TextButton(
-                onPressed:
-                    _saving ? null : () => Navigator.of(context).pop(false),
+                onPressed: _saving
+                    ? null
+                    : () => Navigator.of(context).pop(_settingsChanged),
                 child: const Text('取消'),
               ),
               FilledButton.icon(
@@ -1976,7 +2014,14 @@ class _ModelSettingsDialogState extends State<_ModelSettingsDialog> {
                 label: const Text('保存'),
               ),
             ]
-          : null,
+          : [
+              TextButton(
+                onPressed: _saving || _loggingIn || _sendingCode
+                    ? null
+                    : () => Navigator.of(context).pop(_settingsChanged),
+                child: Text(_hasHostedSession ? '完成' : '取消'),
+              ),
+            ],
     );
   }
 
@@ -2062,12 +2107,12 @@ class _ModelSettingsDialogState extends State<_ModelSettingsDialog> {
       if (mounted) {
         setState(() {
           _hasHostedSession = true;
+          _settingsChanged = true;
           _hostedCodeController.clear();
         });
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('官方托管模型已登录。')),
         );
-        Navigator.of(context).pop(true);
       }
     } catch (error) {
       if (mounted) {
@@ -2092,6 +2137,7 @@ class _ModelSettingsDialogState extends State<_ModelSettingsDialog> {
       }
       setState(() {
         _hasHostedSession = false;
+        _settingsChanged = true;
         _hostedCodeController.clear();
       });
     } catch (error) {

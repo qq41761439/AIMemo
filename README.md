@@ -146,7 +146,7 @@ dist\windows\AIMemoSetup-版本号.exe
 - 选择“使用自己的模型服务”时，填写 OpenAI-compatible 服务的 `API Key`、`Base URL` 和 `Model`。例如 `https://api.openai.com/v1` 与 `gpt-4o-mini`。
 - `API Key` 会保存到系统安全存储，`Base URL`、`Model` 和“是否已保存密钥”的状态会保存到本地 SQLite 的 `app_settings`。应用打开总结页时不会主动读取钥匙串，只有保存、清除密钥或生成总结需要真实密钥时才访问系统安全存储。
 - 生成总结时，桌面客户端会直接请求 `{Base URL}/chat/completions`，不需要本地 Node 代理。
-- 选择“使用官方模型”时，登录后即可免费生成总结。当前本地开发版会使用内置后端地址 `http://127.0.0.1:8787`；验证码会打印在后端控制台，验证成功后生成总结会请求该后端的 `/summaries/generate`。
+- 选择“使用官方模型”时，登录后即可免费生成总结。当前本地开发版会使用内置后端地址 `http://127.0.0.1:8787`；验证码会打印在后端控制台，验证成功后模型设置会显示已登录状态，生成总结会请求该后端的 `/summaries/generate`。
 - 官方托管模式的 access token 与 refresh token 会保存到系统安全存储，后端地址和“是否已登录”的状态会保存到本地 SQLite。当前客户端遇到登录过期会提示重新登录，自动 refresh 和额度展示会在后续补齐。
 
 也可以直接填写本机 CLIProxyAPI 参数。注意不要填写管理面板页面地址
