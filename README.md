@@ -172,6 +172,8 @@ npm run prisma:generate
 npm run dev
 ```
 
+本地开发默认 `DATA_STORE=memory`，不需要先启动 Postgres；邮箱验证码会打印到后端控制台，重启后登录码、会话和云端数据会清空。后端默认监听 `127.0.0.1:8787`，如果端口已被旧服务占用，请先结束旧进程再重新运行。
+
 如果本机 npm registry 访问很慢，可以临时指定镜像源：
 
 ```bash
@@ -181,6 +183,9 @@ npm install --registry=https://registry.npmmirror.com
 生产环境需要配置 Postgres：
 
 ```text
+NODE_ENV=production
+HOST=0.0.0.0
+DATA_STORE=prisma
 DATABASE_URL=postgresql://user:password@host:5432/aimemo
 AUTH_SECRET=一段足够长的随机字符串
 LLM_BASE_URL=https://api.openai.com/v1
@@ -189,7 +194,7 @@ LLM_MODEL=gpt-4o-mini
 FREE_MONTHLY_SUMMARY_LIMIT=30
 ```
 
-本地开发时，邮箱验证码会打印到后端控制台；上线前需要替换为真实邮件服务。微信小程序登录需要配置：
+如果本地开发也需要持久化后端数据，可以把 `.env` 里的 `DATA_STORE` 改为 `prisma`，并提供可连接且已迁移的 `DATABASE_URL`。上线前需要把控制台验证码替换为真实邮件服务。微信小程序登录需要配置：
 
 ```text
 WECHAT_MINI_PROGRAM_APP_ID=小程序 AppID

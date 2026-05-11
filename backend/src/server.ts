@@ -269,7 +269,7 @@ export async function createServer(
 }
 
 async function createDefaultStore(config: AppConfig): Promise<DataStore> {
-  if (config.nodeEnv === 'test') {
+  if (config.dataStore === 'memory') {
     return new InMemoryStore();
   }
   const { PrismaStore } = await import('./prismaStore.js');

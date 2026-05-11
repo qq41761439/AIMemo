@@ -1,6 +1,7 @@
 import { createServer } from './server.js';
+import { loadConfig } from './config.js';
 
-const app = await createServer();
-const port = parseInt(process.env.PORT ?? '8787', 10);
+const config = loadConfig();
+const app = await createServer({ config });
 
-await app.listen({ port, host: '0.0.0.0' });
+await app.listen({ port: config.port, host: config.host });

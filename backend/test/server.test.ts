@@ -28,6 +28,45 @@ describe('AIMemo backend API', () => {
     await app.close();
   });
 
+  test('uses in-memory store by default during local development', async () => {
+    let latestCode = '';
+    const localConfig = loadConfig({
+      NODE_ENV: 'development',
+      AUTH_SECRET: 'test-secret',
+    });
+    expect(localConfig.dataStore).toBe('memory');
+    const config = {
+      ...localConfig,
+      nodeEnv: 'test',
+      authSecret: 'test-secret',
+    };
+
+    const app = await createServer({
+      config,
+      emailSender: {
+        async sendLoginCode(_email, code) {
+          latestCode = code;
+        },
+      },
+      llmClient: fakeLlm('测试总结。'),
+    });
+
+    const started = await app.inject({
+      method: 'POST',
+      url: '/auth/email/start',
+      payload: { email: 'user@example.com' },
+    });
+    const verified = await app.inject({
+      method: 'POST',
+      url: '/auth/email/verify',
+      payload: { email: 'user@example.com', code: latestCode },
+    });
+
+    expect(started.statusCode).toBe(200);
+    expect(verified.statusCode).toBe(200);
+    await app.close();
+  });
+
   test('refreshes access tokens and rejects reused refresh token', async () => {
     const { app, login } = await testApp();
     const session = await login();

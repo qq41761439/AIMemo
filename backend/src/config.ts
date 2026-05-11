@@ -1,6 +1,12 @@
+import { existsSync, readFileSync } from 'node:fs';
+
+export type DataStoreMode = 'memory' | 'prisma';
+
 export type AppConfig = {
   nodeEnv: string;
+  host: string;
   port: number;
+  dataStore: DataStoreMode;
   authSecret: string;
   accessTokenTtl: string;
   refreshTokenDays: number;
@@ -14,9 +20,15 @@ export type AppConfig = {
 };
 
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
+  if (env === process.env) {
+    loadDotEnvFile(env);
+  }
+  const nodeEnv = env.NODE_ENV ?? 'development';
   return {
-    nodeEnv: env.NODE_ENV ?? 'development',
+    nodeEnv,
+    host: env.HOST ?? (nodeEnv === 'production' ? '0.0.0.0' : '127.0.0.1'),
     port: parseInt(env.PORT ?? '8787', 10),
+    dataStore: parseDataStore(env.DATA_STORE, nodeEnv),
     authSecret: env.AUTH_SECRET ?? 'dev-only-change-me',
     accessTokenTtl: env.ACCESS_TOKEN_TTL ?? '15m',
     refreshTokenDays: parseInt(env.REFRESH_TOKEN_DAYS ?? '30', 10),
@@ -28,4 +40,53 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     wechatMiniProgramAppId: env.WECHAT_MINI_PROGRAM_APP_ID ?? '',
     wechatMiniProgramAppSecret: env.WECHAT_MINI_PROGRAM_APP_SECRET ?? '',
   };
+}
+
+function parseDataStore(
+  value: string | undefined,
+  nodeEnv: string,
+): DataStoreMode {
+  const normalized = value?.trim().toLowerCase();
+  if (!normalized) {
+    return nodeEnv === 'production' ? 'prisma' : 'memory';
+  }
+  if (['memory', 'in-memory', 'in_memory'].includes(normalized)) {
+    return 'memory';
+  }
+  if (['prisma', 'postgres', 'postgresql'].includes(normalized)) {
+    return 'prisma';
+  }
+  throw new Error(`Unsupported DATA_STORE value: ${value}`);
+}
+
+function loadDotEnvFile(env: NodeJS.ProcessEnv): void {
+  if (!existsSync('.env')) {
+    return;
+  }
+  const lines = readFileSync('.env', 'utf8').split(/\r?\n/);
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith('#')) {
+      continue;
+    }
+    const match = /^([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*)$/.exec(trimmed);
+    if (!match) {
+      continue;
+    }
+    const [, key, rawValue] = match;
+    if (env[key] !== undefined) {
+      continue;
+    }
+    env[key] = stripQuotes(rawValue.trim());
+  }
+}
+
+function stripQuotes(value: string): string {
+  if (
+    (value.startsWith('"') && value.endsWith('"')) ||
+    (value.startsWith("'") && value.endsWith("'"))
+  ) {
+    return value.slice(1, -1);
+  }
+  return value;
 }
