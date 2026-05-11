@@ -46,7 +46,7 @@ class ModelSettings {
   String get statusLabel {
     return switch (mode) {
       ModelMode.hosted => '官方托管',
-      ModelMode.custom => isCustomConfigured ? '自定义' : '未配置',
+      ModelMode.custom => isCustomConfigured ? model.trim() : '未配置',
     };
   }
 

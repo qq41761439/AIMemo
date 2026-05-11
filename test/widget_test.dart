@@ -50,7 +50,7 @@ void main() {
     await database.close();
   });
 
-  testWidgets('model settings button shows custom state', (tester) async {
+  testWidgets('model settings button shows custom model name', (tester) async {
     final database = await _pumpApp(
       tester,
       modelSettings: const ModelSettings(
@@ -62,7 +62,7 @@ void main() {
       openSummary: true,
     );
 
-    expect(find.text('模型：自定义'), findsOneWidget);
+    expect(find.text('模型：custom-model'), findsOneWidget);
 
     await database.close();
   });
