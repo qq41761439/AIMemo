@@ -4,14 +4,9 @@ import 'package:http/http.dart' as http;
 
 class SummaryApiClient {
   SummaryApiClient({
-    this.baseUrl = const String.fromEnvironment(
-      'AIMEMO_API_BASE_URL',
-      defaultValue: 'http://localhost:8787',
-    ),
     http.Client? httpClient,
   }) : _httpClient = httpClient ?? http.Client();
 
-  final String baseUrl;
   final http.Client _httpClient;
 
   Future<String> generateSummary({
@@ -23,43 +18,90 @@ class SummaryApiClient {
     int? periodDays,
     Map<String, Object?>? llmConfig,
   }) async {
-    final uri = Uri.parse('$baseUrl/api/generate-summary');
+    final config = _resolveConfig(llmConfig);
+    final uri = Uri.parse(
+      '${config.baseUrl.replaceAll(RegExp(r'/+$'), '')}/chat/completions',
+    );
     final http.Response response;
     try {
       response = await _httpClient.post(
         uri,
-        headers: const {'content-type': 'application/json'},
+        headers: {
+          'authorization': 'Bearer ${config.apiKey}',
+          'content-type': 'application/json',
+        },
         body: jsonEncode({
-          'period': period,
-          'tags': tags,
-          'tasks': tasks,
-          'template': template,
-          'prompt': prompt,
-          if (periodDays != null) 'period_days': periodDays,
-          if (llmConfig != null) 'llm_config': llmConfig,
+          'model': config.model,
+          'messages': [
+            {
+              'role': 'system',
+              'content': '你是一个严谨、清晰的个人工作复盘助手。请用中文输出自然、可执行的总结。',
+            },
+            {'role': 'user', 'content': prompt},
+          ],
+          'temperature': 0.4,
         }),
       );
     } on http.ClientException catch (error) {
       throw SummaryApiException(_networkErrorMessage(error));
     } catch (error) {
-      throw SummaryApiException('生成失败：无法连接总结代理。$error');
+      throw SummaryApiException('生成失败：无法请求模型服务。$error');
     }
 
     if (response.statusCode < 200 || response.statusCode >= 300) {
-      throw SummaryApiException(_serverErrorMessage(response));
+      throw SummaryApiException(_modelErrorMessage(response));
     }
 
     final Map<String, dynamic> body;
     try {
       body = jsonDecode(response.body) as Map<String, dynamic>;
     } catch (_) {
-      throw const SummaryApiException('服务端返回格式无效。');
+      throw const SummaryApiException('模型服务返回格式无效。');
     }
-    final summary = body['summary_text'];
+    final choices = body['choices'];
+    final choice = choices is List && choices.isNotEmpty ? choices.first : null;
+    final message = choice is Map<String, dynamic> ? choice['message'] : null;
+    final summary = message is Map<String, dynamic> ? message['content'] : null;
     if (summary is! String || summary.trim().isEmpty) {
-      throw const SummaryApiException('服务端没有返回有效总结。');
+      throw const SummaryApiException('模型服务没有返回有效总结。');
     }
     return summary.trim();
+  }
+
+  _ResolvedLlmConfig _resolveConfig(Map<String, Object?>? llmConfig) {
+    if (llmConfig == null) {
+      throw const SummaryApiException(
+        '生成失败：请先在“模型”里配置 API Key、Base URL 和 Model。',
+      );
+    }
+
+    if (llmConfig['mode'] == 'hosted') {
+      throw const SummaryApiException(
+        '生成失败：AIMemo 官方托管模型将通过正式后端提供，目前暂未开放。请先使用自定义模型服务。',
+      );
+    }
+
+    final apiKey = _cleanConfigValue(llmConfig['api_key']);
+    final baseUrl = _cleanConfigValue(llmConfig['base_url']);
+    final model = _cleanConfigValue(llmConfig['model']);
+    if (apiKey == null || baseUrl == null || model == null) {
+      throw const SummaryApiException(
+        '生成失败：请先在“模型”里配置 API Key、Base URL 和 Model。',
+      );
+    }
+    return _ResolvedLlmConfig(
+      apiKey: apiKey,
+      baseUrl: baseUrl,
+      model: model,
+    );
+  }
+
+  String? _cleanConfigValue(Object? value) {
+    if (value is! String) {
+      return null;
+    }
+    final clean = value.trim();
+    return clean.isEmpty ? null : clean;
   }
 
   String _networkErrorMessage(http.ClientException error) {
@@ -68,36 +110,42 @@ class SummaryApiClient {
         message.contains('Failed to connect') ||
         message.contains('Connection reset') ||
         message.contains('Connection closed')) {
-      return '生成失败：无法连接总结代理。请先在 server 目录运行 npm run dev。';
+      return '生成失败：无法连接模型服务。请检查 Base URL 是否正确，或确认网络可以访问该模型服务。';
     }
     if (message.contains('Operation not permitted')) {
       return '生成失败：应用没有网络访问权限，请重新构建并打开 macOS 应用。';
     }
-    return '生成失败：无法连接总结代理。$message';
+    return '生成失败：无法连接模型服务。$message';
   }
 
-  String _serverErrorMessage(http.Response response) {
+  String _modelErrorMessage(http.Response response) {
     try {
       final body = jsonDecode(response.body) as Map<String, dynamic>;
       final error = body['error'];
-      final detail = body['detail'];
-      if (error == 'LLM_API_KEY is not configured') {
-        return '生成失败：请先配置模型服务，或等待 AIMemo 官方托管开放。也可以配置 server/.env 后重启 npm run dev。';
+      if (error is Map<String, dynamic>) {
+        final message = error['message'];
+        if (message is String && message.trim().isNotEmpty) {
+          return '生成失败：模型服务请求失败。$message';
+        }
       }
-      if (error == 'HOSTED_LLM_NOT_AVAILABLE') {
-        return '生成失败：AIMemo 官方托管模型暂未开放，请先使用自定义模型服务。';
+      if (error is String && error.trim().isNotEmpty) {
+        return '生成失败：模型服务请求失败。$error';
       }
-      if (error is String && detail is String && detail.trim().isNotEmpty) {
-        return '生成失败：$error。$detail';
-      }
-      if (error is String) {
-        return '生成失败：$error';
-      }
-    } catch (_) {
-      // Fall through to the generic status/body message.
-    }
-    return '生成失败：${response.statusCode} ${response.body}';
+    } catch (_) {}
+    return '生成失败：模型服务请求失败，状态码 ${response.statusCode}。${response.body}';
   }
+}
+
+class _ResolvedLlmConfig {
+  const _ResolvedLlmConfig({
+    required this.apiKey,
+    required this.baseUrl,
+    required this.model,
+  });
+
+  final String apiKey;
+  final String baseUrl;
+  final String model;
 }
 
 class SummaryApiException implements Exception {

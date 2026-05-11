@@ -9,12 +9,11 @@ This guide is for coding agents working in this repository. Follow it before fin
 
 ## Project Basics
 
-- AIMemo is a Flutter desktop app with a Node/Fastify LLM proxy.
+- AIMemo is a Flutter desktop app that can call user-configured OpenAI-compatible model services directly.
 - The main Flutter UI is in `lib/src/features/home_page.dart`.
 - Persistent macOS data is handled by `lib/src/services/app_database.dart`.
 - Web preview data is handled by `lib/src/services/in_memory_memo_store.dart`.
 - Summary prompt templates are rendered by `lib/src/services/template_renderer.dart`.
-- The LLM proxy is in `server/server.js`.
 
 ## Required Workflow
 
@@ -32,10 +31,6 @@ Run the checks that match the files touched:
 - Flutter changes:
   - `flutter analyze`
   - `flutter test`
-- Server changes:
-  - `cd server && node --check server.js`
-- Dependency or security-sensitive server changes:
-  - `cd server && npm audit --audit-level=moderate`
 
 After verification passes for app changes, build and open the macOS Release app:
 
@@ -55,19 +50,16 @@ Always close the old app before opening the newly built app, otherwise macOS may
 - Use a concise commit message in English, for example:
   - `Update agent workflow guide`
   - `Improve summary period templates`
-  - `Fix summary generation proxy`
+  - `Fix summary generation client`
 - Never run destructive git commands such as `git reset --hard` or `git checkout --` unless the user explicitly requests them.
 
-## Local LLM Proxy
+## Model Service
 
-- The app talks to `http://localhost:8787` by default.
 - Users can configure custom OpenAI-compatible model services inside the Summary page model settings.
+- Custom model mode calls `{baseUrl}/chat/completions` directly from the desktop app.
 - Store real model API keys in system secure storage only; do not write real API keys to SQLite, README, `.env`, tests, or git.
 - `mode`, `baseUrl`, and `model` may be saved in local `app_settings`.
 - The official AIMemo hosted model is currently a placeholder and should show a clear unavailable state until backend auth, quota, and billing exist.
-- The Node proxy prefers `server/.env`.
-- If `LLM_API_KEY` is not configured, the proxy tries local CLIProxyAPI config at `/opt/homebrew/etc/cliproxyapi.conf`.
-- Do not commit `server/.env`.
 
 ## Current Product Expectations
 

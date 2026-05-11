@@ -9,17 +9,20 @@ void main() {
   test('returns generated summary text', () async {
     final client = SummaryApiClient(
       httpClient: MockClient((request) async {
+        expect(
+            request.url.toString(), 'https://example.test/v1/chat/completions');
+        expect(request.headers['authorization'], 'Bearer placeholder-token');
         final body = jsonDecode(request.body) as Map<String, dynamic>;
-        expect(body['prompt'], '最终提示词');
-        expect(body['template'], '{tasks}');
-        expect(body['tasks'], '任务');
-        expect(body['period'], '今天');
-        expect(body['period_days'], 1);
-        expect(body['tags'], isEmpty);
-        expect(body.containsKey('llm_config'), isFalse);
+        expect(body['model'], 'custom-model');
+        expect(body['temperature'], 0.4);
+        final messages = body['messages'] as List<dynamic>;
+        expect(messages, hasLength(2));
+        expect(messages.last, {'role': 'user', 'content': '最终提示词'});
 
         return http.Response.bytes(
-          utf8.encode('{"summary_text":"今天完成了核心任务。"}'),
+          utf8.encode(
+            '{"choices":[{"message":{"content":"今天完成了核心任务。"}}]}',
+          ),
           200,
           headers: const {'content-type': 'application/json; charset=utf-8'},
         );
@@ -33,24 +36,27 @@ void main() {
       template: '{tasks}',
       prompt: '最终提示词',
       periodDays: 1,
+      llmConfig: const {
+        'mode': 'custom',
+        'api_key': 'placeholder-token',
+        'base_url': 'https://example.test/v1',
+        'model': 'custom-model',
+      },
     );
 
     expect(summary, '今天完成了核心任务。');
   });
 
-  test('sends custom LLM config when provided', () async {
+  test('trims trailing slash from base URL', () async {
     final client = SummaryApiClient(
       httpClient: MockClient((request) async {
-        final body = jsonDecode(request.body) as Map<String, dynamic>;
-        expect(body['llm_config'], {
-          'mode': 'custom',
-          'api_key': 'placeholder-token',
-          'base_url': 'https://example.test/v1',
-          'model': 'custom-model',
-        });
+        expect(
+            request.url.toString(), 'https://example.test/v1/chat/completions');
 
         return http.Response.bytes(
-          utf8.encode('{"summary_text":"已使用自定义模型。"}'),
+          utf8.encode(
+            '{"choices":[{"message":{"content":"已使用自定义模型。"}}]}',
+          ),
           200,
           headers: const {'content-type': 'application/json; charset=utf-8'},
         );
@@ -66,7 +72,7 @@ void main() {
       llmConfig: const {
         'mode': 'custom',
         'api_key': 'placeholder-token',
-        'base_url': 'https://example.test/v1',
+        'base_url': 'https://example.test/v1/',
         'model': 'custom-model',
       },
     );
@@ -74,7 +80,32 @@ void main() {
     expect(summary, '已使用自定义模型。');
   });
 
-  test('explains missing proxy service', () async {
+  test('explains missing custom model config', () async {
+    final client = SummaryApiClient(
+      httpClient: MockClient((request) async {
+        fail('request should not be sent without model config');
+      }),
+    );
+
+    expect(
+      () => client.generateSummary(
+        period: '今天',
+        tags: const [],
+        tasks: '任务',
+        template: '{tasks}',
+        prompt: '任务',
+      ),
+      throwsA(
+        isA<SummaryApiException>().having(
+          (error) => error.message,
+          'message',
+          contains('配置 API Key、Base URL 和 Model'),
+        ),
+      ),
+    );
+  });
+
+  test('explains unreachable model service', () async {
     final client = SummaryApiClient(
       httpClient: MockClient((request) async {
         throw http.ClientException('Connection refused', request.url);
@@ -88,21 +119,30 @@ void main() {
         tasks: '任务',
         template: '{tasks}',
         prompt: '任务',
+        llmConfig: const {
+          'mode': 'custom',
+          'api_key': 'placeholder-token',
+          'base_url': 'https://example.test/v1',
+          'model': 'custom-model',
+        },
       ),
       throwsA(
         isA<SummaryApiException>().having(
           (error) => error.message,
           'message',
-          contains('请先在 server 目录运行 npm run dev'),
+          contains('无法连接模型服务'),
         ),
       ),
     );
   });
 
-  test('explains missing LLM API key', () async {
+  test('explains model service error', () async {
     final client = SummaryApiClient(
       httpClient: MockClient((request) async {
-        return http.Response('{"error":"LLM_API_KEY is not configured"}', 500);
+        return http.Response(
+          '{"error":{"message":"invalid api key"}}',
+          401,
+        );
       }),
     );
 
@@ -113,12 +153,18 @@ void main() {
         tasks: '任务',
         template: '{tasks}',
         prompt: '任务',
+        llmConfig: const {
+          'mode': 'custom',
+          'api_key': 'bad-token',
+          'base_url': 'https://example.test/v1',
+          'model': 'custom-model',
+        },
       ),
       throwsA(
         isA<SummaryApiException>().having(
           (error) => error.message,
           'message',
-          contains('请先配置模型服务'),
+          contains('invalid api key'),
         ),
       ),
     );
@@ -127,7 +173,7 @@ void main() {
   test('explains unavailable hosted model', () async {
     final client = SummaryApiClient(
       httpClient: MockClient((request) async {
-        return http.Response('{"error":"HOSTED_LLM_NOT_AVAILABLE"}', 501);
+        fail('request should not be sent for hosted model');
       }),
     );
 
@@ -138,12 +184,13 @@ void main() {
         tasks: '任务',
         template: '{tasks}',
         prompt: '任务',
+        llmConfig: const {'mode': 'hosted'},
       ),
       throwsA(
         isA<SummaryApiException>().having(
           (error) => error.message,
           'message',
-          contains('官方托管模型暂未开放'),
+          contains('正式后端'),
         ),
       ),
     );
