@@ -1795,6 +1795,14 @@ class _ModelSettingsDialogState extends State<_ModelSettingsDialog> {
   Widget build(BuildContext context) {
     final hasSavedApiKey = widget.initialSettings.hasApiKey && !_clearingKey;
     final isCustom = _mode == ModelMode.custom;
+    final compactButtonStyle = FilledButton.styleFrom(
+      minimumSize: const Size(0, 42),
+      padding: const EdgeInsets.symmetric(horizontal: 18),
+    );
+    final compactOutlinedButtonStyle = OutlinedButton.styleFrom(
+      minimumSize: const Size(0, 42),
+      padding: const EdgeInsets.symmetric(horizontal: 18),
+    );
 
     return AlertDialog(
       title: const Text('模型设置'),
@@ -1897,40 +1905,44 @@ class _ModelSettingsDialogState extends State<_ModelSettingsDialog> {
                       ),
                     ),
                     const SizedBox(height: 10),
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
-                      alignment: WrapAlignment.end,
+                    Row(
                       children: [
-                        OutlinedButton.icon(
-                          onPressed: _saving || _loggingIn || _sendingCode
-                              ? null
-                              : _sendHostedCode,
-                          icon: _sendingCode
-                              ? const SizedBox(
-                                  width: 16,
-                                  height: 16,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                  ),
-                                )
-                              : const Icon(Icons.mail_outline),
-                          label: const Text('发送验证码'),
+                        Expanded(
+                          child: OutlinedButton.icon(
+                            style: compactOutlinedButtonStyle,
+                            onPressed: _saving || _loggingIn || _sendingCode
+                                ? null
+                                : _sendHostedCode,
+                            icon: _sendingCode
+                                ? const SizedBox(
+                                    width: 16,
+                                    height: 16,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                    ),
+                                  )
+                                : const Icon(Icons.mail_outline),
+                            label: const Text('发送验证码'),
+                          ),
                         ),
-                        FilledButton.icon(
-                          onPressed: _saving || _loggingIn || _sendingCode
-                              ? null
-                              : _loginHosted,
-                          icon: _loggingIn
-                              ? const SizedBox(
-                                  width: 16,
-                                  height: 16,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                  ),
-                                )
-                              : const Icon(Icons.login_outlined),
-                          label: const Text('登录'),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: FilledButton.icon(
+                            style: compactButtonStyle,
+                            onPressed: _saving || _loggingIn || _sendingCode
+                                ? null
+                                : _loginHosted,
+                            icon: _loggingIn
+                                ? const SizedBox(
+                                    width: 16,
+                                    height: 16,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                    ),
+                                  )
+                                : const Icon(Icons.login_outlined),
+                            label: const Text('登录'),
+                          ),
                         ),
                       ],
                     ),
@@ -1961,6 +1973,7 @@ class _ModelSettingsDialogState extends State<_ModelSettingsDialog> {
           child: const Text('取消'),
         ),
         FilledButton.icon(
+          style: compactButtonStyle,
           onPressed: _saving ? null : _save,
           icon: _saving
               ? const SizedBox(
