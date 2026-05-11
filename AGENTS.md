@@ -53,6 +53,12 @@ Always close the old app before opening the newly built app, otherwise macOS may
   - `Fix summary generation client`
 - Never run destructive git commands such as `git reset --hard` or `git checkout --` unless the user explicitly requests them.
 
+## GitHub Actions
+
+- When completed work should update the Windows installer, push `main` to `origin`.
+- Trigger the Windows installer workflow by pushing a new `v*` tag, because `.github/workflows/build-windows.yml` runs on version tags.
+- If the current version tag already exists, ask before bumping `pubspec.yaml` or creating a new tag.
+
 ## Model Service
 
 - Users can configure custom OpenAI-compatible model services inside the Summary page model settings.
