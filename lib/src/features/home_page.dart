@@ -402,6 +402,7 @@ class _TaskTile extends ConsumerWidget {
                   onTap: () {
                     ref.read(editingTaskProvider.notifier).state = null;
                     ref.read(selectedTaskProvider.notifier).state = task;
+                    ref.read(taskPaneFocusRequestProvider.notifier).state += 1;
                   },
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -450,6 +451,7 @@ class _TaskTile extends ConsumerWidget {
                 onPressed: () {
                   ref.read(selectedTaskProvider.notifier).state = task;
                   ref.read(editingTaskProvider.notifier).state = task;
+                  ref.read(taskPaneFocusRequestProvider.notifier).state += 1;
                 },
                 icon: const Icon(Icons.edit_outlined, size: 18),
               ),
@@ -608,6 +610,9 @@ class _ActionPaneState extends ConsumerState<_ActionPane>
       if (next != null) {
         _tabController.animateTo(0);
       }
+    });
+    ref.listen<int>(taskPaneFocusRequestProvider, (_, __) {
+      _tabController.animateTo(0);
     });
 
     return Container(

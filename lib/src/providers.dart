@@ -44,6 +44,8 @@ final selectedTaskProvider = StateProvider<TaskRecord?>((ref) => null);
 
 final editingTaskProvider = StateProvider<TaskRecord?>((ref) => null);
 
+final taskPaneFocusRequestProvider = StateProvider<int>((ref) => 0);
+
 final taskListProvider = FutureProvider<List<TaskRecord>>((ref) async {
   final database = ref.watch(appDatabaseProvider);
   final tags = ref.watch(taskTagFilterProvider);
