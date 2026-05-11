@@ -228,6 +228,8 @@ npm run build
 npm test
 ```
 
+已知验证状态：2026-05-11 本机执行 `npm install` 和 `pnpm install` 时都在依赖安装阶段长时间无输出卡住，未生成 `node_modules`，因此后端的 TypeScript 检查和 Vitest 测试尚未在本机完成。Flutter 端的 `flutter analyze`、`flutter test` 和 macOS Release 构建已通过。
+
 协作约定：功能验证通过后，需要继续执行 macOS build，并打开构建后的应用给用户确认。
 
 Windows 安装包检查需要在 Windows 环境执行：
@@ -297,6 +299,16 @@ flutter doctor
 ### 生成总结失败
 
 进入“总结”页点击“模型”按钮，检查是否已经配置自定义模型服务，并确认 `Base URL` 是 OpenAI-compatible API 地址，例如 `https://api.openai.com/v1` 或 `http://127.0.0.1:8317/v1`。如果选择了“官方托管”，检查后端地址是否正确、后端服务是否已启动，以及邮箱验证码登录是否完成。
+
+### 后端依赖安装卡住
+
+如果 `cd backend && npm install` 长时间没有输出，先确认是否有残留安装进程，再尝试指定镜像源：
+
+```bash
+npm install --registry=https://registry.npmmirror.com
+```
+
+如果 npm 和 pnpm 都卡住，可以等网络恢复后重试，或改用 Docker/干净 Node 环境完成 `npm run build` 与 `npm test`。
 
 ### Flutter 下载慢
 
