@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:aimemo/src/models/model_settings.dart';
 import 'package:aimemo/src/models/period_type.dart';
@@ -6,6 +7,8 @@ import 'package:aimemo/src/services/app_database.dart';
 import 'package:aimemo/src/services/model_settings_repository.dart';
 import 'package:aimemo/src/services/template_renderer.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:http/http.dart' as http;
+import 'package:http/testing.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
 void main() {
@@ -240,6 +243,7 @@ void main() {
       mode: ModelMode.custom,
       baseUrl: 'https://example.test/v1',
       model: 'custom-model',
+      hostedBaseUrl: 'http://127.0.0.1:8787',
       apiKey: 'placeholder-token',
     );
 
@@ -274,6 +278,53 @@ void main() {
     expect(settings.hasApiKey, isTrue);
   });
 
+  test('logs in hosted model without writing tokens to SQLite', () async {
+    final vault = MemoryApiKeyVault();
+    final requests = <String>[];
+    final repository = ModelSettingsRepository(
+      store: database,
+      apiKeyVault: vault,
+      httpClient: MockClient((request) async {
+        requests.add('${request.method} ${request.url.path}');
+        final body = jsonDecode(request.body) as Map<String, dynamic>;
+        if (request.url.path == '/auth/email/start') {
+          expect(body['email'], 'user@example.com');
+          return http.Response('{"ok":true}', 200);
+        }
+        expect(request.url.path, '/auth/email/verify');
+        expect(body['code'], '123456');
+        return http.Response(
+          '{"accessToken":"access-token","refreshToken":"refresh-token"}',
+          200,
+        );
+      }),
+    );
+
+    await repository.startHostedEmailLogin(
+      hostedBaseUrl: 'https://backend.example.test',
+      email: 'user@example.com',
+    );
+    await repository.verifyHostedEmailLogin(
+      hostedBaseUrl: 'https://backend.example.test',
+      email: 'user@example.com',
+      code: '123456',
+    );
+
+    final settings = await repository.load();
+    expect(settings.hostedBaseUrl, 'https://backend.example.test');
+    expect(settings.hasHostedSession, isTrue);
+    expect(await vault.readHostedSession(), isNotNull);
+    expect(requests, [
+      'POST /auth/email/start',
+      'POST /auth/email/verify',
+    ]);
+
+    final db = await database.database;
+    final rows = await db.query('app_settings');
+    expect(rows.toString(), isNot(contains('access-token')));
+    expect(rows.toString(), isNot(contains('refresh-token')));
+  });
+
   test('times out when secure model key storage hangs', () async {
     final repository = ModelSettingsRepository(
       store: database,
@@ -286,6 +337,7 @@ void main() {
         mode: ModelMode.custom,
         baseUrl: 'http://127.0.0.1:8317/v1',
         model: 'gpt-5.4-mini',
+        hostedBaseUrl: 'http://127.0.0.1:8787',
         apiKey: 'placeholder-token',
       ),
       throwsA(isA<ModelSettingsException>()),
@@ -302,4 +354,15 @@ class _HangingApiKeyVault implements ApiKeyVault {
 
   @override
   Future<void> deleteApiKey() => Completer<void>().future;
+
+  @override
+  Future<HostedSession?> readHostedSession() =>
+      Completer<HostedSession?>().future;
+
+  @override
+  Future<void> saveHostedSession(HostedSession session) =>
+      Completer<void>().future;
+
+  @override
+  Future<void> deleteHostedSession() => Completer<void>().future;
 }

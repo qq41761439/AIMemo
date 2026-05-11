@@ -1396,7 +1396,10 @@ class _SummaryPanelState extends ConsumerState<_SummaryPanel> {
         periodDays: periodDays,
       );
       final summary = await ref.read(summaryApiClientProvider).generateSummary(
+            periodType: _periodType.value,
             period: periodText,
+            periodStart: range.start,
+            periodEnd: range.end,
             tags: selectedTags,
             tasks: formatTasksForPrompt(tasks),
             template: template,
@@ -1748,8 +1751,14 @@ class _ModelSettingsDialogState extends State<_ModelSettingsDialog> {
   late final TextEditingController _apiKeyController;
   late final TextEditingController _baseUrlController;
   late final TextEditingController _modelController;
+  late final TextEditingController _hostedBaseUrlController;
+  late final TextEditingController _hostedEmailController;
+  late final TextEditingController _hostedCodeController;
   bool _saving = false;
   bool _clearingKey = false;
+  bool _sendingCode = false;
+  bool _loggingIn = false;
+  late bool _hasHostedSession;
   String? _error;
 
   @override
@@ -1763,6 +1772,12 @@ class _ModelSettingsDialogState extends State<_ModelSettingsDialog> {
     _modelController = TextEditingController(
       text: widget.initialSettings.model,
     );
+    _hostedBaseUrlController = TextEditingController(
+      text: widget.initialSettings.hostedBaseUrl,
+    );
+    _hostedEmailController = TextEditingController();
+    _hostedCodeController = TextEditingController();
+    _hasHostedSession = widget.initialSettings.hasHostedSession;
   }
 
   @override
@@ -1770,6 +1785,9 @@ class _ModelSettingsDialogState extends State<_ModelSettingsDialog> {
     _apiKeyController.dispose();
     _baseUrlController.dispose();
     _modelController.dispose();
+    _hostedBaseUrlController.dispose();
+    _hostedEmailController.dispose();
+    _hostedCodeController.dispose();
     super.dispose();
   }
 
@@ -1804,7 +1822,7 @@ class _ModelSettingsDialogState extends State<_ModelSettingsDialog> {
                       enabled: !_saving,
                       contentPadding: EdgeInsets.zero,
                       title: const Text('使用 AIMemo 官方托管模型'),
-                      subtitle: const Text('暂未开放，后续支持登录和额度后使用。'),
+                      subtitle: const Text('通过 AIMemo 后端登录后使用免费额度。'),
                     ),
                   ],
                 ),
@@ -1848,18 +1866,86 @@ class _ModelSettingsDialogState extends State<_ModelSettingsDialog> {
                   ),
                 ),
               ] else
-                DecoratedBox(
-                  decoration: BoxDecoration(
-                    color: _faint,
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: _border),
-                  ),
-                  child: const Padding(
-                    padding: EdgeInsets.all(12),
-                    child: Text(
-                      '官方托管模型暂未开放。本次先保留入口，之后接入登录、额度和计费后即可使用。',
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    TextField(
+                      controller: _hostedBaseUrlController,
+                      enabled: !_saving && !_loggingIn && !_sendingCode,
+                      decoration: const InputDecoration(
+                        labelText: '后端地址',
+                        hintText: 'http://127.0.0.1:8787',
+                      ),
                     ),
-                  ),
+                    const SizedBox(height: 10),
+                    TextField(
+                      controller: _hostedEmailController,
+                      enabled: !_saving && !_loggingIn && !_sendingCode,
+                      keyboardType: TextInputType.emailAddress,
+                      decoration: const InputDecoration(
+                        labelText: '邮箱',
+                        hintText: 'you@example.com',
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    TextField(
+                      controller: _hostedCodeController,
+                      enabled: !_saving && !_loggingIn && !_sendingCode,
+                      decoration: const InputDecoration(
+                        labelText: '验证码',
+                        hintText: '6 位验证码',
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      alignment: WrapAlignment.end,
+                      children: [
+                        OutlinedButton.icon(
+                          onPressed: _saving || _loggingIn || _sendingCode
+                              ? null
+                              : _sendHostedCode,
+                          icon: _sendingCode
+                              ? const SizedBox(
+                                  width: 16,
+                                  height: 16,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                  ),
+                                )
+                              : const Icon(Icons.mail_outline),
+                          label: const Text('发送验证码'),
+                        ),
+                        FilledButton.icon(
+                          onPressed: _saving || _loggingIn || _sendingCode
+                              ? null
+                              : _loginHosted,
+                          icon: _loggingIn
+                              ? const SizedBox(
+                                  width: 16,
+                                  height: 16,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                  ),
+                                )
+                              : const Icon(Icons.login_outlined),
+                          label: const Text('登录'),
+                        ),
+                      ],
+                    ),
+                    if (_hasHostedSession)
+                      Align(
+                        alignment: Alignment.centerRight,
+                        child: TextButton.icon(
+                          onPressed: _saving || _loggingIn || _sendingCode
+                              ? null
+                              : _clearHostedSession,
+                          icon: const Icon(Icons.logout_outlined, size: 18),
+                          label: const Text('退出官方托管登录'),
+                        ),
+                      ),
+                  ],
                 ),
               if (_error != null) ...[
                 const SizedBox(height: 10),
@@ -1924,6 +2010,88 @@ class _ModelSettingsDialogState extends State<_ModelSettingsDialog> {
     }
   }
 
+  Future<void> _sendHostedCode() async {
+    setState(() {
+      _sendingCode = true;
+      _error = null;
+    });
+    try {
+      await widget.repository.startHostedEmailLogin(
+        hostedBaseUrl: _hostedBaseUrlController.text,
+        email: _hostedEmailController.text,
+      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('验证码已发送，请查看邮箱或后端控制台。')),
+        );
+      }
+    } catch (error) {
+      if (mounted) {
+        setState(() => _error = error.toString());
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _sendingCode = false);
+      }
+    }
+  }
+
+  Future<void> _loginHosted() async {
+    setState(() {
+      _loggingIn = true;
+      _error = null;
+    });
+    try {
+      await widget.repository.verifyHostedEmailLogin(
+        hostedBaseUrl: _hostedBaseUrlController.text,
+        email: _hostedEmailController.text,
+        code: _hostedCodeController.text,
+      );
+      if (mounted) {
+        setState(() {
+          _hasHostedSession = true;
+          _hostedCodeController.clear();
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('官方托管模型已登录。')),
+        );
+      }
+    } catch (error) {
+      if (mounted) {
+        setState(() => _error = error.toString());
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _loggingIn = false);
+      }
+    }
+  }
+
+  Future<void> _clearHostedSession() async {
+    setState(() {
+      _saving = true;
+      _error = null;
+    });
+    try {
+      await widget.repository.clearHostedSession();
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _hasHostedSession = false;
+        _hostedCodeController.clear();
+      });
+    } catch (error) {
+      if (mounted) {
+        setState(() => _error = error.toString());
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _saving = false);
+      }
+    }
+  }
+
   Future<void> _save() async {
     setState(() {
       _saving = true;
@@ -1934,6 +2102,7 @@ class _ModelSettingsDialogState extends State<_ModelSettingsDialog> {
         mode: _mode,
         baseUrl: _baseUrlController.text,
         model: _modelController.text,
+        hostedBaseUrl: _hostedBaseUrlController.text,
         apiKey: _apiKeyController.text,
       );
       if (!mounted) {

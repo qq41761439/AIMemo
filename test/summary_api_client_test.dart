@@ -30,7 +30,10 @@ void main() {
     );
 
     final summary = await client.generateSummary(
+      periodType: 'daily',
       period: '今天',
+      periodStart: DateTime.utc(2026, 5, 11),
+      periodEnd: DateTime.utc(2026, 5, 12),
       tags: const [],
       tasks: '任务',
       template: '{tasks}',
@@ -64,7 +67,10 @@ void main() {
     );
 
     final summary = await client.generateSummary(
+      periodType: 'daily',
       period: '今天',
+      periodStart: DateTime.utc(2026, 5, 11),
+      periodEnd: DateTime.utc(2026, 5, 12),
       tags: const [],
       tasks: '任务',
       template: '{tasks}',
@@ -89,7 +95,10 @@ void main() {
 
     expect(
       () => client.generateSummary(
+        periodType: 'daily',
         period: '今天',
+        periodStart: DateTime.utc(2026, 5, 11),
+        periodEnd: DateTime.utc(2026, 5, 12),
         tags: const [],
         tasks: '任务',
         template: '{tasks}',
@@ -99,7 +108,7 @@ void main() {
         isA<SummaryApiException>().having(
           (error) => error.message,
           'message',
-          contains('配置 API Key、Base URL 和 Model'),
+          contains('配置模型服务或登录'),
         ),
       ),
     );
@@ -114,7 +123,10 @@ void main() {
 
     expect(
       () => client.generateSummary(
+        periodType: 'daily',
         period: '今天',
+        periodStart: DateTime.utc(2026, 5, 11),
+        periodEnd: DateTime.utc(2026, 5, 12),
         tags: const [],
         tasks: '任务',
         template: '{tasks}',
@@ -148,7 +160,10 @@ void main() {
 
     expect(
       () => client.generateSummary(
+        periodType: 'daily',
         period: '今天',
+        periodStart: DateTime.utc(2026, 5, 11),
+        periodEnd: DateTime.utc(2026, 5, 12),
         tags: const [],
         tasks: '任务',
         template: '{tasks}',
@@ -170,29 +185,47 @@ void main() {
     );
   });
 
-  test('explains unavailable hosted model', () async {
+  test('returns hosted summary text', () async {
     final client = SummaryApiClient(
       httpClient: MockClient((request) async {
-        fail('request should not be sent for hosted model');
+        expect(
+          request.url.toString(),
+          'https://backend.example.test/summaries/generate',
+        );
+        expect(request.headers['authorization'], 'Bearer hosted-token');
+        final body = jsonDecode(request.body) as Map<String, dynamic>;
+        expect(body['periodType'], 'daily');
+        expect(body['periodLabel'], '今天');
+        expect(body['periodStart'], '2026-05-11T00:00:00.000Z');
+        expect(body['periodEnd'], '2026-05-12T00:00:00.000Z');
+        expect(body['tags'], ['工作']);
+        expect(body['tasks'], '任务');
+        expect(body['prompt'], '任务');
+
+        return http.Response.bytes(
+          utf8.encode('{"summary":"已使用官方托管模型。"}'),
+          200,
+          headers: const {'content-type': 'application/json; charset=utf-8'},
+        );
       }),
     );
 
-    expect(
-      () => client.generateSummary(
-        period: '今天',
-        tags: const [],
-        tasks: '任务',
-        template: '{tasks}',
-        prompt: '任务',
-        llmConfig: const {'mode': 'hosted'},
-      ),
-      throwsA(
-        isA<SummaryApiException>().having(
-          (error) => error.message,
-          'message',
-          contains('正式后端'),
-        ),
-      ),
+    final summary = await client.generateSummary(
+      periodType: 'daily',
+      period: '今天',
+      periodStart: DateTime.utc(2026, 5, 11),
+      periodEnd: DateTime.utc(2026, 5, 12),
+      tags: const ['工作'],
+      tasks: '任务',
+      template: '{tasks}',
+      prompt: '任务',
+      llmConfig: const {
+        'mode': 'hosted',
+        'hosted_base_url': 'https://backend.example.test',
+        'access_token': 'hosted-token',
+      },
     );
+
+    expect(summary, '已使用官方托管模型。');
   });
 }

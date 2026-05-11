@@ -10,7 +10,10 @@ class SummaryApiClient {
   final http.Client _httpClient;
 
   Future<String> generateSummary({
+    required String periodType,
     required String period,
+    required DateTime periodStart,
+    required DateTime periodEnd,
     required List<String> tags,
     required String tasks,
     required String template,
@@ -19,19 +22,32 @@ class SummaryApiClient {
     Map<String, Object?>? llmConfig,
   }) async {
     final config = _resolveConfig(llmConfig);
+    if (config is _HostedLlmConfig) {
+      return _generateHostedSummary(
+        config: config,
+        periodType: periodType,
+        period: period,
+        periodStart: periodStart,
+        periodEnd: periodEnd,
+        tags: tags,
+        tasks: tasks,
+        prompt: prompt,
+      );
+    }
+    final customConfig = config as _CustomLlmConfig;
     final uri = Uri.parse(
-      '${config.baseUrl.replaceAll(RegExp(r'/+$'), '')}/chat/completions',
+      '${customConfig.baseUrl.replaceAll(RegExp(r'/+$'), '')}/chat/completions',
     );
     final http.Response response;
     try {
       response = await _httpClient.post(
         uri,
         headers: {
-          'authorization': 'Bearer ${config.apiKey}',
+          'authorization': 'Bearer ${customConfig.apiKey}',
           'content-type': 'application/json',
         },
         body: jsonEncode({
-          'model': config.model,
+          'model': customConfig.model,
           'messages': [
             {
               'role': 'system',
@@ -68,16 +84,78 @@ class SummaryApiClient {
     return summary.trim();
   }
 
+  Future<String> _generateHostedSummary({
+    required _HostedLlmConfig config,
+    required String periodType,
+    required String period,
+    required DateTime periodStart,
+    required DateTime periodEnd,
+    required List<String> tags,
+    required String tasks,
+    required String prompt,
+  }) async {
+    final uri = Uri.parse(
+      '${config.baseUrl.replaceAll(RegExp(r'/+$'), '')}/summaries/generate',
+    );
+    final http.Response response;
+    try {
+      response = await _httpClient.post(
+        uri,
+        headers: {
+          'authorization': 'Bearer ${config.accessToken}',
+          'content-type': 'application/json',
+        },
+        body: jsonEncode({
+          'periodType': periodType,
+          'periodLabel': period,
+          'periodStart': periodStart.toUtc().toIso8601String(),
+          'periodEnd': periodEnd.toUtc().toIso8601String(),
+          'tags': tags,
+          'tasks': tasks,
+          'prompt': prompt,
+        }),
+      );
+    } on http.ClientException catch (error) {
+      throw SummaryApiException(_hostedNetworkErrorMessage(error));
+    } catch (error) {
+      throw SummaryApiException('生成失败：无法请求 AIMemo 后端。$error');
+    }
+
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw SummaryApiException(_hostedErrorMessage(response));
+    }
+
+    final Map<String, dynamic> body;
+    try {
+      body = jsonDecode(response.body) as Map<String, dynamic>;
+    } catch (_) {
+      throw const SummaryApiException('AIMemo 后端返回格式无效。');
+    }
+    final summary = body['summary'];
+    if (summary is! String || summary.trim().isEmpty) {
+      throw const SummaryApiException('AIMemo 后端没有返回有效总结。');
+    }
+    return summary.trim();
+  }
+
   _ResolvedLlmConfig _resolveConfig(Map<String, Object?>? llmConfig) {
     if (llmConfig == null) {
       throw const SummaryApiException(
-        '生成失败：请先在“模型”里配置 API Key、Base URL 和 Model。',
+        '生成失败：请先在“模型”里配置模型服务或登录 AIMemo 官方托管模型。',
       );
     }
 
     if (llmConfig['mode'] == 'hosted') {
-      throw const SummaryApiException(
-        '生成失败：AIMemo 官方托管模型将通过正式后端提供，目前暂未开放。请先使用自定义模型服务。',
+      final baseUrl = _cleanConfigValue(llmConfig['hosted_base_url']);
+      final accessToken = _cleanConfigValue(llmConfig['access_token']);
+      if (baseUrl == null || accessToken == null) {
+        throw const SummaryApiException(
+          '生成失败：请先登录 AIMemo 官方托管模型。',
+        );
+      }
+      return _HostedLlmConfig(
+        baseUrl: baseUrl,
+        accessToken: accessToken,
       );
     }
 
@@ -89,7 +167,7 @@ class SummaryApiClient {
         '生成失败：请先在“模型”里配置 API Key、Base URL 和 Model。',
       );
     }
-    return _ResolvedLlmConfig(
+    return _CustomLlmConfig(
       apiKey: apiKey,
       baseUrl: baseUrl,
       model: model,
@@ -118,6 +196,17 @@ class SummaryApiClient {
     return '生成失败：无法连接模型服务。$message';
   }
 
+  String _hostedNetworkErrorMessage(http.ClientException error) {
+    final message = error.message;
+    if (message.contains('Connection refused') ||
+        message.contains('Failed to connect') ||
+        message.contains('Connection reset') ||
+        message.contains('Connection closed')) {
+      return '生成失败：无法连接 AIMemo 后端。请检查后端地址是否正确，或确认后端服务已启动。';
+    }
+    return '生成失败：无法连接 AIMemo 后端。$message';
+  }
+
   String _modelErrorMessage(http.Response response) {
     try {
       final body = jsonDecode(response.body) as Map<String, dynamic>;
@@ -134,18 +223,49 @@ class SummaryApiClient {
     } catch (_) {}
     return '生成失败：模型服务请求失败，状态码 ${response.statusCode}。${response.body}';
   }
+
+  String _hostedErrorMessage(http.Response response) {
+    try {
+      final body = jsonDecode(response.body) as Map<String, dynamic>;
+      final error = body['error'];
+      if (error is Map<String, dynamic>) {
+        final message = error['message'];
+        if (message is String && message.trim().isNotEmpty) {
+          if (response.statusCode == 401) {
+            return '生成失败：登录已过期，请在“模型”里重新登录。$message';
+          }
+          return '生成失败：AIMemo 后端请求失败。$message';
+        }
+      }
+    } catch (_) {}
+    return '生成失败：AIMemo 后端请求失败，状态码 ${response.statusCode}。${response.body}';
+  }
 }
 
-class _ResolvedLlmConfig {
-  const _ResolvedLlmConfig({
+sealed class _ResolvedLlmConfig {
+  const _ResolvedLlmConfig();
+}
+
+class _CustomLlmConfig extends _ResolvedLlmConfig {
+  const _CustomLlmConfig({
     required this.apiKey,
     required this.baseUrl,
     required this.model,
-  });
+  }) : super();
 
   final String apiKey;
   final String baseUrl;
   final String model;
+}
+
+class _HostedLlmConfig extends _ResolvedLlmConfig {
+  const _HostedLlmConfig({
+    required this.baseUrl,
+    required this.accessToken,
+  }) : super();
+
+  final String baseUrl;
+  final String accessToken;
 }
 
 class SummaryApiException implements Exception {

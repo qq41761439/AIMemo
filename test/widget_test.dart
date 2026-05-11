@@ -43,6 +43,8 @@ void main() {
         baseUrl: 'https://api.openai.com/v1',
         model: 'gpt-4o-mini',
         hasApiKey: false,
+        hostedBaseUrl: 'http://127.0.0.1:8787',
+        hasHostedSession: false,
       ),
       openSummary: true,
     );
@@ -60,6 +62,8 @@ void main() {
         baseUrl: 'https://example.test/v1',
         model: 'custom-model',
         hasApiKey: true,
+        hostedBaseUrl: 'http://127.0.0.1:8787',
+        hasHostedSession: false,
       ),
       openSummary: true,
     );
@@ -77,6 +81,8 @@ void main() {
         baseUrl: 'https://api.openai.com/v1',
         model: 'gpt-4o-mini',
         hasApiKey: false,
+        hostedBaseUrl: 'http://127.0.0.1:8787',
+        hasHostedSession: true,
       ),
       openSummary: true,
     );

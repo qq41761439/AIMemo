@@ -20,6 +20,8 @@ class ModelSettings {
     required this.baseUrl,
     required this.model,
     required this.hasApiKey,
+    required this.hostedBaseUrl,
+    required this.hasHostedSession,
   });
 
   factory ModelSettings.defaults() {
@@ -28,6 +30,8 @@ class ModelSettings {
       baseUrl: 'https://api.openai.com/v1',
       model: 'gpt-4o-mini',
       hasApiKey: false,
+      hostedBaseUrl: 'http://127.0.0.1:8787',
+      hasHostedSession: false,
     );
   }
 
@@ -35,6 +39,8 @@ class ModelSettings {
   final String baseUrl;
   final String model;
   final bool hasApiKey;
+  final String hostedBaseUrl;
+  final bool hasHostedSession;
 
   bool get isCustomConfigured {
     return mode == ModelMode.custom &&
@@ -45,7 +51,7 @@ class ModelSettings {
 
   String get statusLabel {
     return switch (mode) {
-      ModelMode.hosted => '官方托管',
+      ModelMode.hosted => hasHostedSession ? '官方托管' : '未登录',
       ModelMode.custom => isCustomConfigured ? model.trim() : '未配置',
     };
   }
@@ -55,12 +61,16 @@ class ModelSettings {
     String? baseUrl,
     String? model,
     bool? hasApiKey,
+    String? hostedBaseUrl,
+    bool? hasHostedSession,
   }) {
     return ModelSettings(
       mode: mode ?? this.mode,
       baseUrl: baseUrl ?? this.baseUrl,
       model: model ?? this.model,
       hasApiKey: hasApiKey ?? this.hasApiKey,
+      hostedBaseUrl: hostedBaseUrl ?? this.hostedBaseUrl,
+      hasHostedSession: hasHostedSession ?? this.hasHostedSession,
     );
   }
 }
