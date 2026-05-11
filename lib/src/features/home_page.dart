@@ -1346,6 +1346,7 @@ class _SummaryPanelState extends ConsumerState<_SummaryPanel> {
       _isGenerating = true;
       _error = null;
       _latestSummary = null;
+      _templateExpanded = false;
     });
 
     try {
