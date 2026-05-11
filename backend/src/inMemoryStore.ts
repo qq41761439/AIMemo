@@ -181,9 +181,10 @@ export class InMemoryStore implements DataStore {
     const isCompleted = input.isCompleted ?? existing.isCompleted;
     const task: TaskRecord = {
       ...existing,
-      ...input,
+      body: input.body ?? existing.body,
       tags: input.tags ? cleanTags(input.tags) : existing.tags,
       isCompleted,
+      createdAt: input.createdAt ?? existing.createdAt,
       completedAt:
         input.completedAt !== undefined
           ? input.completedAt

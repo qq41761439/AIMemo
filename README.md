@@ -308,6 +308,18 @@ flutter doctor
 npm install --registry=https://registry.npmmirror.com
 ```
 
+如果卡在 Prisma、esbuild、Rollup 等原生依赖下载阶段，可以在当前 shell 临时走本机代理后重试：
+
+```bash
+export ALL_PROXY=http://127.0.0.1:7890
+export all_proxy=http://127.0.0.1:7890
+export HTTP_PROXY=http://127.0.0.1:7890
+export http_proxy=http://127.0.0.1:7890
+export HTTPS_PROXY=http://127.0.0.1:7890
+export https_proxy=http://127.0.0.1:7890
+npm install --registry=https://registry.npmjs.org --no-audit
+```
+
 如果 npm 和 pnpm 都卡住，可以等网络恢复后重试，或改用 Docker/干净 Node 环境完成 `npm run build` 与 `npm test`。
 
 ### Flutter 下载慢

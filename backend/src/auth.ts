@@ -1,6 +1,7 @@
 import { createHash, randomBytes, randomInt } from 'node:crypto';
 
 import jwt from 'jsonwebtoken';
+import type { SignOptions } from 'jsonwebtoken';
 
 import type { AppConfig } from './config.js';
 import { badRequest, unauthorized } from './errors.js';
@@ -62,9 +63,14 @@ export class AuthService {
   }
 
   async issueTokens(userId: string): Promise<AuthTokens> {
-    const accessToken = jwt.sign({ sub: userId }, this.config.authSecret, {
-      expiresIn: this.config.accessTokenTtl,
-    });
+    const accessTokenOptions: SignOptions = {
+      expiresIn: this.config.accessTokenTtl as SignOptions['expiresIn'],
+    };
+    const accessToken = jwt.sign(
+      { sub: userId },
+      this.config.authSecret,
+      accessTokenOptions,
+    );
     const refreshToken = randomBytes(32).toString('base64url');
     await this.store.saveRefreshSession({
       userId,
