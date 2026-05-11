@@ -228,4 +228,49 @@ void main() {
 
     expect(summary, '已使用官方托管模型。');
   });
+
+  test('explains hosted backend model config missing', () async {
+    final client = SummaryApiClient(
+      httpClient: MockClient((request) async {
+        return http.Response.bytes(
+          utf8.encode(
+            '{"error":{"code":"llm_not_configured","message":"AIMemo 后端尚未配置托管模型。"}}',
+          ),
+          400,
+          headers: const {'content-type': 'application/json; charset=utf-8'},
+        );
+      }),
+    );
+
+    expect(
+      () => client.generateSummary(
+        periodType: 'daily',
+        period: '今天',
+        periodStart: DateTime.utc(2026, 5, 11),
+        periodEnd: DateTime.utc(2026, 5, 12),
+        tags: const [],
+        tasks: '任务',
+        template: '{tasks}',
+        prompt: '任务',
+        llmConfig: const {
+          'mode': 'hosted',
+          'hosted_base_url': 'https://backend.example.test',
+          'access_token': 'hosted-token',
+        },
+      ),
+      throwsA(
+        isA<SummaryApiException>()
+            .having(
+              (error) => error.message,
+              'message',
+              contains('LLM_API_KEY'),
+            )
+            .having(
+              (error) => error.message,
+              'message',
+              contains('登录状态本身是正常的'),
+            ),
+      ),
+    );
+  });
 }

@@ -2,7 +2,7 @@ import { describe, expect, test } from 'vitest';
 
 import { loadConfig, type AppConfig } from '../src/config.js';
 import { InMemoryStore } from '../src/inMemoryStore.js';
-import type { LlmClient } from '../src/llm.js';
+import { OpenAiCompatibleClient, type LlmClient } from '../src/llm.js';
 import { createServer } from '../src/server.js';
 import type { WechatClient } from '../src/wechat.js';
 
@@ -234,6 +234,22 @@ describe('AIMemo backend API', () => {
     expect(generated.statusCode).toBe(500);
     expect(quota.json()).toMatchObject({ used: 0, remaining: 30 });
     await app.close();
+  });
+
+  test('explains missing hosted model backend config', async () => {
+    const config = {
+      ...loadConfig({ NODE_ENV: 'test', AUTH_SECRET: 'test-secret' }),
+      llmApiKey: '',
+    };
+    const client = new OpenAiCompatibleClient(config);
+
+    await expect(
+      client.generateSummary({ prompt: '完整 prompt：请总结今天任务。' }),
+    ).rejects.toMatchObject({
+      statusCode: 400,
+      code: 'llm_not_configured',
+      message: expect.stringContaining('LLM_API_KEY'),
+    });
   });
 });
 
