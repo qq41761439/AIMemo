@@ -740,7 +740,7 @@ class _AddTaskPanelState extends ConsumerState<_AddTaskPanel> {
             loading: () => const SizedBox.shrink(),
             error: (_, __) => const SizedBox.shrink(),
           ),
-          const Spacer(),
+          const SizedBox(height: 18),
           Row(
             children: [
               if (isEditing) ...[
