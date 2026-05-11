@@ -259,17 +259,11 @@ void main() {
         },
       ),
       throwsA(
-        isA<SummaryApiException>()
-            .having(
-              (error) => error.message,
-              'message',
-              contains('LLM_API_KEY'),
-            )
-            .having(
-              (error) => error.message,
-              'message',
-              contains('登录状态本身是正常的'),
-            ),
+        isA<SummaryApiException>().having(
+          (error) => error.message,
+          'message',
+          contains('官方托管模型暂不可用'),
+        ),
       ),
     );
   });

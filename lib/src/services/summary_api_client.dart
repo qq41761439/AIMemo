@@ -231,7 +231,7 @@ class SummaryApiClient {
       if (error is Map<String, dynamic>) {
         final code = error['code'];
         if (code == 'llm_not_configured') {
-          return '生成失败：AIMemo 后端尚未配置托管模型。请在后端 backend/.env 设置 LLM_API_KEY、LLM_BASE_URL 和 LLM_MODEL 后重启后端；当前登录状态本身是正常的。';
+          return '生成失败：官方托管模型暂不可用，请稍后再试或联系管理员。';
         }
         final message = error['message'];
         if (message is String && message.trim().isNotEmpty) {

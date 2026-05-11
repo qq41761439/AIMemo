@@ -174,7 +174,7 @@ npm run dev
 
 本地开发默认 `DATA_STORE=memory`，不需要先启动 Postgres；邮箱验证码会打印到后端控制台，重启后登录码、会话和云端数据会清空。后端默认监听 `127.0.0.1:8787`，如果端口已被旧服务占用，请先结束旧进程再重新运行。
 
-如果要用“官方托管模型”生成总结，本地后端的 `.env` 也必须配置 `LLM_API_KEY`、`LLM_BASE_URL` 和 `LLM_MODEL`，然后重启后端。邮箱登录成功只表示账号会话有效；如果后端缺少模型配置，生成总结会提示后端托管模型尚未配置。
+如果要用“官方托管模型”生成总结，后端还需要配置托管模型服务。默认后端模型服务为 DeepSeek：`LLM_BASE_URL=https://api.deepseek.com`、`LLM_MODEL=deepseek-v4-flash`。本地 macOS 开发建议把真实密钥保存到系统钥匙串，后端会在 `LLM_API_KEY` 为空时读取 service `AIMemo Backend LLM API Key`、account `deepseek` 的密钥；如果密钥缺失，用户侧只会看到“官方托管模型暂不可用”，后端日志会提示具体缺少的配置。
 
 如果本机 npm registry 访问很慢，可以临时指定镜像源：
 
@@ -190,9 +190,9 @@ HOST=0.0.0.0
 DATA_STORE=prisma
 DATABASE_URL=postgresql://user:password@host:5432/aimemo
 AUTH_SECRET=一段足够长的随机字符串
-LLM_BASE_URL=https://api.openai.com/v1
+LLM_BASE_URL=https://api.deepseek.com
 LLM_API_KEY=真实模型服务密钥
-LLM_MODEL=gpt-4o-mini
+LLM_MODEL=deepseek-v4-flash
 FREE_MONTHLY_SUMMARY_LIMIT=30
 ```
 

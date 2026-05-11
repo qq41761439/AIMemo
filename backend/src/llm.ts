@@ -20,7 +20,7 @@ export class OpenAiCompatibleClient implements LlmClient {
   async generateSummary(input: GenerateSummaryInput): Promise<string> {
     if (!this.config.llmApiKey) {
       throw badRequest(
-        'AIMemo 后端尚未配置托管模型，请设置 LLM_API_KEY 后重启后端。',
+        '官方托管模型暂不可用，请稍后再试。',
         'llm_not_configured',
       );
     }

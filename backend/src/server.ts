@@ -63,6 +63,13 @@ export async function createServer(
 
   app.setErrorHandler((error, _request, reply) => {
     if (error instanceof AppError) {
+      if (error.code === 'llm_not_configured') {
+        app.log.warn(
+          'Hosted model is unavailable because LLM_API_KEY is not configured. ' +
+            'Set LLM_API_KEY or store the key in macOS Keychain service ' +
+            '"AIMemo Backend LLM API Key" with account "deepseek", then restart the backend.',
+        );
+      }
       return reply.status(error.statusCode).send({
         error: { code: error.code, message: error.message },
       });

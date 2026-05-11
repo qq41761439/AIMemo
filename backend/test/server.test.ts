@@ -67,6 +67,18 @@ describe('AIMemo backend API', () => {
     await app.close();
   });
 
+  test('defaults hosted model provider to DeepSeek', () => {
+    const config = loadConfig({
+      NODE_ENV: 'test',
+      AUTH_SECRET: 'test-secret',
+      LLM_API_KEY_KEYCHAIN_DISABLED: 'true',
+    });
+
+    expect(config.llmBaseUrl).toBe('https://api.deepseek.com');
+    expect(config.llmModel).toBe('deepseek-v4-flash');
+    expect(config.llmApiKey).toBe('');
+  });
+
   test('refreshes access tokens and rejects reused refresh token', async () => {
     const { app, login } = await testApp();
     const session = await login();
@@ -248,7 +260,7 @@ describe('AIMemo backend API', () => {
     ).rejects.toMatchObject({
       statusCode: 400,
       code: 'llm_not_configured',
-      message: expect.stringContaining('LLM_API_KEY'),
+      message: expect.stringContaining('官方托管模型暂不可用'),
     });
   });
 });

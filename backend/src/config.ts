@@ -1,3 +1,4 @@
+import { execFileSync } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
 
 export type DataStoreMode = 'memory' | 'prisma';
@@ -19,6 +20,9 @@ export type AppConfig = {
   wechatMiniProgramAppSecret: string;
 };
 
+const defaultLlmKeychainService = 'AIMemo Backend LLM API Key';
+const defaultLlmKeychainAccount = 'deepseek';
+
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
   if (env === process.env) {
     loadDotEnvFile(env);
@@ -34,12 +38,56 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     refreshTokenDays: parseInt(env.REFRESH_TOKEN_DAYS ?? '30', 10),
     emailCodeTtlMinutes: parseInt(env.EMAIL_CODE_TTL_MINUTES ?? '10', 10),
     monthlySummaryLimit: parseInt(env.FREE_MONTHLY_SUMMARY_LIMIT ?? '30', 10),
-    llmBaseUrl: env.LLM_BASE_URL ?? 'https://api.openai.com/v1',
-    llmApiKey: env.LLM_API_KEY ?? '',
-    llmModel: env.LLM_MODEL ?? 'gpt-4o-mini',
+    llmBaseUrl: env.LLM_BASE_URL ?? 'https://api.deepseek.com',
+    llmApiKey: resolveLlmApiKey(env),
+    llmModel: env.LLM_MODEL ?? 'deepseek-v4-flash',
     wechatMiniProgramAppId: env.WECHAT_MINI_PROGRAM_APP_ID ?? '',
     wechatMiniProgramAppSecret: env.WECHAT_MINI_PROGRAM_APP_SECRET ?? '',
   };
+}
+
+function resolveLlmApiKey(env: NodeJS.ProcessEnv): string {
+  const configured = cleanEnvValue(env.LLM_API_KEY);
+  if (configured && !isPlaceholderApiKey(configured)) {
+    return configured;
+  }
+  return readMacosKeychainSecret(env);
+}
+
+function readMacosKeychainSecret(env: NodeJS.ProcessEnv): string {
+  if (
+    env.LLM_API_KEY_KEYCHAIN_DISABLED === 'true' ||
+    process.platform !== 'darwin'
+  ) {
+    return '';
+  }
+  const service =
+    cleanEnvValue(env.LLM_API_KEY_KEYCHAIN_SERVICE) ??
+    defaultLlmKeychainService;
+  const account =
+    cleanEnvValue(env.LLM_API_KEY_KEYCHAIN_ACCOUNT) ??
+    defaultLlmKeychainAccount;
+  try {
+    return execFileSync(
+      '/usr/bin/security',
+      ['find-generic-password', '-s', service, '-a', account, '-w'],
+      {
+        encoding: 'utf8',
+        stdio: ['ignore', 'pipe', 'ignore'],
+      },
+    ).trim();
+  } catch (_) {
+    return '';
+  }
+}
+
+function cleanEnvValue(value: string | undefined): string | null {
+  const clean = value?.trim();
+  return clean ? clean : null;
+}
+
+function isPlaceholderApiKey(value: string): boolean {
+  return value === 'replace-with-real-provider-key';
 }
 
 function parseDataStore(
