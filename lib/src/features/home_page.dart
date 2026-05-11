@@ -12,6 +12,7 @@ import '../providers.dart';
 import '../services/memo_store.dart';
 import '../services/model_settings_repository.dart';
 import '../services/period_utils.dart';
+import '../services/task_body.dart';
 import '../services/template_renderer.dart';
 
 const _ink = Color(0xFF202622);
@@ -670,8 +671,7 @@ class _AddTaskPanel extends ConsumerStatefulWidget {
 }
 
 class _AddTaskPanelState extends ConsumerState<_AddTaskPanel> {
-  final _titleController = TextEditingController();
-  final _contentController = TextEditingController();
+  final _bodyController = TextEditingController();
   final _tagsController = TextEditingController();
   int? _loadedEditingTaskId;
   DateTime? _createdAt;
@@ -680,8 +680,7 @@ class _AddTaskPanelState extends ConsumerState<_AddTaskPanel> {
 
   @override
   void dispose() {
-    _titleController.dispose();
-    _contentController.dispose();
+    _bodyController.dispose();
     _tagsController.dispose();
     super.dispose();
   }
@@ -706,19 +705,16 @@ class _AddTaskPanelState extends ConsumerState<_AddTaskPanel> {
           _PanelHeader(
             icon: isEditing ? Icons.edit_outlined : Icons.add_task,
             title: isEditing ? '编辑任务' : '添加任务',
-            subtitle: isEditing ? '修改标题、内容和标签。' : '记录事项，标签用逗号分隔。',
+            subtitle: isEditing ? '修改任务内容和标签。' : '记录事项，标签用逗号分隔。',
           ),
           const SizedBox(height: 16),
           TextField(
-            controller: _titleController,
-            decoration: const InputDecoration(labelText: '标题'),
-            textInputAction: TextInputAction.next,
-          ),
-          const SizedBox(height: 12),
-          TextField(
-            controller: _contentController,
-            decoration: const InputDecoration(labelText: '内容'),
-            minLines: 5,
+            controller: _bodyController,
+            decoration: const InputDecoration(
+              labelText: '任务内容',
+              hintText: '第一行会显示在任务列表中',
+            ),
+            minLines: 6,
             maxLines: 8,
           ),
           const SizedBox(height: 12),
@@ -811,16 +807,14 @@ class _AddTaskPanelState extends ConsumerState<_AddTaskPanel> {
     _loadedEditingTaskId = task?.id;
 
     if (task == null) {
-      _titleController.clear();
-      _contentController.clear();
+      _bodyController.clear();
       _tagsController.clear();
       _createdAt = null;
       _completedAt = null;
       return;
     }
 
-    _titleController.text = task.title;
-    _contentController.text = task.content;
+    _bodyController.text = taskBodyFromRecord(task);
     _tagsController.text = task.tags.join(', ');
     _createdAt = task.createdAt;
     _completedAt = task.completedAt;
@@ -843,8 +837,7 @@ class _AddTaskPanelState extends ConsumerState<_AddTaskPanel> {
     setState(() => _isSaving = true);
     try {
       final editingTask = ref.read(editingTaskProvider);
-      final title = _titleController.text;
-      final content = _contentController.text;
+      final draft = taskDraftFromBody(_bodyController.text);
       final taskTags = _parseTags(_tagsController.text);
       final createdAt = _createdAt ?? editingTask?.createdAt ?? DateTime.now();
       final completedAt = _completedAt;
@@ -853,22 +846,21 @@ class _AddTaskPanelState extends ConsumerState<_AddTaskPanel> {
       }
       if (editingTask == null) {
         await ref.read(appDatabaseProvider).addTask(
-              title: title,
-              content: content,
+              title: draft.title,
+              content: draft.content,
               tags: taskTags,
             );
       } else {
         await ref.read(appDatabaseProvider).updateTask(
               taskId: editingTask.id,
-              title: title,
-              content: content,
+              title: draft.title,
+              content: draft.content,
               tags: taskTags,
               createdAt: createdAt,
               completedAt: completedAt,
             );
       }
-      _titleController.clear();
-      _contentController.clear();
+      _bodyController.clear();
       _tagsController.clear();
       _createdAt = null;
       _completedAt = null;
@@ -876,8 +868,8 @@ class _AddTaskPanelState extends ConsumerState<_AddTaskPanel> {
         ref.read(selectedTaskProvider.notifier).state = null;
       } else {
         ref.read(selectedTaskProvider.notifier).state = editingTask.copyWith(
-          title: title.trim(),
-          content: content.trim(),
+          title: draft.title,
+          content: draft.content,
           tags: taskTags,
           createdAt: createdAt,
           completedAt: completedAt,
@@ -895,8 +887,11 @@ class _AddTaskPanelState extends ConsumerState<_AddTaskPanel> {
       }
     } catch (error) {
       if (mounted) {
+        final message = error is ArgumentError && error.message != null
+            ? error.message.toString()
+            : error.toString();
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(error.toString())),
+          SnackBar(content: Text(message)),
         );
       }
     } finally {
@@ -980,24 +975,15 @@ class _TaskViewPanel extends ConsumerWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    task.title,
-                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                  const _SectionLabel('任务内容'),
+                  const SizedBox(height: 6),
+                  SelectableText(
+                    taskBodyFromRecord(task),
+                    style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                           color: task.isCompleted ? _muted : _ink,
                           decoration: task.isCompleted
                               ? TextDecoration.lineThrough
                               : null,
-                        ),
-                  ),
-                  const SizedBox(height: 14),
-                  const _SectionLabel('内容'),
-                  const SizedBox(height: 6),
-                  SelectableText(
-                    task.content.trim().isEmpty ? '无内容' : task.content,
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          color: task.content.trim().isEmpty
-                              ? _muted
-                              : const Color(0xFF3F4742),
                         ),
                   ),
                   const SizedBox(height: 16),

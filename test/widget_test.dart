@@ -31,6 +31,8 @@ void main() {
     expect(find.text('AIMemo'), findsOneWidget);
     expect(find.text('标签'), findsWidgets);
     expect(find.text('添加任务'), findsWidgets);
+    expect(find.text('任务内容'), findsOneWidget);
+    expect(find.text('标题'), findsNothing);
   });
 
   testWidgets('model settings button shows unconfigured state', (tester) async {
