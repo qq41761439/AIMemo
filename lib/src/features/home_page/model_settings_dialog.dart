@@ -156,35 +156,27 @@ class _ModelSettingsDialogState extends State<_ModelSettingsDialog> {
           ),
         ),
       ),
-      actions: isCustom
-          ? [
-              TextButton(
-                onPressed: _saving
-                    ? null
-                    : () => Navigator.of(context).pop(_settingsChanged),
-                child: const Text('取消'),
-              ),
-              FilledButton.icon(
-                style: compactButtonStyle,
-                onPressed: _saving ? null : _save,
-                icon: _saving
-                    ? const SizedBox(
-                        width: 16,
-                        height: 16,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : const Icon(Icons.save_outlined),
-                label: const Text('保存'),
-              ),
-            ]
-          : [
-              TextButton(
-                onPressed: _saving
-                    ? null
-                    : () => Navigator.of(context).pop(_settingsChanged),
-                child: Text(_hasHostedSession ? '完成' : '取消'),
-              ),
-            ],
+      actions: [
+        TextButton(
+          onPressed: _saving
+              ? null
+              : () => Navigator.of(context).pop(_settingsChanged),
+          child: const Text('取消'),
+        ),
+        if (isCustom || _hasHostedSession)
+          FilledButton.icon(
+            style: compactButtonStyle,
+            onPressed: _saving ? null : _save,
+            icon: _saving
+                ? const SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Icon(Icons.save_outlined),
+            label: Text(isCustom ? '保存' : '完成'),
+          ),
+      ],
     );
   }
 

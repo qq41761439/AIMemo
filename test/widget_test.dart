@@ -341,6 +341,85 @@ void main() {
 
     await database.close();
   });
+
+  testWidgets(
+      'model settings switches from custom to hosted when already signed in',
+      (tester) async {
+    final database = AppDatabase(pathOverride: inMemoryDatabasePath);
+    final apiKeyVault = MemoryApiKeyVault();
+    final repository = _FakeHostedLoginRepository(
+      store: database,
+      apiKeyVault: apiKeyVault,
+      initialSettings: const ModelSettings(
+        mode: ModelMode.custom,
+        baseUrl: 'https://example.test/v1',
+        model: 'custom-model',
+        hasApiKey: true,
+        hostedBaseUrl: 'http://127.0.0.1:8787',
+        hasHostedSession: true,
+      ),
+    );
+
+    await _pumpApp(
+      tester,
+      database: database,
+      apiKeyVault: apiKeyVault,
+      modelSettingsRepository: repository,
+      openSummary: true,
+    );
+
+    expect(find.text('custom-model'), findsOneWidget);
+
+    await tester.tap(find.byIcon(Icons.storage_outlined));
+    await _pumpFrame(tester);
+    await tester.tap(find.text('使用官方模型'));
+    await _pumpFrame(tester);
+    await tester.tap(find.text('完成'));
+    await _pumpFrame(tester);
+
+    expect(find.text('官方托管'), findsOneWidget);
+
+    await database.close();
+  });
+
+  testWidgets('model settings switches from hosted back to custom',
+      (tester) async {
+    final database = AppDatabase(pathOverride: inMemoryDatabasePath);
+    final apiKeyVault = MemoryApiKeyVault();
+    final repository = _FakeHostedLoginRepository(
+      store: database,
+      apiKeyVault: apiKeyVault,
+      initialSettings: const ModelSettings(
+        mode: ModelMode.hosted,
+        baseUrl: 'https://example.test/v1',
+        model: 'custom-model',
+        hasApiKey: true,
+        hostedBaseUrl: 'http://127.0.0.1:8787',
+        hasHostedSession: true,
+      ),
+    );
+
+    await _pumpApp(
+      tester,
+      database: database,
+      apiKeyVault: apiKeyVault,
+      modelSettingsRepository: repository,
+      openSummary: true,
+    );
+
+    expect(find.text('官方托管'), findsOneWidget);
+
+    await tester.tap(find.byIcon(Icons.storage_outlined));
+    await _pumpFrame(tester);
+    await tester.tap(find.text('使用自己的模型服务'));
+    await _pumpFrame(tester);
+    await tester.tap(find.text('保存'));
+    await _pumpFrame(tester);
+
+    expect(find.text('custom-model'), findsOneWidget);
+
+    await database.close();
+  });
 }
 
 Future<void> _pumpFrame(WidgetTester tester) async {
@@ -354,9 +433,10 @@ class _FakeHostedLoginRepository extends ModelSettingsRepository {
   _FakeHostedLoginRepository({
     required super.store,
     required super.apiKeyVault,
-  });
+    ModelSettings? initialSettings,
+  }) : _settings = initialSettings ?? ModelSettings.defaults();
 
-  ModelSettings _settings = ModelSettings.defaults();
+  ModelSettings _settings;
 
   @override
   Future<ModelSettings> load() async => _settings;
@@ -389,6 +469,9 @@ class _FakeHostedLoginRepository extends ModelSettingsRepository {
       baseUrl: baseUrl,
       model: model,
       hostedBaseUrl: hostedBaseUrl,
+      hasApiKey: apiKey != null && apiKey.trim().isNotEmpty
+          ? true
+          : _settings.hasApiKey,
       hasHostedSession:
           mode == ModelMode.hosted ? true : _settings.hasHostedSession,
     );
