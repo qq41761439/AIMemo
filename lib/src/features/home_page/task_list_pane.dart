@@ -27,24 +27,44 @@ class _TaskListPane extends ConsumerWidget {
             const SizedBox(height: 16),
           ],
           Expanded(
-            child: tasks.when(
-              data: (items) {
-                if (items.isEmpty) {
-                  final isCompact = MediaQuery.sizeOf(context).width <
-                      _mobileWorkspaceBreakpoint;
-                  return _EmptyHint(
-                    text: isCompact ? '还没有任务，点下方记录页添加一个。' : '还没有任务，先从右侧添加一个。',
-                  );
-                }
-                return ListView.separated(
-                  itemCount: items.length,
-                  separatorBuilder: (_, __) => const SizedBox(height: 6),
-                  itemBuilder: (context, index) =>
-                      _TaskTile(task: items[index]),
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                return RefreshIndicator(
+                  key: const ValueKey('task-list-refresh'),
+                  onRefresh: () => _refreshTasks(context, ref),
+                  child: tasks.when(
+                    data: (items) {
+                      if (items.isEmpty) {
+                        final isCompact = MediaQuery.sizeOf(context).width <
+                            _mobileWorkspaceBreakpoint;
+                        return _RefreshablePlaceholder(
+                          minHeight: constraints.maxHeight,
+                          child: _EmptyHint(
+                            text: isCompact
+                                ? '还没有任务，点下方记录页添加一个。'
+                                : '还没有任务，先从右侧添加一个。',
+                          ),
+                        );
+                      }
+                      return ListView.separated(
+                        physics: const AlwaysScrollableScrollPhysics(),
+                        itemCount: items.length,
+                        separatorBuilder: (_, __) => const SizedBox(height: 6),
+                        itemBuilder: (context, index) =>
+                            _TaskTile(task: items[index]),
+                      );
+                    },
+                    loading: () => _RefreshablePlaceholder(
+                      minHeight: constraints.maxHeight,
+                      child: const Center(child: CircularProgressIndicator()),
+                    ),
+                    error: (error, _) => _RefreshablePlaceholder(
+                      minHeight: constraints.maxHeight,
+                      child: _ErrorText(error.toString()),
+                    ),
+                  ),
                 );
               },
-              loading: () => const Center(child: CircularProgressIndicator()),
-              error: (error, _) => _ErrorText(error.toString()),
             ),
           ),
         ],

@@ -192,6 +192,29 @@ class _ErrorText extends StatelessWidget {
   }
 }
 
+class _RefreshablePlaceholder extends StatelessWidget {
+  const _RefreshablePlaceholder({
+    required this.child,
+    required this.minHeight,
+  });
+
+  final Widget child;
+  final double minHeight;
+
+  @override
+  Widget build(BuildContext context) {
+    return ListView(
+      physics: const AlwaysScrollableScrollPhysics(),
+      children: [
+        SizedBox(
+          height: minHeight,
+          child: child,
+        ),
+      ],
+    );
+  }
+}
+
 class _OutlinedFilterChip extends StatelessWidget {
   const _OutlinedFilterChip({
     required this.label,
@@ -293,5 +316,60 @@ Future<void> _pruneTaskTagFilter(WidgetRef ref, MemoStore database) async {
       selectedTags.where((tag) => availableTags.contains(tag)).toSet();
   if (nextSelectedTags.length != selectedTags.length) {
     ref.read(taskTagFilterProvider.notifier).state = nextSelectedTags;
+  }
+}
+
+Future<void> _refreshTasks(BuildContext context, WidgetRef ref) async {
+  try {
+    final isSyncMode =
+        ref.read(appRunModeProvider).valueOrNull == AppRunMode.sync;
+    if (isSyncMode) {
+      final coordinator = await ref.read(syncCoordinatorProvider.future);
+      await coordinator?.sync();
+    }
+
+    await _pruneTaskTagFilter(ref, ref.read(appDatabaseProvider));
+    ref
+      ..invalidate(taskListProvider)
+      ..invalidate(tagListProvider);
+    await Future.wait([
+      ref.read(taskListProvider.future),
+      ref.read(tagListProvider.future),
+    ]);
+  } catch (error) {
+    if (!context.mounted) {
+      return;
+    }
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('刷新任务失败：$error'),
+        duration: const Duration(seconds: 3),
+        backgroundColor: Colors.red.shade700,
+      ),
+    );
+  }
+}
+
+Future<void> _refreshHistory(BuildContext context, WidgetRef ref) async {
+  try {
+    final settings = await ref.read(modelSettingsProvider.future);
+    if (settings.mode == ModelMode.hosted && settings.hasHostedSession) {
+      ref.invalidate(hostedSummaryHistoryProvider);
+      await ref.read(hostedSummaryHistoryProvider.future);
+    } else {
+      ref.invalidate(summaryHistoryProvider);
+      await ref.read(summaryHistoryProvider.future);
+    }
+  } catch (error) {
+    if (!context.mounted) {
+      return;
+    }
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('刷新历史失败：$error'),
+        duration: const Duration(seconds: 3),
+        backgroundColor: Colors.red.shade700,
+      ),
+    );
   }
 }

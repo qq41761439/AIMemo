@@ -24,9 +24,11 @@ class _HistoryPanel extends ConsumerWidget {
           Expanded(
             child: showHostedHistory
                 ? _HostedSummaryHistoryList(
+                    onRefresh: () => _refreshHistory(context, ref),
                     summaries: ref.watch(hostedSummaryHistoryProvider),
                   )
                 : _LocalSummaryHistoryList(
+                    onRefresh: () => _refreshHistory(context, ref),
                     summaries: ref.watch(summaryHistoryProvider),
                   ),
           ),
@@ -37,65 +39,110 @@ class _HistoryPanel extends ConsumerWidget {
 }
 
 class _LocalSummaryHistoryList extends StatelessWidget {
-  const _LocalSummaryHistoryList({required this.summaries});
+  const _LocalSummaryHistoryList({
+    required this.onRefresh,
+    required this.summaries,
+  });
 
+  final RefreshCallback onRefresh;
   final AsyncValue<List<SummaryRecord>> summaries;
 
   @override
   Widget build(BuildContext context) {
-    return summaries.when(
-      data: (items) {
-        if (items.isEmpty) {
-          return const _EmptyHint(text: '生成的总结会保存在这里。');
-        }
-        return ListView.builder(
-          itemCount: items.length,
-          itemBuilder: (context, index) {
-            final item = items[index];
-            final tags =
-                item.tagFilter.isEmpty ? '全部标签' : item.tagFilter.join('、');
-            return _SummaryHistoryTile(
-              title: '${item.periodType.title} · ${item.periodLabel}',
-              subtitle: '$tags · ${compactDateTime(item.createdAt)}',
-              output: item.output,
-            );
-          },
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        return RefreshIndicator(
+          key: const ValueKey('history-refresh'),
+          onRefresh: onRefresh,
+          child: summaries.when(
+            data: (items) {
+              if (items.isEmpty) {
+                return _RefreshablePlaceholder(
+                  minHeight: constraints.maxHeight,
+                  child: const _EmptyHint(text: '生成的总结会保存在这里。'),
+                );
+              }
+              return ListView.builder(
+                physics: const AlwaysScrollableScrollPhysics(),
+                itemCount: items.length,
+                itemBuilder: (context, index) {
+                  final item = items[index];
+                  final tags = item.tagFilter.isEmpty
+                      ? '全部标签'
+                      : item.tagFilter.join('、');
+                  return _SummaryHistoryTile(
+                    title: '${item.periodType.title} · ${item.periodLabel}',
+                    subtitle: '$tags · ${compactDateTime(item.createdAt)}',
+                    output: item.output,
+                  );
+                },
+              );
+            },
+            loading: () => _RefreshablePlaceholder(
+              minHeight: constraints.maxHeight,
+              child: const Center(child: CircularProgressIndicator()),
+            ),
+            error: (error, _) => _RefreshablePlaceholder(
+              minHeight: constraints.maxHeight,
+              child: _ErrorText(error.toString()),
+            ),
+          ),
         );
       },
-      loading: () => const Center(child: CircularProgressIndicator()),
-      error: (error, _) => _ErrorText(error.toString()),
     );
   }
 }
 
 class _HostedSummaryHistoryList extends StatelessWidget {
-  const _HostedSummaryHistoryList({required this.summaries});
+  const _HostedSummaryHistoryList({
+    required this.onRefresh,
+    required this.summaries,
+  });
 
+  final RefreshCallback onRefresh;
   final AsyncValue<List<HostedSummaryRecord>> summaries;
 
   @override
   Widget build(BuildContext context) {
-    return summaries.when(
-      data: (items) {
-        if (items.isEmpty) {
-          return const _EmptyHint(text: '云端总结会保存在这里。');
-        }
-        return ListView.builder(
-          itemCount: items.length,
-          itemBuilder: (context, index) {
-            final item = items[index];
-            final tags = item.tags.isEmpty ? '全部标签' : item.tags.join('、');
-            return _SummaryHistoryTile(
-              title: '${item.periodType.title} · ${item.periodLabel}',
-              subtitle:
-                  '$tags · ${compactDateTime(item.createdAt)} · ${item.model}',
-              output: item.output,
-            );
-          },
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        return RefreshIndicator(
+          key: const ValueKey('history-refresh'),
+          onRefresh: onRefresh,
+          child: summaries.when(
+            data: (items) {
+              if (items.isEmpty) {
+                return _RefreshablePlaceholder(
+                  minHeight: constraints.maxHeight,
+                  child: const _EmptyHint(text: '云端总结会保存在这里。'),
+                );
+              }
+              return ListView.builder(
+                physics: const AlwaysScrollableScrollPhysics(),
+                itemCount: items.length,
+                itemBuilder: (context, index) {
+                  final item = items[index];
+                  final tags = item.tags.isEmpty ? '全部标签' : item.tags.join('、');
+                  return _SummaryHistoryTile(
+                    title: '${item.periodType.title} · ${item.periodLabel}',
+                    subtitle:
+                        '$tags · ${compactDateTime(item.createdAt)} · ${item.model}',
+                    output: item.output,
+                  );
+                },
+              );
+            },
+            loading: () => _RefreshablePlaceholder(
+              minHeight: constraints.maxHeight,
+              child: const Center(child: CircularProgressIndicator()),
+            ),
+            error: (error, _) => _RefreshablePlaceholder(
+              minHeight: constraints.maxHeight,
+              child: _ErrorText(error.toString()),
+            ),
+          ),
         );
       },
-      loading: () => const Center(child: CircularProgressIndicator()),
-      error: (error, _) => _ErrorText(error.toString()),
     );
   }
 }

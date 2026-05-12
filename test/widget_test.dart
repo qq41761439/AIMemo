@@ -1,6 +1,7 @@
 import 'package:aimemo/src/app.dart';
 import 'package:aimemo/src/models/app_run_mode.dart';
 import 'package:aimemo/src/models/model_settings.dart';
+import 'package:aimemo/src/models/period_type.dart';
 import 'package:aimemo/src/providers.dart';
 import 'package:aimemo/src/services/app_database.dart';
 import 'package:aimemo/src/services/in_memory_memo_store.dart';
@@ -106,6 +107,31 @@ void main() {
     await database.close();
   });
 
+  testWidgets('task pull-to-refresh reloads task data', (tester) async {
+    final database = InMemoryMemoStore();
+
+    await _pumpApp(tester, database: database);
+    await _pumpFrame(tester);
+
+    expect(find.text('下拉同步任务'), findsNothing);
+
+    await database.addTask(
+      title: '下拉同步任务',
+      content: '',
+      tags: const ['同步'],
+    );
+    final refresh = tester.widget<RefreshIndicator>(
+      find.byKey(const ValueKey('task-list-refresh')),
+    );
+
+    await refresh.onRefresh();
+    await _pumpFrame(tester);
+
+    expect(find.text('下拉同步任务'), findsOneWidget);
+
+    await database.close();
+  });
+
   testWidgets('task tap opens edit form directly', (tester) async {
     final database = InMemoryMemoStore();
     await database.addTask(
@@ -180,6 +206,37 @@ void main() {
         isNot('task tags input'));
 
     expect(tester.takeException(), isNull);
+
+    await database.close();
+  });
+
+  testWidgets('history pull-to-refresh reloads summary data', (tester) async {
+    final database = InMemoryMemoStore();
+
+    await _pumpApp(tester, database: database);
+    await tester.tap(find.widgetWithText(Tab, '历史'));
+    await _pumpFrame(tester);
+
+    expect(find.text('日报 · refresh-2026-05-12'), findsNothing);
+
+    await database.insertSummary(
+      periodType: PeriodType.daily,
+      periodLabel: 'refresh-2026-05-12',
+      periodStart: DateTime(2026, 5, 12),
+      periodEnd: DateTime(2026, 5, 13),
+      tagFilter: const ['同步'],
+      taskIds: const [],
+      prompt: 'prompt',
+      output: '刷新后的历史内容',
+    );
+    final refresh = tester.widget<RefreshIndicator>(
+      find.byKey(const ValueKey('history-refresh')),
+    );
+
+    await refresh.onRefresh();
+    await _pumpFrame(tester);
+
+    expect(find.text('日报 · refresh-2026-05-12'), findsOneWidget);
 
     await database.close();
   });
