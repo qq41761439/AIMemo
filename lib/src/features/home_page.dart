@@ -36,6 +36,7 @@ const _accent = Color(0xFF2F6F5E);
 const _accentSoft = Color(0xFFE4ECE7);
 const _controlHeight = 40.0;
 const _controlRadius = 6.0;
+const _mobileWorkspaceBreakpoint = 720.0;
 const _defaultActionPaneWidth = 520.0;
 const _minActionPaneWidth = 380.0;
 const _maxActionPaneWidth = 720.0;
@@ -65,6 +66,8 @@ class _HomeWorkspace extends ConsumerStatefulWidget {
 
 class _HomeWorkspaceState extends ConsumerState<_HomeWorkspace> {
   double _actionPaneWidth = _defaultActionPaneWidth;
+  int _mobilePageIndex = 0;
+  bool _compactWorkspace = false;
   late final MemoStore _database;
   Timer? _saveActionPaneWidthTimer;
   Timer? _syncTimer;
@@ -92,10 +95,27 @@ class _HomeWorkspaceState extends ConsumerState<_HomeWorkspace> {
 
   @override
   Widget build(BuildContext context) {
+    ref.listen<int>(taskPaneFocusRequestProvider, (_, __) {
+      if (_compactWorkspace && mounted && _mobilePageIndex != 1) {
+        setState(() => _mobilePageIndex = 1);
+      }
+    });
+
     return Scaffold(
       body: SafeArea(
         child: LayoutBuilder(
           builder: (context, constraints) {
+            _compactWorkspace =
+                constraints.maxWidth < _mobileWorkspaceBreakpoint;
+            if (_compactWorkspace) {
+              return _MobileWorkspace(
+                selectedIndex: _mobilePageIndex,
+                onDestinationSelected: (index) {
+                  setState(() => _mobilePageIndex = index);
+                },
+              );
+            }
+
             final workspaceWidth =
                 constraints.maxWidth < 980 ? 980.0 : constraints.maxWidth;
             final maxActionPaneWidth = _maxActionPaneWidthFor(workspaceWidth);
@@ -212,6 +232,70 @@ class _HomeWorkspaceState extends ConsumerState<_HomeWorkspace> {
     _saveActionPaneWidthTimer = Timer(const Duration(milliseconds: 350), () {
       unawaited(_database.saveActionPaneWidth(width));
     });
+  }
+}
+
+class _MobileWorkspace extends ConsumerWidget {
+  const _MobileWorkspace({
+    required this.selectedIndex,
+    required this.onDestinationSelected,
+  });
+
+  final int selectedIndex;
+  final ValueChanged<int> onDestinationSelected;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final pageIndex = selectedIndex.clamp(0, 3);
+    return Scaffold(
+      backgroundColor: _faint,
+      body: IndexedStack(
+        index: pageIndex,
+        children: const [
+          _TaskListPane(),
+          _KeepAlivePane(child: _AddTaskPanel()),
+          _KeepAlivePane(child: _SummaryPanel()),
+          _KeepAlivePane(child: _HistoryPanel()),
+        ],
+      ),
+      floatingActionButton: pageIndex == 0
+          ? FloatingActionButton(
+              tooltip: '添加任务',
+              onPressed: () {
+                ref.read(selectedTaskProvider.notifier).state = null;
+                ref.read(editingTaskProvider.notifier).state = null;
+                onDestinationSelected(1);
+              },
+              child: const Icon(Icons.add_task),
+            )
+          : null,
+      bottomNavigationBar: NavigationBar(
+        selectedIndex: pageIndex,
+        onDestinationSelected: onDestinationSelected,
+        destinations: const [
+          NavigationDestination(
+            icon: Icon(Icons.checklist_rtl_outlined),
+            selectedIcon: Icon(Icons.checklist_rtl),
+            label: '任务',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.add_task_outlined),
+            selectedIcon: Icon(Icons.add_task),
+            label: '记录',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.auto_awesome_outlined),
+            selectedIcon: Icon(Icons.auto_awesome),
+            label: '总结',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.history_outlined),
+            selectedIcon: Icon(Icons.history),
+            label: '历史',
+          ),
+        ],
+      ),
+    );
   }
 }
 

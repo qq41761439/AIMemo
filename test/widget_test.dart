@@ -37,6 +37,28 @@ void main() {
     expect(find.text('标题'), findsNothing);
   });
 
+  testWidgets('AIMemo home uses mobile navigation on narrow screens',
+      (tester) async {
+    final database = await _pumpApp(
+      tester,
+      viewSize: const Size(390, 844),
+    );
+
+    expect(find.text('任务'), findsOneWidget);
+    expect(find.text('记录'), findsOneWidget);
+    expect(find.text('总结'), findsOneWidget);
+    expect(find.text('历史'), findsOneWidget);
+    expect(find.text('任务内容'), findsNothing);
+
+    await tester.tap(find.text('记录'));
+    await _pumpFrame(tester);
+
+    expect(find.text('添加任务'), findsWidgets);
+    expect(find.text('任务内容'), findsOneWidget);
+
+    await database.close();
+  });
+
   testWidgets('startup page lets users choose local mode', (tester) async {
     final database = AppDatabase(pathOverride: inMemoryDatabasePath);
     final apiKeyVault = MemoryApiKeyVault();
@@ -271,10 +293,11 @@ Future<AppDatabase> _pumpApp(
   ModelSettings? modelSettings,
   bool openSummary = false,
   bool skipStartup = true,
+  Size viewSize = const Size(1200, 800),
 }) async {
   sqfliteFfiInit();
   databaseFactory = databaseFactoryFfi;
-  tester.view.physicalSize = const Size(1200, 800);
+  tester.view.physicalSize = viewSize;
   tester.view.devicePixelRatio = 1;
   addTearDown(tester.view.resetPhysicalSize);
   addTearDown(tester.view.resetDevicePixelRatio);

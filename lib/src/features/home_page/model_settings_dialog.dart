@@ -57,8 +57,8 @@ class _ModelSettingsDialogState extends State<_ModelSettingsDialog> {
 
     return AlertDialog(
       title: const Text('模型设置'),
-      content: SizedBox(
-        width: 440,
+      content: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 440),
         child: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,

@@ -4,6 +4,7 @@ import 'dart:math';
 
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
+import 'package:sqflite/sqflite.dart' as sqflite_mobile;
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
 import '../models/period_type.dart';
@@ -25,12 +26,19 @@ class AppDatabase implements MemoStore {
   AppDatabase({
     DatabaseFactory? factory,
     String? pathOverride,
-  })  : _factory = factory ?? databaseFactoryFfi,
+  })  : _factory = factory ?? _defaultDatabaseFactory(),
         _pathOverride = pathOverride;
 
   final DatabaseFactory _factory;
   final String? _pathOverride;
   Database? _db;
+
+  static DatabaseFactory _defaultDatabaseFactory() {
+    if (Platform.isAndroid || Platform.isIOS) {
+      return sqflite_mobile.databaseFactory;
+    }
+    return databaseFactoryFfi;
+  }
 
   Future<Database> get database async {
     final existing = _db;

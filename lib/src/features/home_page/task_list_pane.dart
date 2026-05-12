@@ -22,7 +22,11 @@ class _TaskListPane extends ConsumerWidget {
             child: tasks.when(
               data: (items) {
                 if (items.isEmpty) {
-                  return const _EmptyHint(text: '还没有任务，先从右侧添加一个。');
+                  final isCompact = MediaQuery.sizeOf(context).width <
+                      _mobileWorkspaceBreakpoint;
+                  return _EmptyHint(
+                    text: isCompact ? '还没有任务，点下方记录页添加一个。' : '还没有任务，先从右侧添加一个。',
+                  );
                 }
                 return ListView.separated(
                   itemCount: items.length,
