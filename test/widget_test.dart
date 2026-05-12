@@ -106,6 +106,28 @@ void main() {
     await database.close();
   });
 
+  testWidgets('task tap opens edit form directly', (tester) async {
+    final database = InMemoryMemoStore();
+    await database.addTask(
+      title: '直接编辑任务',
+      content: '不经过查看页',
+      tags: const ['界面'],
+    );
+
+    await _pumpApp(tester, database: database);
+    await _pumpFrame(tester);
+
+    await tester.tap(find.text('直接编辑任务'));
+    await _pumpFrame(tester);
+
+    expect(find.text('编辑任务'), findsOneWidget);
+    expect(find.text('保存修改'), findsOneWidget);
+    expect(find.text('查看任务'), findsNothing);
+    expect(find.text('查看当前任务的完整内容。'), findsNothing);
+
+    await database.close();
+  });
+
   testWidgets('mobile add task form keeps fields focusable on short screens',
       (tester) async {
     final database = await _pumpApp(

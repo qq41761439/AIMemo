@@ -25,24 +25,11 @@ class _ActionPaneState extends ConsumerState<_ActionPane>
 
   @override
   Widget build(BuildContext context) {
-    final selectedTask = ref.watch(selectedTaskProvider);
     final editingTask = ref.watch(editingTaskProvider);
-    final firstTabLabel = editingTask != null
-        ? '编辑'
-        : selectedTask != null
-            ? '查看'
-            : '添加';
-    final firstTabIcon = editingTask != null
-        ? Icons.edit_outlined
-        : selectedTask != null
-            ? Icons.visibility_outlined
-            : Icons.add_task;
+    final firstTabLabel = editingTask != null ? '编辑' : '添加';
+    final firstTabIcon =
+        editingTask != null ? Icons.edit_outlined : Icons.add_task;
 
-    ref.listen<TaskRecord?>(selectedTaskProvider, (_, next) {
-      if (next != null) {
-        _tabController.animateTo(0);
-      }
-    });
     ref.listen<TaskRecord?>(editingTaskProvider, (_, next) {
       if (next != null) {
         _tabController.animateTo(0);

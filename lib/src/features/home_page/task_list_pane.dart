@@ -250,8 +250,8 @@ class _TaskTile extends ConsumerWidget {
                 child: GestureDetector(
                   behavior: HitTestBehavior.opaque,
                   onTap: () {
-                    ref.read(editingTaskProvider.notifier).state = null;
                     ref.read(selectedTaskProvider.notifier).state = task;
+                    ref.read(editingTaskProvider.notifier).state = task;
                     ref.read(taskPaneFocusRequestProvider.notifier).state += 1;
                   },
                   child: Column(

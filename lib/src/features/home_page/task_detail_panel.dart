@@ -29,11 +29,6 @@ class _AddTaskPanelState extends ConsumerState<_AddTaskPanel> {
   @override
   Widget build(BuildContext context) {
     final editingTask = ref.watch(editingTaskProvider);
-    final selectedTask = ref.watch(selectedTaskProvider);
-    if (editingTask == null && selectedTask != null) {
-      _syncEditingTask(null);
-      return _TaskViewPanel(task: selectedTask);
-    }
 
     final tags = ref.watch(tagListProvider);
     _syncEditingTask(editingTask);
@@ -276,18 +271,7 @@ class _AddTaskPanelState extends ConsumerState<_AddTaskPanel> {
       _tagsController.clear();
       _createdAt = DateTime.now();
       _completedAt = null;
-      if (editingTask == null) {
-        ref.read(selectedTaskProvider.notifier).state = null;
-      } else {
-        ref.read(selectedTaskProvider.notifier).state = editingTask.copyWith(
-          title: draft.title,
-          content: draft.content,
-          tags: taskTags,
-          createdAt: createdAt,
-          completedAt: completedAt,
-          clearCompletedAt: completedAt == null,
-        );
-      }
+      ref.read(selectedTaskProvider.notifier).state = null;
       ref.read(editingTaskProvider.notifier).state = null;
       ref.invalidate(taskListProvider);
       ref.invalidate(tagListProvider);
@@ -314,6 +298,7 @@ class _AddTaskPanelState extends ConsumerState<_AddTaskPanel> {
   }
 
   void _cancelEditing() {
+    ref.read(selectedTaskProvider.notifier).state = null;
     ref.read(editingTaskProvider.notifier).state = null;
   }
 
@@ -372,101 +357,6 @@ EdgeInsets _taskInputScrollPadding(BuildContext context) {
     right: 20,
     bottom: MediaQuery.viewInsetsOf(context).bottom + 120,
   );
-}
-
-class _TaskViewPanel extends ConsumerWidget {
-  const _TaskViewPanel({required this.task});
-
-  final TaskRecord task;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    return _PanelPadding(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          const _PanelHeader(
-            icon: Icons.visibility_outlined,
-            title: '查看任务',
-            subtitle: '查看当前任务的完整内容。',
-          ),
-          const SizedBox(height: 18),
-          Expanded(
-            child: SingleChildScrollView(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const _SectionLabel('任务内容'),
-                  const SizedBox(height: 6),
-                  SelectableText(
-                    taskBodyFromRecord(task),
-                    style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                          color: task.isCompleted ? _muted : _ink,
-                          decoration: task.isCompleted
-                              ? TextDecoration.lineThrough
-                              : null,
-                        ),
-                  ),
-                  const SizedBox(height: 16),
-                  const _SectionLabel('标签'),
-                  const SizedBox(height: 8),
-                  if (task.tags.isEmpty)
-                    Text('无标签', style: _captionStyle(context))
-                  else
-                    Wrap(
-                      spacing: 6,
-                      runSpacing: 6,
-                      children: [
-                        for (final tag in task.tags) _TaskTagPill(tag),
-                      ],
-                    ),
-                  const SizedBox(height: 16),
-                  const _SectionLabel('时间'),
-                  const SizedBox(height: 8),
-                  _TaskMetaLine(
-                    icon: Icons.calendar_today_outlined,
-                    text: '开始 ${compactDateTime(task.createdAt)}',
-                  ),
-                  if (task.completedAt != null) ...[
-                    const SizedBox(height: 6),
-                    _TaskMetaLine(
-                      icon: Icons.task_alt,
-                      text: '完成 ${compactDateTime(task.completedAt!)}',
-                    ),
-                  ],
-                ],
-              ),
-            ),
-          ),
-          const SizedBox(height: 12),
-          Row(
-            children: [
-              Expanded(
-                child: OutlinedButton.icon(
-                  onPressed: () {
-                    ref.read(selectedTaskProvider.notifier).state = null;
-                    ref.read(editingTaskProvider.notifier).state = null;
-                  },
-                  icon: const Icon(Icons.add),
-                  label: const Text('新建任务'),
-                ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: FilledButton.icon(
-                  onPressed: () {
-                    ref.read(editingTaskProvider.notifier).state = task;
-                  },
-                  icon: const Icon(Icons.edit_outlined),
-                  label: const Text('编辑任务'),
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
 }
 
 class _TaskDateTimeButton extends StatelessWidget {
@@ -545,27 +435,6 @@ class _TaskDateTimeButton extends StatelessWidget {
           ),
         ),
       ),
-    );
-  }
-}
-
-class _TaskMetaLine extends StatelessWidget {
-  const _TaskMetaLine({
-    required this.icon,
-    required this.text,
-  });
-
-  final IconData icon;
-  final String text;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Icon(icon, size: 15, color: _muted),
-        const SizedBox(width: 6),
-        Expanded(child: Text(text, style: _captionStyle(context))),
-      ],
     );
   }
 }
