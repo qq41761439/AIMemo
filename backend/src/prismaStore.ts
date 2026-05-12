@@ -126,6 +126,16 @@ export class PrismaStore implements DataStore {
   }
 
   async createTask(userId: string, input: CreateTaskInput): Promise<TaskRecord> {
+    const clientId = cleanClientId(input.clientId);
+    if (clientId) {
+      const existing = await this.prisma.task.findFirst({
+        where: { userId, clientId },
+      });
+      if (existing) {
+        return existing;
+      }
+    }
+
     const now = new Date();
     return this.prisma.task.create({
       data: {
@@ -136,6 +146,7 @@ export class PrismaStore implements DataStore {
         createdAt: input.createdAt,
         completedAt:
           input.completedAt ?? (input.isCompleted ? now : null),
+        clientId,
       },
     });
   }
@@ -239,4 +250,9 @@ function toQuota(period: string, limit: number, used: number): QuotaRecord {
 
 function cleanTags(tags: string[]): string[] {
   return [...new Set(tags.map((tag) => tag.trim()).filter(Boolean))];
+}
+
+function cleanClientId(clientId?: string | null): string | null {
+  const clean = clientId?.trim();
+  return clean ? clean : null;
 }

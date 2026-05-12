@@ -190,6 +190,41 @@ describe('AIMemo backend API', () => {
     await app.close();
   });
 
+  test('creates tasks idempotently by client id', async () => {
+    const { app, login } = await testApp();
+    const session = await login();
+    const payload = {
+      body: '同步本地任务',
+      tags: ['同步'],
+      clientId: 'desktop-client-task-1',
+    };
+
+    const first = await app.inject({
+      method: 'POST',
+      url: '/tasks',
+      headers: bearer(session.accessToken),
+      payload,
+    });
+    const second = await app.inject({
+      method: 'POST',
+      url: '/tasks',
+      headers: bearer(session.accessToken),
+      payload,
+    });
+    const tasks = await app.inject({
+      method: 'GET',
+      url: '/tasks',
+      headers: bearer(session.accessToken),
+    });
+
+    expect(first.statusCode).toBe(200);
+    expect(second.statusCode).toBe(200);
+    expect(second.json().task.id).toBe(first.json().task.id);
+    expect(second.json().task.clientId).toBe('desktop-client-task-1');
+    expect(tasks.json().items).toHaveLength(1);
+    await app.close();
+  });
+
   test('generates summaries, stores output only, and consumes shared quota', async () => {
     const llmClient = fakeLlm('今天完成了后端接口。');
     const { app, login } = await testApp({

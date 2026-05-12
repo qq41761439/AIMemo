@@ -152,6 +152,16 @@ export class InMemoryStore implements DataStore {
   }
 
   async createTask(userId: string, input: CreateTaskInput): Promise<TaskRecord> {
+    const clientId = cleanClientId(input.clientId);
+    if (clientId) {
+      const existing = [...this.tasks.values()].find(
+        (task) => task.userId === userId && task.clientId === clientId,
+      );
+      if (existing) {
+        return existing;
+      }
+    }
+
     const now = new Date();
     const isCompleted = input.isCompleted;
     const task: TaskRecord = {
@@ -164,6 +174,7 @@ export class InMemoryStore implements DataStore {
       completedAt: input.completedAt ?? (isCompleted ? now : null),
       updatedAt: now,
       deletedAt: null,
+      clientId,
     };
     this.tasks.set(task.id, task);
     return task;
@@ -259,4 +270,9 @@ function toQuota(period: string, limit: number, used: number): QuotaRecord {
 
 function cleanTags(tags: string[]): string[] {
   return [...new Set(tags.map((tag) => tag.trim()).filter(Boolean))];
+}
+
+function cleanClientId(clientId?: string | null): string | null {
+  const clean = clientId?.trim();
+  return clean ? clean : null;
 }

@@ -49,10 +49,12 @@ model Task {
   completedAt DateTime?
   updatedAt   DateTime  @updatedAt
   deletedAt   DateTime?
+  clientId    String?
   user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, updatedAt])
   @@index([userId, deletedAt])
+  @@unique([userId, clientId])
 }
 
 model Summary {

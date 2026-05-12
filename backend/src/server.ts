@@ -28,6 +28,7 @@ const taskInputSchema = z.object({
   isCompleted: z.boolean().default(false),
   createdAt: z.string().datetime().optional(),
   completedAt: z.string().datetime().nullable().optional(),
+  clientId: z.string().trim().min(1).max(120).nullable().optional(),
 });
 const taskPatchSchema = taskInputSchema.partial();
 const summaryGenerateSchema = z.object({
@@ -192,6 +193,7 @@ export async function createServer(
           : input.completedAt === null
             ? null
             : new Date(input.completedAt),
+      clientId: input.clientId,
     });
     return { task: taskDto(task) };
   });
@@ -313,6 +315,7 @@ function taskDto(task: TaskRecord) {
     completedAt: task.completedAt?.toISOString() ?? null,
     updatedAt: task.updatedAt.toISOString(),
     deletedAt: task.deletedAt?.toISOString() ?? null,
+    clientId: task.clientId,
   };
 }
 

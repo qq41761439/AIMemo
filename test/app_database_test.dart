@@ -1,8 +1,10 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:aimemo/src/models/model_settings.dart';
 import 'package:aimemo/src/models/period_type.dart';
+import 'package:aimemo/src/models/task_record.dart';
 import 'package:aimemo/src/services/app_database.dart';
 import 'package:aimemo/src/services/model_settings_repository.dart';
 import 'package:aimemo/src/services/template_renderer.dart';
@@ -159,6 +161,119 @@ void main() {
     await database.restoreTask(id);
     tasks = await database.listTasks();
     expect(tasks.single.title, '测试任务');
+  });
+
+  test('tracks task sync metadata for local changes', () async {
+    final id = await database.addTask(
+      title: '待同步任务',
+      content: '',
+      tags: const [],
+    );
+
+    var tasks = await database.listTasks();
+    final created = tasks.single;
+    expect(created.clientId, isNotEmpty);
+    expect(created.cloudId, isNull);
+    expect(created.syncStatus, TaskSyncStatus.pendingCreate);
+
+    await database.updateTask(
+      taskId: id,
+      title: '已修改任务',
+      content: '',
+      tags: const [],
+      createdAt: created.createdAt,
+    );
+    tasks = await database.listTasks();
+    expect(tasks.single.syncStatus, TaskSyncStatus.pendingCreate);
+    expect(tasks.single.updatedAt.isBefore(created.updatedAt), isFalse);
+
+    await database.deleteTask(id);
+    final db = await database.database;
+    final rows = await db.query(
+      'tasks',
+      columns: ['sync_status', 'deleted_at'],
+      where: 'id = ?',
+      whereArgs: [id],
+    );
+    expect(rows.single['sync_status'], TaskSyncStatus.pendingCreate.value);
+    expect(rows.single['deleted_at'], isNotNull);
+  });
+
+  test('migrates existing tasks to sync metadata', () async {
+    final tempDir = await Directory.systemTemp.createTemp(
+      'aimemo-migration-test',
+    );
+    final path = '${tempDir.path}/legacy.sqlite';
+    final legacy = await databaseFactoryFfi.openDatabase(
+      path,
+      options: OpenDatabaseOptions(
+        version: 2,
+        onCreate: (db, version) async {
+          await db.execute('''
+CREATE TABLE tasks (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  title TEXT NOT NULL,
+  content TEXT NOT NULL DEFAULT '',
+  created_at TEXT NOT NULL,
+  completed_at TEXT,
+  deleted_at TEXT
+)''');
+          await db.execute('''
+CREATE TABLE tags (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  name TEXT NOT NULL UNIQUE,
+  created_at TEXT NOT NULL
+)''');
+          await db.execute('''
+CREATE TABLE task_tags (
+  task_id INTEGER NOT NULL REFERENCES tasks(id) ON DELETE CASCADE,
+  tag_id INTEGER NOT NULL REFERENCES tags(id) ON DELETE CASCADE,
+  PRIMARY KEY (task_id, tag_id)
+)''');
+          await db.execute('''
+CREATE TABLE app_settings (
+  key TEXT PRIMARY KEY,
+  value TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+)''');
+          await db.execute('''
+CREATE TABLE templates (
+  period_type TEXT PRIMARY KEY,
+  content TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+)''');
+          await db.execute('''
+CREATE TABLE summaries (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  period_type TEXT NOT NULL,
+  period_label TEXT NOT NULL,
+  period_start TEXT NOT NULL,
+  period_end TEXT NOT NULL,
+  tag_filter TEXT NOT NULL,
+  task_ids TEXT NOT NULL,
+  prompt TEXT NOT NULL,
+  output TEXT NOT NULL,
+  created_at TEXT NOT NULL
+)''');
+          await db.insert('tasks', {
+            'title': '旧任务',
+            'content': '',
+            'created_at': DateTime(2026, 5, 12).toIso8601String(),
+          });
+        },
+      ),
+    );
+    await legacy.close();
+    final migrated = AppDatabase(pathOverride: path);
+    addTearDown(migrated.close);
+    addTearDown(() => tempDir.delete(recursive: true));
+
+    final tasks = await migrated.listTasks();
+
+    expect(tasks.single.title, '旧任务');
+    expect(tasks.single.clientId, startsWith('desktop-import-'));
+    expect(tasks.single.syncStatus, TaskSyncStatus.pendingCreate);
+    expect(tasks.single.updatedAt, DateTime(2026, 5, 12));
   });
 
   test('updates task details and tags', () async {

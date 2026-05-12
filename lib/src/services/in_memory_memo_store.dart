@@ -44,6 +44,8 @@ class InMemoryMemoStore implements MemoStore {
       content: content.trim(),
       tags: cleanTags,
       createdAt: createdAt ?? DateTime.now(),
+      updatedAt: DateTime.now(),
+      clientId: 'web-${DateTime.now().microsecondsSinceEpoch}-$_nextTaskId',
     );
     _tasks.add(task);
     return task.id;
@@ -71,14 +73,13 @@ class InMemoryMemoStore implements MemoStore {
     final task = _tasks[index];
     final cleanTags = _cleanTags(tags);
     _touchTags(cleanTags);
-    _tasks[index] = TaskRecord(
-      id: task.id,
+    _tasks[index] = task.copyWith(
       title: cleanTitle,
       content: content.trim(),
       tags: cleanTags,
       createdAt: createdAt,
       completedAt: completedAt,
-      deletedAt: task.deletedAt,
+      updatedAt: DateTime.now(),
     );
   }
 
@@ -110,14 +111,10 @@ class InMemoryMemoStore implements MemoStore {
       return;
     }
     final task = _tasks[index];
-    _tasks[index] = TaskRecord(
-      id: task.id,
-      title: task.title,
-      content: task.content,
-      tags: task.tags,
-      createdAt: task.createdAt,
+    _tasks[index] = task.copyWith(
       completedAt: completed ? DateTime.now() : null,
-      deletedAt: task.deletedAt,
+      clearCompletedAt: !completed,
+      updatedAt: DateTime.now(),
     );
   }
 
@@ -128,14 +125,9 @@ class InMemoryMemoStore implements MemoStore {
       return;
     }
     final task = _tasks[index];
-    _tasks[index] = TaskRecord(
-      id: task.id,
-      title: task.title,
-      content: task.content,
-      tags: task.tags,
-      createdAt: task.createdAt,
-      completedAt: task.completedAt,
+    _tasks[index] = task.copyWith(
       deletedAt: DateTime.now(),
+      updatedAt: DateTime.now(),
     );
   }
 
@@ -152,7 +144,11 @@ class InMemoryMemoStore implements MemoStore {
       content: task.content,
       tags: task.tags,
       createdAt: task.createdAt,
+      updatedAt: DateTime.now(),
       completedAt: task.completedAt,
+      clientId: task.clientId,
+      cloudId: task.cloudId,
+      syncStatus: task.syncStatus,
     );
     _touchTags(task.tags);
   }

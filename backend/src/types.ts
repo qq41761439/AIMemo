@@ -33,6 +33,7 @@ export type TaskRecord = {
   completedAt: Date | null;
   updatedAt: Date;
   deletedAt: Date | null;
+  clientId: string | null;
 };
 
 export type SummaryRecord = {
@@ -61,6 +62,7 @@ export type CreateTaskInput = {
   isCompleted: boolean;
   createdAt?: Date;
   completedAt?: Date | null;
+  clientId?: string | null;
 };
 
 export type UpdateTaskInput = Partial<CreateTaskInput>;

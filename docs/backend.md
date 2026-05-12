@@ -101,7 +101,7 @@ LLM_MODEL=deepseek-v4-flash
 - `POST /auth/wechat/mini-program/login`：微信小程序登录。
 - `POST /auth/refresh`：刷新 token。
 - `GET /me`、`GET /me/quota`：获取当前用户和免费额度。
-- `GET /tasks`、`POST /tasks`、`PATCH /tasks/:id`、`DELETE /tasks/:id`：云端任务 CRUD，删除为软删除。
+- `GET /tasks`、`POST /tasks`、`PATCH /tasks/:id`、`DELETE /tasks/:id`：云端任务 CRUD，删除为软删除。`POST /tasks` 可传 `clientId`，同一用户重复提交相同 `clientId` 时返回已存在的云端任务，避免同步重试造成重复任务。
 - `GET /tags`：只返回仍有关联任务的标签，并按最近关联任务靠前排序。
 - `POST /summaries/generate`：后端调用固定模型生成总结，成功后扣减本月免费次数。
 - `GET /summaries`：获取云端总结历史。

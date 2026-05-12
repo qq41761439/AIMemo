@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
+import 'dart:math';
 
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
@@ -33,13 +34,16 @@ class AppDatabase implements MemoStore {
     final db = await _factory.openDatabase(
       path,
       options: OpenDatabaseOptions(
-        version: 2,
+        version: 3,
         onConfigure: (db) async {
           await db.execute('PRAGMA foreign_keys = ON');
         },
         onUpgrade: (db, oldVersion, newVersion) async {
           if (oldVersion < 2) {
             await _createAppSettingsTable(db);
+          }
+          if (oldVersion < 3) {
+            await _migrateTasksForSync(db);
           }
         },
         onCreate: (db, version) async {
@@ -74,8 +78,12 @@ CREATE TABLE tasks (
   title TEXT NOT NULL,
   content TEXT NOT NULL DEFAULT '',
   created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL,
   completed_at TEXT,
-  deleted_at TEXT
+  deleted_at TEXT,
+  cloud_id TEXT,
+  client_id TEXT NOT NULL UNIQUE,
+  sync_status TEXT NOT NULL
 )''');
     await db.execute('''
 CREATE TABLE tags (
@@ -110,8 +118,52 @@ CREATE TABLE summaries (
 )''');
     await _createAppSettingsTable(db);
     await db.execute('CREATE INDEX idx_tasks_created_at ON tasks(created_at)');
+    await db.execute('CREATE INDEX idx_tasks_updated_at ON tasks(updated_at)');
     await db.execute('CREATE INDEX idx_tasks_deleted_at ON tasks(deleted_at)');
+    await db.execute('CREATE INDEX idx_tasks_cloud_id ON tasks(cloud_id)');
+    await db.execute(
+      'CREATE INDEX idx_tasks_sync_status ON tasks(sync_status)',
+    );
     await db.execute('CREATE INDEX idx_tags_name ON tags(name)');
+  }
+
+  Future<void> _migrateTasksForSync(Database db) async {
+    await db.execute('ALTER TABLE tasks ADD COLUMN updated_at TEXT');
+    await db.execute('ALTER TABLE tasks ADD COLUMN cloud_id TEXT');
+    await db.execute('ALTER TABLE tasks ADD COLUMN client_id TEXT');
+    await db.execute(
+      "ALTER TABLE tasks ADD COLUMN sync_status TEXT NOT NULL DEFAULT 'pendingCreate'",
+    );
+
+    final rows = await db.query(
+      'tasks',
+      columns: ['id', 'created_at', 'completed_at', 'deleted_at'],
+    );
+    for (final row in rows) {
+      final id = row['id'] as int;
+      final updatedAt = (row['deleted_at'] ??
+          row['completed_at'] ??
+          row['created_at']) as String;
+      await db.update(
+        'tasks',
+        {
+          'updated_at': updatedAt,
+          'client_id': _existingTaskClientId(id),
+        },
+        where: 'id = ?',
+        whereArgs: [id],
+      );
+    }
+
+    await db.execute(
+      'CREATE UNIQUE INDEX IF NOT EXISTS idx_tasks_client_id ON tasks(client_id)',
+    );
+    await db.execute('CREATE INDEX IF NOT EXISTS idx_tasks_updated_at '
+        'ON tasks(updated_at)');
+    await db.execute('CREATE INDEX IF NOT EXISTS idx_tasks_cloud_id '
+        'ON tasks(cloud_id)');
+    await db.execute('CREATE INDEX IF NOT EXISTS idx_tasks_sync_status '
+        'ON tasks(sync_status)');
   }
 
   Future<void> _createAppSettingsTable(Database db) async {
@@ -148,10 +200,14 @@ CREATE TABLE IF NOT EXISTS app_settings (
     }
 
     return db.transaction((txn) async {
+      final now = DateTime.now().toIso8601String();
       final taskId = await txn.insert('tasks', {
         'title': cleanTitle,
         'content': content.trim(),
         'created_at': (createdAt ?? DateTime.now()).toIso8601String(),
+        'updated_at': now,
+        'client_id': _newClientId(),
+        'sync_status': TaskSyncStatus.pendingCreate.value,
       });
       await _replaceTaskTags(txn, taskId, tags);
       return taskId;
@@ -174,6 +230,19 @@ CREATE TABLE IF NOT EXISTS app_settings (
     }
 
     await db.transaction((txn) async {
+      final existing = await txn.query(
+        'tasks',
+        columns: ['sync_status'],
+        where: 'id = ? AND deleted_at IS NULL',
+        whereArgs: [taskId],
+        limit: 1,
+      );
+      if (existing.isEmpty) {
+        return;
+      }
+      final syncStatus = _nextMutationSyncStatus(
+        existing.first['sync_status'] as String?,
+      );
       final updatedRows = await txn.update(
         'tasks',
         {
@@ -181,6 +250,8 @@ CREATE TABLE IF NOT EXISTS app_settings (
           'content': content.trim(),
           'created_at': createdAt.toIso8601String(),
           'completed_at': completedAt?.toIso8601String(),
+          'updated_at': DateTime.now().toIso8601String(),
+          'sync_status': syncStatus.value,
         },
         where: 'id = ? AND deleted_at IS NULL',
         whereArgs: [taskId],
@@ -218,34 +289,88 @@ CREATE TABLE IF NOT EXISTS app_settings (
   @override
   Future<void> setTaskCompleted(int taskId, bool completed) async {
     final db = await database;
-    await db.update(
-      'tasks',
-      {'completed_at': completed ? DateTime.now().toIso8601String() : null},
-      where: 'id = ? AND deleted_at IS NULL',
-      whereArgs: [taskId],
-    );
+    await db.transaction((txn) async {
+      final existing = await txn.query(
+        'tasks',
+        columns: ['sync_status'],
+        where: 'id = ? AND deleted_at IS NULL',
+        whereArgs: [taskId],
+        limit: 1,
+      );
+      if (existing.isEmpty) {
+        return;
+      }
+      await txn.update(
+        'tasks',
+        {
+          'completed_at': completed ? DateTime.now().toIso8601String() : null,
+          'updated_at': DateTime.now().toIso8601String(),
+          'sync_status': _nextMutationSyncStatus(
+            existing.first['sync_status'] as String?,
+          ).value,
+        },
+        where: 'id = ? AND deleted_at IS NULL',
+        whereArgs: [taskId],
+      );
+    });
   }
 
   @override
   Future<void> deleteTask(int taskId) async {
     final db = await database;
-    await db.update(
-      'tasks',
-      {'deleted_at': DateTime.now().toIso8601String()},
-      where: 'id = ?',
-      whereArgs: [taskId],
-    );
+    await db.transaction((txn) async {
+      final existing = await txn.query(
+        'tasks',
+        columns: ['sync_status'],
+        where: 'id = ?',
+        whereArgs: [taskId],
+        limit: 1,
+      );
+      if (existing.isEmpty) {
+        return;
+      }
+      await txn.update(
+        'tasks',
+        {
+          'deleted_at': DateTime.now().toIso8601String(),
+          'updated_at': DateTime.now().toIso8601String(),
+          'sync_status': _nextDeleteSyncStatus(
+            existing.first['sync_status'] as String?,
+          ).value,
+        },
+        where: 'id = ?',
+        whereArgs: [taskId],
+      );
+    });
   }
 
   @override
   Future<void> restoreTask(int taskId) async {
     final db = await database;
-    await db.update(
-      'tasks',
-      {'deleted_at': null},
-      where: 'id = ?',
-      whereArgs: [taskId],
-    );
+    await db.transaction((txn) async {
+      final existing = await txn.query(
+        'tasks',
+        columns: ['sync_status'],
+        where: 'id = ?',
+        whereArgs: [taskId],
+        limit: 1,
+      );
+      if (existing.isEmpty) {
+        return;
+      }
+      await txn.update(
+        'tasks',
+        {
+          'deleted_at': null,
+          'updated_at': DateTime.now().toIso8601String(),
+          'sync_status': _nextMutationSyncStatus(
+            existing.first['sync_status'] as String?,
+          ).value,
+        },
+        where: 'id = ?',
+        whereArgs: [taskId],
+      );
+    });
   }
 
   @override
@@ -506,5 +631,33 @@ ORDER BY g.created_at DESC, g.name COLLATE NOCASE ASC
       }
     }
     return result;
+  }
+
+  TaskSyncStatus _nextMutationSyncStatus(String? currentValue) {
+    final current = TaskSyncStatus.fromValue(currentValue);
+    return switch (current) {
+      TaskSyncStatus.synced => TaskSyncStatus.pendingUpdate,
+      TaskSyncStatus.pendingDelete => TaskSyncStatus.pendingUpdate,
+      TaskSyncStatus.conflict => TaskSyncStatus.pendingUpdate,
+      TaskSyncStatus.pendingCreate => TaskSyncStatus.pendingCreate,
+      TaskSyncStatus.pendingUpdate => TaskSyncStatus.pendingUpdate,
+    };
+  }
+
+  TaskSyncStatus _nextDeleteSyncStatus(String? currentValue) {
+    final current = TaskSyncStatus.fromValue(currentValue);
+    return switch (current) {
+      TaskSyncStatus.pendingCreate => TaskSyncStatus.pendingCreate,
+      _ => TaskSyncStatus.pendingDelete,
+    };
+  }
+
+  String _newClientId() {
+    final random = Random.secure().nextInt(1 << 32).toRadixString(16);
+    return 'desktop-${DateTime.now().microsecondsSinceEpoch}-$random';
+  }
+
+  String _existingTaskClientId(int id) {
+    return 'desktop-import-$id-${DateTime.now().microsecondsSinceEpoch}';
   }
 }
