@@ -59,6 +59,21 @@ void main() {
     await database.close();
   });
 
+  testWidgets('mobile task list hides empty tag prompt when no tags exist',
+      (tester) async {
+    final database = await _pumpApp(
+      tester,
+      viewSize: const Size(320, 568),
+    );
+
+    await _pumpFrame(tester);
+
+    expect(find.text('添加任务后会出现标签。'), findsNothing);
+    expect(tester.takeException(), isNull);
+
+    await database.close();
+  });
+
   testWidgets('startup page lets users choose local mode', (tester) async {
     final database = AppDatabase(pathOverride: inMemoryDatabasePath);
     final apiKeyVault = MemoryApiKeyVault();

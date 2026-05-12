@@ -8,6 +8,12 @@ class _TaskListPane extends ConsumerWidget {
     final tasks = ref.watch(taskListProvider);
     final tags = ref.watch(tagListProvider);
     final selectedTags = ref.watch(taskTagFilterProvider);
+    final showTagFilter = selectedTags.isNotEmpty ||
+        tags.maybeWhen(
+          data: (items) => items.isNotEmpty,
+          error: (_, __) => true,
+          orElse: () => false,
+        );
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(24, 20, 24, 18),
@@ -16,8 +22,10 @@ class _TaskListPane extends ConsumerWidget {
         children: [
           const _TaskPaneHeader(),
           const SizedBox(height: 16),
-          _TaskFilterBar(selectedTags: selectedTags, tags: tags),
-          const SizedBox(height: 16),
+          if (showTagFilter) ...[
+            _TaskFilterBar(selectedTags: selectedTags, tags: tags),
+            const SizedBox(height: 16),
+          ],
           Expanded(
             child: tasks.when(
               data: (items) {
@@ -121,7 +129,7 @@ class _TaskFilterBar extends ConsumerWidget {
               child: tags.when(
                 data: (items) {
                   if (items.isEmpty) {
-                    return Text('添加任务后会出现标签。', style: _captionStyle(context));
+                    return const SizedBox.shrink();
                   }
 
                   return Wrap(
