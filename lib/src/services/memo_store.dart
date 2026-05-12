@@ -9,6 +9,7 @@ abstract class MemoStore {
     required String title,
     required String content,
     required List<String> tags,
+    DateTime? createdAt,
   });
 
   Future<void> updateTask({

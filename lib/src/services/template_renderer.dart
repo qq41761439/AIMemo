@@ -206,7 +206,7 @@ String formatTasksForPrompt(List<TaskRecord> tasks) {
       '- [$state] ${task.title}',
       '  内容：$content',
       '  标签：$tags',
-      '  创建时间：${compactDateTime(task.createdAt)}',
+      '  开始时间：${compactDateTime(task.createdAt)}',
       if (task.completedAt != null)
         '  完成时间：${compactDateTime(task.completedAt!)}',
     ].join('\n');

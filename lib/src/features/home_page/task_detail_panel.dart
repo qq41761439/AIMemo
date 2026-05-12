@@ -11,7 +11,7 @@ class _AddTaskPanelState extends ConsumerState<_AddTaskPanel> {
   final _bodyController = TextEditingController();
   final _tagsController = TextEditingController();
   int? _loadedEditingTaskId;
-  DateTime? _createdAt;
+  DateTime _createdAt = DateTime.now();
   DateTime? _completedAt;
   bool _isSaving = false;
 
@@ -58,6 +58,35 @@ class _AddTaskPanelState extends ConsumerState<_AddTaskPanel> {
             maxLines: 8,
           ),
           const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: _TaskDateTimeButton(
+                  label: '开始时间',
+                  icon: Icons.schedule_outlined,
+                  value: _createdAt,
+                  emptyText: '选择开始时间',
+                  onPressed: _pickCreatedAt,
+                ),
+              ),
+              if (isEditing) ...[
+                const SizedBox(width: 10),
+                Expanded(
+                  child: _TaskDateTimeButton(
+                    label: '完成时间',
+                    icon: Icons.check_circle_outline,
+                    value: _completedAt,
+                    emptyText: '未完成',
+                    onPressed: _pickCompletedAt,
+                    onClear: _completedAt == null
+                        ? null
+                        : () => setState(() => _completedAt = null),
+                  ),
+                ),
+              ],
+            ],
+          ),
+          const SizedBox(height: 12),
           TextField(
             controller: _tagsController,
             decoration: const InputDecoration(labelText: '标签'),
@@ -101,35 +130,6 @@ class _AddTaskPanelState extends ConsumerState<_AddTaskPanel> {
             loading: () => const SizedBox.shrink(),
             error: (_, __) => const SizedBox.shrink(),
           ),
-          if (isEditing) ...[
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                Expanded(
-                  child: _TaskDateTimeButton(
-                    label: '创建时间',
-                    icon: Icons.schedule_outlined,
-                    value: _createdAt,
-                    emptyText: '选择创建时间',
-                    onPressed: _pickCreatedAt,
-                  ),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: _TaskDateTimeButton(
-                    label: '完成时间',
-                    icon: Icons.check_circle_outline,
-                    value: _completedAt,
-                    emptyText: '未完成',
-                    onPressed: _pickCompletedAt,
-                    onClear: _completedAt == null
-                        ? null
-                        : () => setState(() => _completedAt = null),
-                  ),
-                ),
-              ],
-            ),
-          ],
           const SizedBox(height: 18),
           Row(
             children: [
@@ -172,7 +172,7 @@ class _AddTaskPanelState extends ConsumerState<_AddTaskPanel> {
     if (task == null) {
       _bodyController.clear();
       _tagsController.clear();
-      _createdAt = null;
+      _createdAt = DateTime.now();
       _completedAt = null;
       return;
     }
@@ -204,16 +204,17 @@ class _AddTaskPanelState extends ConsumerState<_AddTaskPanel> {
       final editingTask = ref.read(editingTaskProvider);
       final draft = taskDraftFromBody(_bodyController.text);
       final taskTags = _parseTags(_tagsController.text);
-      final createdAt = _createdAt ?? editingTask?.createdAt ?? DateTime.now();
+      final createdAt = _createdAt;
       final completedAt = _completedAt;
       if (completedAt != null && completedAt.isBefore(createdAt)) {
-        throw ArgumentError('完成时间不能早于创建时间。');
+        throw ArgumentError('完成时间不能早于开始时间。');
       }
       if (editingTask == null) {
         await ref.read(appDatabaseProvider).addTask(
               title: draft.title,
               content: draft.content,
               tags: taskTags,
+              createdAt: createdAt,
             );
       } else {
         await ref.read(appDatabaseProvider).updateTask(
@@ -227,7 +228,7 @@ class _AddTaskPanelState extends ConsumerState<_AddTaskPanel> {
       }
       _bodyController.clear();
       _tagsController.clear();
-      _createdAt = null;
+      _createdAt = DateTime.now();
       _completedAt = null;
       if (editingTask == null) {
         ref.read(selectedTaskProvider.notifier).state = null;
@@ -271,7 +272,7 @@ class _AddTaskPanelState extends ConsumerState<_AddTaskPanel> {
   }
 
   Future<void> _pickCreatedAt() async {
-    final picked = await _pickTaskDateTime(_createdAt ?? DateTime.now());
+    final picked = await _pickTaskDateTime(_createdAt);
     if (picked == null || !mounted) {
       return;
     }
@@ -280,7 +281,7 @@ class _AddTaskPanelState extends ConsumerState<_AddTaskPanel> {
 
   Future<void> _pickCompletedAt() async {
     final picked = await _pickTaskDateTime(
-      _completedAt ?? _createdAt ?? DateTime.now(),
+      _completedAt ?? _createdAt,
     );
     if (picked == null || !mounted) {
       return;
@@ -369,7 +370,7 @@ class _TaskViewPanel extends ConsumerWidget {
                   const SizedBox(height: 8),
                   _TaskMetaLine(
                     icon: Icons.calendar_today_outlined,
-                    text: '创建 ${compactDateTime(task.createdAt)}',
+                    text: '开始 ${compactDateTime(task.createdAt)}',
                   ),
                   if (task.completedAt != null) ...[
                     const SizedBox(height: 6),

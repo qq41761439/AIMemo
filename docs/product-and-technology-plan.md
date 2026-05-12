@@ -106,7 +106,7 @@ localId       本地 SQLite 自增 ID
 cloudId       后端 Task ID
 clientId      客户端生成的 UUID，用于防止重复上传
 syncStatus    synced / pendingCreate / pendingUpdate / pendingDelete / conflict
-createdAt     创建时间
+createdAt     开始时间
 updatedAt     最后更新时间
 completedAt   完成时间
 deletedAt     软删除时间

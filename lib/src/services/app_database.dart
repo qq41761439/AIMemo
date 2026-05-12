@@ -139,6 +139,7 @@ CREATE TABLE IF NOT EXISTS app_settings (
     required String title,
     required String content,
     required List<String> tags,
+    DateTime? createdAt,
   }) async {
     final db = await database;
     final cleanTitle = title.trim();
@@ -150,7 +151,7 @@ CREATE TABLE IF NOT EXISTS app_settings (
       final taskId = await txn.insert('tasks', {
         'title': cleanTitle,
         'content': content.trim(),
-        'created_at': DateTime.now().toIso8601String(),
+        'created_at': (createdAt ?? DateTime.now()).toIso8601String(),
       });
       await _replaceTaskTags(txn, taskId, tags);
       return taskId;

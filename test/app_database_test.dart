@@ -42,6 +42,20 @@ void main() {
     expect(filtered, hasLength(2));
   });
 
+  test('creates task with selected start time', () async {
+    final startTime = DateTime(2026, 5, 12, 10, 30);
+
+    await database.addTask(
+      title: '预约任务',
+      content: '',
+      tags: const [],
+      createdAt: startTime,
+    );
+
+    final tasks = await database.listTasks();
+    expect(tasks.single.createdAt, startTime);
+  });
+
   test('lists most recently associated tags first', () async {
     await database.addTask(
       title: '先添加',
@@ -192,6 +206,57 @@ void main() {
     final tasks = await database.listTasks();
     expect(tasks.first.title, '后创建但未完成');
     expect(tasks.last.title, '先创建但已完成');
+  });
+
+  test('sorts open tasks by start time and completed tasks by completion time',
+      () async {
+    final olderOpenId = await database.addTask(
+      title: '较早开始未完成',
+      content: '',
+      tags: const [],
+      createdAt: DateTime(2026, 5, 12, 9),
+    );
+    final newerOpenId = await database.addTask(
+      title: '较晚开始未完成',
+      content: '',
+      tags: const [],
+      createdAt: DateTime(2026, 5, 12, 11),
+    );
+    final newerCompletedId = await database.addTask(
+      title: '较晚完成',
+      content: '',
+      tags: const [],
+      createdAt: DateTime(2026, 5, 12, 8),
+    );
+    final olderCompletedId = await database.addTask(
+      title: '较早完成',
+      content: '',
+      tags: const [],
+      createdAt: DateTime(2026, 5, 12, 12),
+    );
+
+    await database.updateTask(
+      taskId: newerCompletedId,
+      title: '较晚完成',
+      content: '',
+      tags: const [],
+      createdAt: DateTime(2026, 5, 12, 8),
+      completedAt: DateTime(2026, 5, 12, 18),
+    );
+    await database.updateTask(
+      taskId: olderCompletedId,
+      title: '较早完成',
+      content: '',
+      tags: const [],
+      createdAt: DateTime(2026, 5, 12, 12),
+      completedAt: DateTime(2026, 5, 12, 17),
+    );
+
+    final tasks = await database.listTasks();
+    expect(
+      tasks.map((task) => task.id),
+      [newerOpenId, olderOpenId, newerCompletedId, olderCompletedId],
+    );
   });
 
   test('saves templates and summary history', () async {

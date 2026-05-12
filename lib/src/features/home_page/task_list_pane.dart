@@ -263,7 +263,7 @@ class _TaskTile extends ConsumerWidget {
                         crossAxisAlignment: WrapCrossAlignment.center,
                         children: [
                           Text(
-                            '创建 ${compactDateTime(task.createdAt)}',
+                            '开始 ${compactDateTime(task.createdAt)}',
                             style: _captionStyle(context),
                           ),
                           if (task.completedAt != null)
