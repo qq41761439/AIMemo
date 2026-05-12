@@ -192,6 +192,34 @@ class _ErrorText extends StatelessWidget {
   }
 }
 
+class _HorizontalChipScroller extends StatelessWidget {
+  const _HorizontalChipScroller({
+    super.key,
+    required this.children,
+  });
+
+  final List<Widget> children;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: 34,
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        physics: const AlwaysScrollableScrollPhysics(),
+        child: Row(
+          children: [
+            for (var index = 0; index < children.length; index += 1) ...[
+              if (index > 0) const SizedBox(width: 8),
+              children[index],
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class _RefreshablePlaceholder extends StatelessWidget {
   const _RefreshablePlaceholder({
     required this.child,

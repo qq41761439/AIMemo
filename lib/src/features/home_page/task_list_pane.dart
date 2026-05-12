@@ -130,6 +130,8 @@ class _TaskFilterBar extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final compactWidth =
+        MediaQuery.sizeOf(context).width < _mobileWorkspaceBreakpoint;
     return DecoratedBox(
       decoration: BoxDecoration(
         color: _panel,
@@ -152,30 +154,39 @@ class _TaskFilterBar extends ConsumerWidget {
                     return const SizedBox.shrink();
                   }
 
-                  return Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: [
+                  final chips = [
+                    _OutlinedFilterChip(
+                      label: '全部',
+                      selected: selectedTags.isEmpty,
+                      onSelected: (_) {
+                        ref.read(taskTagFilterProvider.notifier).state =
+                            <String>{};
+                      },
+                    ),
+                    for (final tag in items)
                       _OutlinedFilterChip(
-                        label: '全部',
-                        selected: selectedTags.isEmpty,
-                        onSelected: (_) {
-                          ref.read(taskTagFilterProvider.notifier).state =
-                              <String>{};
+                        label: tag,
+                        selected: selectedTags.contains(tag),
+                        onSelected: (selected) {
+                          final next = {...selectedTags};
+                          selected ? next.add(tag) : next.remove(tag);
+                          ref.read(taskTagFilterProvider.notifier).state = next;
                         },
                       ),
-                      for (final tag in items)
-                        _OutlinedFilterChip(
-                          label: tag,
-                          selected: selectedTags.contains(tag),
-                          onSelected: (selected) {
-                            final next = {...selectedTags};
-                            selected ? next.add(tag) : next.remove(tag);
-                            ref.read(taskTagFilterProvider.notifier).state =
-                                next;
-                          },
-                        ),
-                    ],
+                  ];
+
+                  if (compactWidth) {
+                    return _HorizontalChipScroller(
+                      key: const ValueKey('mobile-task-tag-filter-scroll'),
+                      children: chips,
+                    );
+                  }
+
+                  return Wrap(
+                    key: const ValueKey('desktop-task-tag-filter-wrap'),
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: chips,
                   );
                 },
                 loading: () => const LinearProgressIndicator(),
@@ -208,6 +219,12 @@ class _TaskTile extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
     final completed = task.isCompleted;
+    final compactWidth =
+        MediaQuery.sizeOf(context).width < _mobileWorkspaceBreakpoint;
+    final visibleTags =
+        compactWidth && task.tags.length > 2 ? task.tags.take(2) : task.tags;
+    final hiddenTagCount =
+        compactWidth && task.tags.length > 2 ? task.tags.length - 2 : 0;
 
     return DecoratedBox(
       decoration: BoxDecoration(
@@ -303,7 +320,16 @@ class _TaskTile extends ConsumerWidget {
                               '完成 ${compactDateTime(task.completedAt!)}',
                               style: _captionStyle(context),
                             ),
-                          for (final tag in task.tags) _TaskTagPill(tag),
+                          for (final tag in visibleTags)
+                            _TaskTagPill(
+                              tag,
+                              key: ValueKey('task-${task.id}-tag-$tag'),
+                            ),
+                          if (hiddenTagCount > 0)
+                            _TaskTagPill(
+                              '+$hiddenTagCount',
+                              key: ValueKey('task-${task.id}-tag-overflow'),
+                            ),
                         ],
                       ),
                     ],
@@ -404,7 +430,10 @@ class _TaskTile extends ConsumerWidget {
 }
 
 class _TaskTagPill extends StatelessWidget {
-  const _TaskTagPill(this.label);
+  const _TaskTagPill(
+    this.label, {
+    super.key,
+  });
 
   final String label;
 
@@ -416,17 +445,20 @@ class _TaskTagPill extends StatelessWidget {
         borderRadius: BorderRadius.circular(5),
         border: Border.all(color: _border),
       ),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-        child: Text(
-          label,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: _ink,
-                fontSize: 11,
-                height: 1.1,
-              ),
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 92),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+          child: Text(
+            label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: _ink,
+                  fontSize: 11,
+                  height: 1.1,
+                ),
+          ),
         ),
       ),
     );

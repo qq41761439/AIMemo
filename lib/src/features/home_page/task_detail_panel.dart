@@ -29,6 +29,8 @@ class _AddTaskPanelState extends ConsumerState<_AddTaskPanel> {
   @override
   Widget build(BuildContext context) {
     final editingTask = ref.watch(editingTaskProvider);
+    final compactWidth =
+        MediaQuery.sizeOf(context).width < _mobileWorkspaceBreakpoint;
 
     final tags = ref.watch(tagListProvider);
     _syncEditingTask(editingTask);
@@ -139,19 +141,33 @@ class _AddTaskPanelState extends ConsumerState<_AddTaskPanel> {
                               ),
                               const SizedBox(width: 10),
                               Expanded(
-                                child: Wrap(
-                                  spacing: 8,
-                                  runSpacing: 8,
-                                  children: [
-                                    for (final tag in availableTags)
-                                      ActionChip(
-                                        label: Text(tag),
-                                        side: const BorderSide(color: _border),
-                                        backgroundColor: _faint,
-                                        onPressed: () => _appendTag(tag),
+                                child: compactWidth
+                                    ? _HorizontalChipScroller(
+                                        key: const ValueKey(
+                                          'mobile-task-form-tag-scroll',
+                                        ),
+                                        children: [
+                                          for (final tag in availableTags)
+                                            _TaskSuggestionChip(
+                                              tag: tag,
+                                              onPressed: () => _appendTag(tag),
+                                            ),
+                                        ],
+                                      )
+                                    : Wrap(
+                                        key: const ValueKey(
+                                          'desktop-task-form-tag-wrap',
+                                        ),
+                                        spacing: 8,
+                                        runSpacing: 8,
+                                        children: [
+                                          for (final tag in availableTags)
+                                            _TaskSuggestionChip(
+                                              tag: tag,
+                                              onPressed: () => _appendTag(tag),
+                                            ),
+                                        ],
                                       ),
-                                  ],
-                                ),
                               ),
                             ],
                           );
@@ -361,6 +377,30 @@ class _AddTaskPanelState extends ConsumerState<_AddTaskPanel> {
     }
 
     return DateTime(date.year, date.month, date.day, time.hour, time.minute);
+  }
+}
+
+class _TaskSuggestionChip extends StatelessWidget {
+  const _TaskSuggestionChip({
+    required this.tag,
+    required this.onPressed,
+  });
+
+  final String tag;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return ActionChip(
+      label: Text(
+        tag,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+      ),
+      side: const BorderSide(color: _border),
+      backgroundColor: _faint,
+      onPressed: onPressed,
+    );
   }
 }
 

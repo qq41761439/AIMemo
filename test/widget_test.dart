@@ -107,6 +107,144 @@ void main() {
     await database.close();
   });
 
+  testWidgets('mobile task tag filter uses a single-row horizontal scroller',
+      (tester) async {
+    final database = InMemoryMemoStore();
+    await database.addTask(
+      title: '手机筛选标签任务',
+      content: '',
+      tags: const ['移动一', '移动二', '移动三', '移动四', '移动五', '移动六'],
+    );
+
+    await _pumpApp(
+      tester,
+      database: database,
+      viewSize: const Size(390, 844),
+    );
+    await _pumpFrame(tester);
+
+    final scrollerFinder =
+        find.byKey(const ValueKey('mobile-task-tag-filter-scroll'));
+    expect(scrollerFinder, findsOneWidget);
+    expect(find.byKey(const ValueKey('desktop-task-tag-filter-wrap')),
+        findsNothing);
+    expect(tester.getSize(scrollerFinder).height, lessThanOrEqualTo(34));
+
+    final scrollView = tester.widget<SingleChildScrollView>(
+      find.descendant(
+        of: scrollerFinder,
+        matching: find.byType(SingleChildScrollView),
+      ),
+    );
+    expect(scrollView.scrollDirection, Axis.horizontal);
+
+    await tester.drag(scrollerFinder, const Offset(-220, 0));
+    await tester.pump();
+    expect(find.text('移动六'), findsOneWidget);
+
+    await database.close();
+  });
+
+  testWidgets('desktop task tag filter keeps wrapping layout', (tester) async {
+    final database = InMemoryMemoStore();
+    await database.addTask(
+      title: '桌面筛选标签任务',
+      content: '',
+      tags: const ['桌面一', '桌面二', '桌面三'],
+    );
+
+    await _pumpApp(
+      tester,
+      database: database,
+      viewSize: const Size(1200, 800),
+    );
+    await _pumpFrame(tester);
+
+    expect(find.byKey(const ValueKey('desktop-task-tag-filter-wrap')),
+        findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('mobile-task-tag-filter-scroll')),
+      findsNothing,
+    );
+
+    await database.close();
+  });
+
+  testWidgets('mobile task tile condenses extra tags behind a count',
+      (tester) async {
+    final database = InMemoryMemoStore();
+    final taskId = await database.addTask(
+      title: '多标签手机任务',
+      content: '',
+      tags: const ['前一', '前二', '第三', '第四', '第五'],
+    );
+
+    await _pumpApp(
+      tester,
+      database: database,
+      viewSize: const Size(390, 844),
+    );
+    await _pumpFrame(tester);
+
+    expect(find.byKey(ValueKey('task-$taskId-tag-前一')), findsOneWidget);
+    expect(find.byKey(ValueKey('task-$taskId-tag-前二')), findsOneWidget);
+    expect(find.byKey(ValueKey('task-$taskId-tag-第三')), findsNothing);
+    expect(find.byKey(ValueKey('task-$taskId-tag-overflow')), findsOneWidget);
+    expect(find.text('+3'), findsOneWidget);
+
+    await database.close();
+  });
+
+  testWidgets('mobile task form suggestions scroll horizontally and append tag',
+      (tester) async {
+    final database = InMemoryMemoStore();
+    await database.addTask(
+      title: '候选标签来源',
+      content: '',
+      tags: const ['候选甲', '候选乙', '候选丙', '候选丁', '候选戊'],
+    );
+
+    await _pumpApp(
+      tester,
+      database: database,
+      viewSize: const Size(390, 844),
+    );
+    await tester.tap(find.text('记录'));
+    await _pumpFrame(tester);
+
+    final scrollerFinder =
+        find.byKey(const ValueKey('mobile-task-form-tag-scroll'));
+    expect(scrollerFinder, findsOneWidget);
+    expect(
+        find.byKey(const ValueKey('desktop-task-form-tag-wrap')), findsNothing);
+    final scrollView = tester.widget<SingleChildScrollView>(
+      find.descendant(
+        of: scrollerFinder,
+        matching: find.byType(SingleChildScrollView),
+      ),
+    );
+    expect(scrollView.scrollDirection, Axis.horizontal);
+
+    final scrollable = find.descendant(
+      of: scrollerFinder,
+      matching: find.byType(Scrollable),
+    );
+    await tester.scrollUntilVisible(
+      find.widgetWithText(ActionChip, '候选丙'),
+      120,
+      scrollable: scrollable,
+    );
+    await tester.tap(find.widgetWithText(ActionChip, '候选丙'));
+    await tester.pump();
+
+    final tagField = tester.widget<TextField>(
+      find.widgetWithText(TextField, '标签'),
+    );
+    expect(tagField.controller?.text, contains('候选丙'));
+
+    await database.close();
+  });
+
   testWidgets('task pull-to-refresh reloads task data', (tester) async {
     final database = InMemoryMemoStore();
 
