@@ -10,6 +10,8 @@ class _AddTaskPanel extends ConsumerStatefulWidget {
 class _AddTaskPanelState extends ConsumerState<_AddTaskPanel> {
   final _bodyController = TextEditingController();
   final _tagsController = TextEditingController();
+  final _bodyFocusNode = FocusNode(debugLabel: 'task body input');
+  final _tagsFocusNode = FocusNode(debugLabel: 'task tags input');
   int? _loadedEditingTaskId;
   DateTime _createdAt = DateTime.now();
   DateTime? _completedAt;
@@ -19,6 +21,8 @@ class _AddTaskPanelState extends ConsumerState<_AddTaskPanel> {
   void dispose() {
     _bodyController.dispose();
     _tagsController.dispose();
+    _bodyFocusNode.dispose();
+    _tagsFocusNode.dispose();
     super.dispose();
   }
 
@@ -39,131 +43,158 @@ class _AddTaskPanelState extends ConsumerState<_AddTaskPanel> {
         .toSet();
 
     return _PanelPadding(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          _PanelHeader(
-            icon: isEditing ? Icons.edit_outlined : Icons.add_task,
-            title: isEditing ? '编辑任务' : '添加任务',
-            subtitle: isEditing ? '修改任务内容和标签。' : '记录事项，标签用逗号分隔。',
-          ),
-          const SizedBox(height: 16),
-          TextField(
-            controller: _bodyController,
-            decoration: const InputDecoration(
-              labelText: '任务内容',
-              hintText: '第一行会显示在任务列表中',
-            ),
-            minLines: 6,
-            maxLines: 8,
-          ),
-          const SizedBox(height: 12),
-          Row(
-            children: [
-              Expanded(
-                child: _TaskDateTimeButton(
-                  label: '开始时间',
-                  icon: Icons.schedule_outlined,
-                  value: _createdAt,
-                  emptyText: '选择开始时间',
-                  onPressed: _pickCreatedAt,
-                ),
-              ),
-              if (isEditing) ...[
-                const SizedBox(width: 10),
-                Expanded(
-                  child: _TaskDateTimeButton(
-                    label: '完成时间',
-                    icon: Icons.check_circle_outline,
-                    value: _completedAt,
-                    emptyText: '未完成',
-                    onPressed: _pickCompletedAt,
-                    onClear: _completedAt == null
-                        ? null
-                        : () => setState(() => _completedAt = null),
-                  ),
-                ),
-              ],
-            ],
-          ),
-          const SizedBox(height: 12),
-          TextField(
-            controller: _tagsController,
-            decoration: const InputDecoration(labelText: '标签'),
-            onChanged: (_) => setState(() {}),
-          ),
-          const SizedBox(height: 10),
-          tags.when(
-            data: (items) {
-              final availableTags = items
-                  .where((tag) => !selectedTagKeys.contains(tag.toLowerCase()))
-                  .toList();
-              if (availableTags.isEmpty) {
-                return const SizedBox.shrink();
-              }
-              return Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Padding(
-                    padding: const EdgeInsets.only(top: 8),
-                    child: Text(
-                      '可添加标签',
-                      style: _captionStyle(context)?.copyWith(
-                        fontWeight: FontWeight.w600,
-                      ),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final compactForm = constraints.maxHeight < 560;
+          return SingleChildScrollView(
+            child: ConstrainedBox(
+              constraints: BoxConstraints(minHeight: constraints.maxHeight),
+              child: Padding(
+                padding: EdgeInsets.only(bottom: compactForm ? 28 : 0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    _PanelHeader(
+                      icon: isEditing ? Icons.edit_outlined : Icons.add_task,
+                      title: isEditing ? '编辑任务' : '添加任务',
+                      subtitle: isEditing ? '修改任务内容和标签。' : '记录事项，标签用逗号分隔。',
                     ),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
+                    const SizedBox(height: 16),
+                    TextField(
+                      controller: _bodyController,
+                      focusNode: _bodyFocusNode,
+                      keyboardType: TextInputType.multiline,
+                      textInputAction: TextInputAction.newline,
+                      onTap: _bodyFocusNode.requestFocus,
+                      scrollPadding: _taskInputScrollPadding(context),
+                      decoration: const InputDecoration(
+                        labelText: '任务内容',
+                        hintText: '第一行会显示在任务列表中',
+                      ),
+                      minLines: compactForm ? 3 : 6,
+                      maxLines: compactForm ? 5 : 8,
+                    ),
+                    const SizedBox(height: 12),
+                    Row(
                       children: [
-                        for (final tag in availableTags)
-                          ActionChip(
-                            label: Text(tag),
-                            side: const BorderSide(color: _border),
-                            backgroundColor: _faint,
-                            onPressed: () => _appendTag(tag),
+                        Expanded(
+                          child: _TaskDateTimeButton(
+                            label: '开始时间',
+                            icon: Icons.schedule_outlined,
+                            value: _createdAt,
+                            emptyText: '选择开始时间',
+                            onPressed: _pickCreatedAt,
                           ),
+                        ),
+                        if (isEditing) ...[
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: _TaskDateTimeButton(
+                              label: '完成时间',
+                              icon: Icons.check_circle_outline,
+                              value: _completedAt,
+                              emptyText: '未完成',
+                              onPressed: _pickCompletedAt,
+                              onClear: _completedAt == null
+                                  ? null
+                                  : () => setState(() => _completedAt = null),
+                            ),
+                          ),
+                        ],
                       ],
                     ),
-                  ),
-                ],
-              );
-            },
-            loading: () => const SizedBox.shrink(),
-            error: (_, __) => const SizedBox.shrink(),
-          ),
-          const SizedBox(height: 18),
-          Row(
-            children: [
-              if (isEditing) ...[
-                Expanded(
-                  child: OutlinedButton.icon(
-                    onPressed: _isSaving ? null : _cancelEditing,
-                    icon: const Icon(Icons.close),
-                    label: const Text('取消'),
-                  ),
-                ),
-                const SizedBox(width: 10),
-              ],
-              Expanded(
-                child: FilledButton.icon(
-                  onPressed: _isSaving ? null : _submit,
-                  icon: Icon(isEditing ? Icons.save_outlined : Icons.add),
-                  label: Text(
-                    _isSaving
-                        ? '保存中'
-                        : isEditing
-                            ? '保存修改'
-                            : '添加任务',
-                  ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: _tagsController,
+                      focusNode: _tagsFocusNode,
+                      textInputAction: TextInputAction.done,
+                      onTap: _tagsFocusNode.requestFocus,
+                      scrollPadding: _taskInputScrollPadding(context),
+                      decoration: const InputDecoration(labelText: '标签'),
+                      onChanged: (_) => setState(() {}),
+                    ),
+                    const SizedBox(height: 10),
+                    tags.when(
+                      data: (items) {
+                        final availableTags = items
+                            .where(
+                              (tag) =>
+                                  !selectedTagKeys.contains(tag.toLowerCase()),
+                            )
+                            .toList();
+                        if (availableTags.isEmpty) {
+                          return const SizedBox.shrink();
+                        }
+                        return Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Padding(
+                              padding: const EdgeInsets.only(top: 8),
+                              child: Text(
+                                '可添加标签',
+                                style: _captionStyle(context)?.copyWith(
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Wrap(
+                                spacing: 8,
+                                runSpacing: 8,
+                                children: [
+                                  for (final tag in availableTags)
+                                    ActionChip(
+                                      label: Text(tag),
+                                      side: const BorderSide(color: _border),
+                                      backgroundColor: _faint,
+                                      onPressed: () => _appendTag(tag),
+                                    ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        );
+                      },
+                      loading: () => const SizedBox.shrink(),
+                      error: (_, __) => const SizedBox.shrink(),
+                    ),
+                    const SizedBox(height: 18),
+                    Row(
+                      children: [
+                        if (isEditing) ...[
+                          Expanded(
+                            child: OutlinedButton.icon(
+                              onPressed: _isSaving ? null : _cancelEditing,
+                              icon: const Icon(Icons.close),
+                              label: const Text('取消'),
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                        ],
+                        Expanded(
+                          child: FilledButton.icon(
+                            onPressed: _isSaving ? null : _submit,
+                            icon: Icon(
+                              isEditing ? Icons.save_outlined : Icons.add,
+                            ),
+                            label: Text(
+                              _isSaving
+                                  ? '保存中'
+                                  : isEditing
+                                      ? '保存修改'
+                                      : '添加任务',
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
                 ),
               ),
-            ],
-          ),
-        ],
+            ),
+          );
+        },
       ),
     );
   }
@@ -322,6 +353,15 @@ class _AddTaskPanelState extends ConsumerState<_AddTaskPanel> {
 
     return DateTime(date.year, date.month, date.day, time.hour, time.minute);
   }
+}
+
+EdgeInsets _taskInputScrollPadding(BuildContext context) {
+  return EdgeInsets.only(
+    left: 20,
+    top: 20,
+    right: 20,
+    bottom: MediaQuery.viewInsetsOf(context).bottom + 120,
+  );
 }
 
 class _TaskViewPanel extends ConsumerWidget {

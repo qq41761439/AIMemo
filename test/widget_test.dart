@@ -74,6 +74,29 @@ void main() {
     await database.close();
   });
 
+  testWidgets('mobile add task form keeps fields focusable on short screens',
+      (tester) async {
+    final database = await _pumpApp(
+      tester,
+      viewSize: const Size(390, 430),
+    );
+
+    await tester.tap(find.text('记录'));
+    await _pumpFrame(tester);
+
+    await tester.tap(find.widgetWithText(TextField, '任务内容'));
+    await tester.pump();
+    expect(FocusManager.instance.primaryFocus?.debugLabel, 'task body input');
+
+    await tester.tap(find.widgetWithText(TextField, '标签'));
+    await tester.pump();
+    expect(FocusManager.instance.primaryFocus?.debugLabel, 'task tags input');
+
+    expect(tester.takeException(), isNull);
+
+    await database.close();
+  });
+
   testWidgets('startup page lets users choose local mode', (tester) async {
     final database = AppDatabase(pathOverride: inMemoryDatabasePath);
     final apiKeyVault = MemoryApiKeyVault();
