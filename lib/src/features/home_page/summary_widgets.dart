@@ -157,13 +157,13 @@ class _SummaryTagFilter extends StatelessWidget {
             spacing: 8,
             runSpacing: 8,
             children: [
-              _ConfigFilterChip(
+              _OutlinedFilterChip(
                 label: '全部标签',
                 selected: selectedTags.isEmpty,
                 onSelected: (_) => onSelectAll(),
               ),
               for (final tag in items)
-                _ConfigFilterChip(
+                _OutlinedFilterChip(
                   label: tag,
                   selected: selectedTags.contains(tag),
                   onSelected: (selected) => onTagSelected(tag, selected),
@@ -176,46 +176,6 @@ class _SummaryTagFilter extends StatelessWidget {
           child: Center(child: LinearProgressIndicator()),
         ),
         error: (error, _) => _ErrorText(error.toString()),
-      ),
-    );
-  }
-}
-
-class _ConfigFilterChip extends StatelessWidget {
-  const _ConfigFilterChip({
-    required this.label,
-    required this.selected,
-    required this.onSelected,
-  });
-
-  final String label;
-  final bool selected;
-  final ValueChanged<bool> onSelected;
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      height: 32,
-      child: FilterChip(
-        label: Text(label),
-        selected: selected,
-        showCheckmark: false,
-        avatar:
-            selected ? const Icon(Icons.check, size: 14, color: _accent) : null,
-        onSelected: onSelected,
-        backgroundColor: _panel,
-        selectedColor: _accentSoft,
-        side: BorderSide(color: selected ? _accent : _border),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(_controlRadius),
-        ),
-        labelStyle: _configControlStyle(context).copyWith(
-          color: selected ? _accent : _ink,
-        ),
-        labelPadding: const EdgeInsets.symmetric(horizontal: 4),
-        padding: const EdgeInsets.symmetric(horizontal: 8),
-        materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-        visualDensity: VisualDensity.compact,
       ),
     );
   }

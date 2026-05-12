@@ -192,6 +192,47 @@ class _ErrorText extends StatelessWidget {
   }
 }
 
+class _OutlinedFilterChip extends StatelessWidget {
+  const _OutlinedFilterChip({
+    required this.label,
+    required this.selected,
+    required this.onSelected,
+  });
+
+  final String label;
+  final bool selected;
+  final ValueChanged<bool> onSelected;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: 32,
+      child: FilterChip(
+        label: Text(label),
+        selected: selected,
+        showCheckmark: false,
+        onSelected: onSelected,
+        backgroundColor: _panel,
+        selectedColor: _accentSoft,
+        side: BorderSide(
+          color: selected ? _accent : _border,
+          width: selected ? 1.2 : 1,
+        ),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(_controlRadius),
+        ),
+        labelStyle: _configControlStyle(context).copyWith(
+          color: selected ? _accent : _ink,
+        ),
+        labelPadding: const EdgeInsets.symmetric(horizontal: 4),
+        padding: const EdgeInsets.symmetric(horizontal: 8),
+        materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+        visualDensity: VisualDensity.compact,
+      ),
+    );
+  }
+}
+
 TextStyle? _captionStyle(BuildContext context) {
   return Theme.of(context).textTheme.bodySmall?.copyWith(color: _muted);
 }

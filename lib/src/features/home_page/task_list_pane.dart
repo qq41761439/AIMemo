@@ -136,8 +136,8 @@ class _TaskFilterBar extends ConsumerWidget {
                     spacing: 8,
                     runSpacing: 8,
                     children: [
-                      FilterChip(
-                        label: const Text('全部'),
+                      _OutlinedFilterChip(
+                        label: '全部',
                         selected: selectedTags.isEmpty,
                         onSelected: (_) {
                           ref.read(taskTagFilterProvider.notifier).state =
@@ -145,8 +145,8 @@ class _TaskFilterBar extends ConsumerWidget {
                         },
                       ),
                       for (final tag in items)
-                        FilterChip(
-                          label: Text(tag),
+                        _OutlinedFilterChip(
+                          label: tag,
                           selected: selectedTags.contains(tag),
                           onSelected: (selected) {
                             final next = {...selectedTags};

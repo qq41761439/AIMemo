@@ -3,6 +3,8 @@ import 'package:aimemo/src/models/app_run_mode.dart';
 import 'package:aimemo/src/models/model_settings.dart';
 import 'package:aimemo/src/providers.dart';
 import 'package:aimemo/src/services/app_database.dart';
+import 'package:aimemo/src/services/in_memory_memo_store.dart';
+import 'package:aimemo/src/services/memo_store.dart';
 import 'package:aimemo/src/services/model_settings_repository.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -70,6 +72,36 @@ void main() {
 
     expect(find.text('添加任务后会出现标签。'), findsNothing);
     expect(tester.takeException(), isNull);
+
+    await database.close();
+  });
+
+  testWidgets('task tag filter uses outlined selection without checkmark',
+      (tester) async {
+    final database = InMemoryMemoStore();
+    await database.addTask(
+      title: '整理标签样式',
+      content: '',
+      tags: const ['界面'],
+    );
+
+    await _pumpApp(tester, database: database);
+    await _pumpFrame(tester);
+    final container = ProviderScope.containerOf(
+      tester.element(find.byType(AIMemoApp)),
+    );
+    container
+      ..invalidate(taskListProvider)
+      ..invalidate(tagListProvider)
+      ..read(taskTagFilterProvider.notifier).state = {'界面'};
+    await _pumpFrame(tester);
+
+    final selectedChip = tester.widget<FilterChip>(
+      find.widgetWithText(FilterChip, '界面'),
+    );
+    expect(selectedChip.selected, isTrue);
+    expect(selectedChip.showCheckmark, isFalse);
+    expect(selectedChip.avatar, isNull);
 
     await database.close();
   });
@@ -328,9 +360,9 @@ class _FakeHostedLoginRepository extends ModelSettingsRepository {
   AppRunMode? _runMode;
 }
 
-Future<AppDatabase> _pumpApp(
+Future<MemoStore> _pumpApp(
   WidgetTester tester, {
-  AppDatabase? database,
+  MemoStore? database,
   MemoryApiKeyVault? apiKeyVault,
   ModelSettingsRepository? modelSettingsRepository,
   ModelSettings? modelSettings,
