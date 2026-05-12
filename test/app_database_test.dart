@@ -259,6 +259,73 @@ void main() {
     );
   });
 
+  test('lists tasks that overlap the summary period', () async {
+    final startedBeforeCompletedInsideId = await database.addTask(
+      title: '周期前开始周期内完成',
+      content: '',
+      tags: const [],
+      createdAt: DateTime(2026, 5, 8, 9),
+    );
+    final startedBeforeOpenId = await database.addTask(
+      title: '周期前开始仍未完成',
+      content: '',
+      tags: const [],
+      createdAt: DateTime(2026, 5, 8, 10),
+    );
+    final startedInsideId = await database.addTask(
+      title: '周期内开始',
+      content: '',
+      tags: const [],
+      createdAt: DateTime(2026, 5, 10, 11),
+    );
+    final completedBeforePeriodId = await database.addTask(
+      title: '周期前已完成',
+      content: '',
+      tags: const [],
+      createdAt: DateTime(2026, 5, 8, 12),
+    );
+    await database.addTask(
+      title: '周期结束才开始',
+      content: '',
+      tags: const [],
+      createdAt: DateTime(2026, 5, 11),
+    );
+
+    await database.updateTask(
+      taskId: startedBeforeCompletedInsideId,
+      title: '周期前开始周期内完成',
+      content: '',
+      tags: const [],
+      createdAt: DateTime(2026, 5, 8, 9),
+      completedAt: DateTime(2026, 5, 10, 18),
+    );
+    await database.updateTask(
+      taskId: completedBeforePeriodId,
+      title: '周期前已完成',
+      content: '',
+      tags: const [],
+      createdAt: DateTime(2026, 5, 8, 12),
+      completedAt: DateTime(2026, 5, 9, 18),
+    );
+
+    final tasks = await database.listTasksForPeriod(
+      start: DateTime(2026, 5, 10),
+      end: DateTime(2026, 5, 11),
+    );
+    final taskIds = tasks.map((task) => task.id);
+
+    expect(
+      taskIds,
+      containsAll([
+        startedBeforeCompletedInsideId,
+        startedBeforeOpenId,
+        startedInsideId,
+      ]),
+    );
+    expect(taskIds, isNot(contains(completedBeforePeriodId)));
+    expect(tasks.map((task) => task.title), isNot(contains('周期结束才开始')));
+  });
+
   test('saves templates and summary history', () async {
     await database.saveTemplate(PeriodType.daily, '模板 {tasks}');
     expect(await database.getTemplate(PeriodType.daily), '模板 {tasks}');

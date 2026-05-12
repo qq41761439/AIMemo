@@ -391,13 +391,13 @@ ORDER BY g.created_at DESC, g.name COLLATE NOCASE ASC
     final where = <String>['t.deleted_at IS NULL'];
     final args = <Object?>[];
 
-    if (start != null) {
-      where.add('t.created_at >= ?');
-      args.add(start.toIso8601String());
-    }
     if (end != null) {
       where.add('t.created_at < ?');
       args.add(end.toIso8601String());
+    }
+    if (start != null) {
+      where.add('(t.completed_at IS NULL OR t.completed_at >= ?)');
+      args.add(start.toIso8601String());
     }
 
     if (cleanTags.isEmpty) {

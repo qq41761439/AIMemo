@@ -97,7 +97,8 @@ class InMemoryMemoStore implements MemoStore {
     final tags = _cleanTags(tagNames);
     return _filterTasks(tags: tags)
         .where((task) =>
-            !task.createdAt.isBefore(start) && task.createdAt.isBefore(end))
+            task.createdAt.isBefore(end) &&
+            (task.completedAt == null || !task.completedAt!.isBefore(start)))
         .toList()
       ..sort(compareTasksForList);
   }
