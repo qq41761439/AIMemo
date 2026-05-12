@@ -14,6 +14,8 @@ npm run dev
 
 本地开发默认 `DATA_STORE=memory`，不需要先启动 Postgres；邮箱验证码会打印到后端控制台，重启后登录码、会话和云端数据会清空。后端默认监听 `127.0.0.1:8787`。
 
+登录 token 默认 30 天过期：`ACCESS_TOKEN_TTL=30d`，`REFRESH_TOKEN_DAYS=30`。
+
 如果端口已被旧服务占用，先结束旧进程再重新运行。
 
 ## 使用 Postgres 持久化

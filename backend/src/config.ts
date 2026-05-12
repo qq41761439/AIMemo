@@ -34,7 +34,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     port: parseInt(env.PORT ?? '8787', 10),
     dataStore: parseDataStore(env.DATA_STORE, nodeEnv),
     authSecret: env.AUTH_SECRET ?? 'dev-only-change-me',
-    accessTokenTtl: env.ACCESS_TOKEN_TTL ?? '15m',
+    accessTokenTtl: env.ACCESS_TOKEN_TTL ?? '30d',
     refreshTokenDays: parseInt(env.REFRESH_TOKEN_DAYS ?? '30', 10),
     emailCodeTtlMinutes: parseInt(env.EMAIL_CODE_TTL_MINUTES ?? '10', 10),
     monthlySummaryLimit: parseInt(env.FREE_MONTHLY_SUMMARY_LIMIT ?? '30', 10),

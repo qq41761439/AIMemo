@@ -79,6 +79,17 @@ describe('AIMemo backend API', () => {
     expect(config.llmApiKey).toBe('');
   });
 
+  test('defaults login tokens to one month', () => {
+    const config = loadConfig({
+      NODE_ENV: 'test',
+      AUTH_SECRET: 'test-secret',
+      LLM_API_KEY_KEYCHAIN_DISABLED: 'true',
+    });
+
+    expect(config.accessTokenTtl).toBe('30d');
+    expect(config.refreshTokenDays).toBe(30);
+  });
+
   test('refreshes access tokens and rejects reused refresh token', async () => {
     const { app, login } = await testApp();
     const session = await login();
