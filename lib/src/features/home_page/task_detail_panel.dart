@@ -101,28 +101,33 @@ class _AddTaskPanelState extends ConsumerState<_AddTaskPanel> {
               if (availableTags.isEmpty) {
                 return const SizedBox.shrink();
               }
-              return Column(
+              return Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    '可添加标签',
-                    style: _captionStyle(context)?.copyWith(
-                      fontWeight: FontWeight.w600,
+                  Padding(
+                    padding: const EdgeInsets.only(top: 8),
+                    child: Text(
+                      '可添加标签',
+                      style: _captionStyle(context)?.copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                   ),
-                  const SizedBox(height: 8),
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: [
-                      for (final tag in availableTags)
-                        ActionChip(
-                          label: Text(tag),
-                          side: const BorderSide(color: _border),
-                          backgroundColor: _faint,
-                          onPressed: () => _appendTag(tag),
-                        ),
-                    ],
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: [
+                        for (final tag in availableTags)
+                          ActionChip(
+                            label: Text(tag),
+                            side: const BorderSide(color: _border),
+                            backgroundColor: _faint,
+                            onPressed: () => _appendTag(tag),
+                          ),
+                      ],
+                    ),
                   ),
                 ],
               );
