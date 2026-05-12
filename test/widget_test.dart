@@ -128,6 +128,34 @@ void main() {
     await database.close();
   });
 
+  testWidgets('saving task edits keeps edit form open', (tester) async {
+    final database = InMemoryMemoStore();
+    await database.addTask(
+      title: '继续编辑任务',
+      content: '保存后停留',
+      tags: const ['界面'],
+    );
+
+    await _pumpApp(tester, database: database);
+    await _pumpFrame(tester);
+
+    await tester.tap(find.text('继续编辑任务'));
+    await _pumpFrame(tester);
+    await tester.enterText(
+      find.widgetWithText(TextField, '任务内容'),
+      '继续编辑任务\n保存后仍然停留',
+    );
+    await tester.tap(find.text('保存修改'));
+    await _pumpFrame(tester);
+
+    expect(find.text('编辑任务'), findsOneWidget);
+    expect(find.text('保存修改'), findsOneWidget);
+    expect(find.text('添加任务'), findsNothing);
+    expect(find.widgetWithText(TextField, '任务内容'), findsOneWidget);
+
+    await database.close();
+  });
+
   testWidgets('mobile add task form keeps fields focusable on short screens',
       (tester) async {
     final database = await _pumpApp(

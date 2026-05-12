@@ -267,12 +267,26 @@ class _AddTaskPanelState extends ConsumerState<_AddTaskPanel> {
               completedAt: completedAt,
             );
       }
-      _bodyController.clear();
-      _tagsController.clear();
-      _createdAt = DateTime.now();
-      _completedAt = null;
-      ref.read(selectedTaskProvider.notifier).state = null;
-      ref.read(editingTaskProvider.notifier).state = null;
+      if (editingTask == null) {
+        _bodyController.clear();
+        _tagsController.clear();
+        _createdAt = DateTime.now();
+        _completedAt = null;
+        ref.read(selectedTaskProvider.notifier).state = null;
+        ref.read(editingTaskProvider.notifier).state = null;
+      } else {
+        final updatedTask = editingTask.copyWith(
+          title: draft.title,
+          content: draft.content,
+          tags: taskTags,
+          createdAt: createdAt,
+          completedAt: completedAt,
+          clearCompletedAt: completedAt == null,
+          updatedAt: DateTime.now(),
+        );
+        ref.read(selectedTaskProvider.notifier).state = updatedTask;
+        ref.read(editingTaskProvider.notifier).state = updatedTask;
+      }
       ref.invalidate(taskListProvider);
       ref.invalidate(tagListProvider);
       await _pruneTaskTagFilter(ref, ref.read(appDatabaseProvider));
