@@ -11,6 +11,8 @@ import 'services/in_memory_memo_store.dart';
 import 'services/memo_store.dart';
 import 'services/model_settings_repository.dart';
 import 'services/summary_api_client.dart';
+import 'services/sync_api_client.dart';
+import 'services/sync_coordinator.dart';
 
 final appDatabaseProvider = Provider<MemoStore>((ref) {
   final store = kIsWeb ? InMemoryMemoStore() : AppDatabase();
@@ -59,6 +61,31 @@ final appRunModeProvider = FutureProvider<AppRunMode?>((ref) async {
   }
   final mode = await repository.loadAppRunMode();
   return mode == AppRunMode.local ? AppRunMode.local : null;
+});
+
+final syncConfigProvider = FutureProvider<SyncConfig?>((ref) {
+  return ref.watch(modelSettingsRepositoryProvider).loadSyncConfig();
+});
+
+final syncApiClientProvider = FutureProvider<SyncApiClient?>((ref) async {
+  final config = await ref.watch(syncConfigProvider.future);
+  if (config == null) {
+    return null;
+  }
+  final repository = ref.watch(modelSettingsRepositoryProvider);
+  return SyncApiClient(
+    config: config,
+    refreshConfig: repository.refreshSyncConfig,
+  );
+});
+
+final syncCoordinatorProvider = FutureProvider<SyncCoordinator?>((ref) async {
+  final client = await ref.watch(syncApiClientProvider.future);
+  final store = ref.watch(appDatabaseProvider);
+  if (client == null || store is! AppDatabase) {
+    return null;
+  }
+  return SyncCoordinator(database: store, client: client);
 });
 
 final taskTagFilterProvider = StateProvider<Set<String>>((ref) => <String>{});

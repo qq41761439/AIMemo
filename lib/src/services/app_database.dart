@@ -13,6 +13,14 @@ import 'memo_store.dart';
 import 'template_renderer.dart';
 import 'task_sorting.dart';
 
+enum TaskRemoteApplyResult {
+  inserted,
+  updated,
+  deleted,
+  unchanged,
+  conflict,
+}
+
 class AppDatabase implements MemoStore {
   AppDatabase({
     DatabaseFactory? factory,
@@ -505,6 +513,160 @@ ORDER BY g.created_at DESC, g.name COLLATE NOCASE ASC
     return rows.map(SummaryRecord.fromDb).toList();
   }
 
+  Future<List<TaskRecord>> listPendingSyncTasks() async {
+    final db = await database;
+    final rows = await db.query(
+      'tasks',
+      where: 'sync_status != ?',
+      whereArgs: [TaskSyncStatus.synced.value],
+      orderBy: 'updated_at ASC',
+    );
+    return _hydrateTasks(db, rows);
+  }
+
+  Future<TaskRecord?> getTaskByCloudId(String cloudId) async {
+    final cleanCloudId = cloudId.trim();
+    if (cleanCloudId.isEmpty) {
+      return null;
+    }
+    final db = await database;
+    final rows = await db.query(
+      'tasks',
+      where: 'cloud_id = ?',
+      whereArgs: [cleanCloudId],
+      limit: 1,
+    );
+    if (rows.isEmpty) {
+      return null;
+    }
+    return (await _hydrateTasks(db, rows)).single;
+  }
+
+  Future<TaskRecord?> getTaskByClientId(String clientId) async {
+    final cleanClientId = clientId.trim();
+    if (cleanClientId.isEmpty) {
+      return null;
+    }
+    final db = await database;
+    final rows = await db.query(
+      'tasks',
+      where: 'client_id = ?',
+      whereArgs: [cleanClientId],
+      limit: 1,
+    );
+    if (rows.isEmpty) {
+      return null;
+    }
+    return (await _hydrateTasks(db, rows)).single;
+  }
+
+  Future<TaskRemoteApplyResult> applyRemoteTask(TaskRecord remoteTask) async {
+    final db = await database;
+    return db.transaction((txn) async {
+      final localRows = await _queryRemoteMatch(txn, remoteTask);
+      if (localRows.isEmpty) {
+        final taskId = await txn.insert('tasks', {
+          'title': remoteTask.title,
+          'content': remoteTask.content,
+          'created_at': remoteTask.createdAt.toIso8601String(),
+          'updated_at': remoteTask.updatedAt.toIso8601String(),
+          'completed_at': remoteTask.completedAt?.toIso8601String(),
+          'deleted_at': remoteTask.deletedAt?.toIso8601String(),
+          'cloud_id': remoteTask.cloudId,
+          'client_id': remoteTask.clientId,
+          'sync_status': TaskSyncStatus.synced.value,
+        });
+        await _replaceTaskTags(txn, taskId, remoteTask.tags);
+        return remoteTask.deletedAt == null
+            ? TaskRemoteApplyResult.inserted
+            : TaskRemoteApplyResult.deleted;
+      }
+
+      final localRow = localRows.single;
+      final localTask = TaskRecord.fromDb(
+        localRow,
+        await _taskTags(txn, localRow['id'] as int),
+      );
+      if (localTask.syncStatus != TaskSyncStatus.synced &&
+          localTask.updatedAt.isAfter(remoteTask.updatedAt)) {
+        await txn.update(
+          'tasks',
+          {'sync_status': TaskSyncStatus.conflict.value},
+          where: 'id = ?',
+          whereArgs: [localTask.id],
+        );
+        return TaskRemoteApplyResult.conflict;
+      }
+
+      final hasRemoteChanges =
+          remoteTask.updatedAt.isAfter(localTask.updatedAt) ||
+              localTask.cloudId != remoteTask.cloudId ||
+              localTask.syncStatus != TaskSyncStatus.synced;
+      if (!hasRemoteChanges) {
+        return TaskRemoteApplyResult.unchanged;
+      }
+
+      await txn.update(
+        'tasks',
+        {
+          'title': remoteTask.title,
+          'content': remoteTask.content,
+          'created_at': remoteTask.createdAt.toIso8601String(),
+          'updated_at': remoteTask.updatedAt.toIso8601String(),
+          'completed_at': remoteTask.completedAt?.toIso8601String(),
+          'deleted_at': remoteTask.deletedAt?.toIso8601String(),
+          'cloud_id': remoteTask.cloudId,
+          'sync_status': TaskSyncStatus.synced.value,
+        },
+        where: 'id = ?',
+        whereArgs: [localTask.id],
+      );
+      await _replaceTaskTags(txn, localTask.id, remoteTask.tags);
+      return remoteTask.deletedAt == null
+          ? TaskRemoteApplyResult.updated
+          : TaskRemoteApplyResult.deleted;
+    });
+  }
+
+  Future<void> markTaskSynced({
+    required int taskId,
+    String? cloudId,
+    DateTime? updatedAt,
+    DateTime? deletedAt,
+  }) async {
+    final db = await database;
+    final updates = <String, Object?>{
+      'sync_status': TaskSyncStatus.synced.value,
+    };
+    if (cloudId != null && cloudId.trim().isNotEmpty) {
+      updates['cloud_id'] = cloudId.trim();
+    }
+    if (updatedAt != null) {
+      updates['updated_at'] = updatedAt.toIso8601String();
+    }
+    if (deletedAt != null) {
+      updates['deleted_at'] = deletedAt.toIso8601String();
+    }
+    await db.update(
+      'tasks',
+      updates,
+      where: 'id = ?',
+      whereArgs: [taskId],
+    );
+  }
+
+  Future<DateTime?> getLastTaskSyncAt() async {
+    final value = await getAppSetting('task_last_sync_at');
+    if (value == null || value.trim().isEmpty) {
+      return null;
+    }
+    return DateTime.tryParse(value);
+  }
+
+  Future<void> saveLastTaskSyncAt(DateTime time) {
+    return saveAppSetting('task_last_sync_at', time.toIso8601String());
+  }
+
   Future<List<Map<String, Object?>>> _queryTaskRows(
     Database db, {
     List<String> tagNames = const [],
@@ -572,6 +734,35 @@ ORDER BY g.created_at DESC, g.name COLLATE NOCASE ASC
       [taskId],
     );
     return rows.map((row) => row['name'] as String).toList();
+  }
+
+  Future<List<Map<String, Object?>>> _queryRemoteMatch(
+    DatabaseExecutor executor,
+    TaskRecord remoteTask,
+  ) async {
+    final cloudId = remoteTask.cloudId?.trim();
+    if (cloudId != null && cloudId.isNotEmpty) {
+      final rows = await executor.query(
+        'tasks',
+        where: 'cloud_id = ?',
+        whereArgs: [cloudId],
+        limit: 1,
+      );
+      if (rows.isNotEmpty) {
+        return rows;
+      }
+    }
+
+    final clientId = remoteTask.clientId.trim();
+    if (clientId.isEmpty) {
+      return const [];
+    }
+    return executor.query(
+      'tasks',
+      where: 'client_id = ?',
+      whereArgs: [clientId],
+      limit: 1,
+    );
   }
 
   Future<void> _replaceTaskTags(

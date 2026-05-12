@@ -67,6 +67,7 @@ class _HomeWorkspaceState extends ConsumerState<_HomeWorkspace> {
   double _actionPaneWidth = _defaultActionPaneWidth;
   late final MemoStore _database;
   Timer? _saveActionPaneWidthTimer;
+  Timer? _syncTimer;
   bool _actionPaneWidthChanged = false;
 
   @override
@@ -75,12 +76,14 @@ class _HomeWorkspaceState extends ConsumerState<_HomeWorkspace> {
     _database = ref.read(appDatabaseProvider);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _loadActionPaneWidth();
+      _startAutoSync();
     });
   }
 
   @override
   void dispose() {
     _saveActionPaneWidthTimer?.cancel();
+    _syncTimer?.cancel();
     if (_actionPaneWidthChanged) {
       unawaited(_database.saveActionPaneWidth(_actionPaneWidth));
     }
@@ -154,6 +157,53 @@ class _HomeWorkspaceState extends ConsumerState<_HomeWorkspace> {
       return;
     }
     setState(() => _actionPaneWidth = savedWidth);
+  }
+
+  void _startAutoSync() {
+    if (ref.read(appRunModeProvider).valueOrNull != AppRunMode.sync) {
+      return;
+    }
+    unawaited(_performSync(showSuccessMessage: false));
+    _syncTimer = Timer.periodic(const Duration(minutes: 5), (_) {
+      unawaited(_performSync(showSuccessMessage: true));
+    });
+  }
+
+  Future<void> _performSync({required bool showSuccessMessage}) async {
+    try {
+      final coordinator = await ref.read(syncCoordinatorProvider.future);
+      if (coordinator == null) {
+        return;
+      }
+      final result = await coordinator.sync();
+      if (!mounted) {
+        return;
+      }
+      if (result.hasChanges) {
+        ref.invalidate(taskListProvider);
+        ref.invalidate(tagListProvider);
+        if (showSuccessMessage) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('同步完成：$result'),
+              duration: const Duration(seconds: 2),
+              backgroundColor: _accent,
+            ),
+          );
+        }
+      }
+    } catch (error) {
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('同步失败：$error'),
+          duration: const Duration(seconds: 3),
+          backgroundColor: Colors.red.shade700,
+        ),
+      );
+    }
   }
 
   void _scheduleActionPaneWidthSave(double width) {

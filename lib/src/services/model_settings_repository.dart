@@ -8,6 +8,7 @@ import '../models/app_run_mode.dart';
 import '../models/model_settings.dart';
 import '../models/period_type.dart';
 import 'memo_store.dart';
+import 'sync_api_client.dart';
 
 abstract class ApiKeyVault {
   Future<String?> readApiKey();
@@ -163,6 +164,40 @@ class ModelSettingsRepository {
 
   Future<void> saveAppRunMode(AppRunMode mode) async {
     await _store.saveAppSetting(_appRunModeKey, mode.value);
+  }
+
+  Future<SyncConfig?> loadSyncConfig() async {
+    final settings = await load();
+    final baseUrl = settings.hostedBaseUrl.trim();
+    if (!settings.hasHostedSession || baseUrl.isEmpty) {
+      return null;
+    }
+    final session = await _readHostedSession();
+    if (session == null || session.accessToken.trim().isEmpty) {
+      await _store.saveAppSetting(_hasHostedSessionKey, 'false');
+      return null;
+    }
+    return SyncConfig(
+      baseUrl: baseUrl,
+      accessToken: session.accessToken.trim(),
+    );
+  }
+
+  Future<SyncConfig?> refreshSyncConfig() async {
+    final settings = await load();
+    final baseUrl = settings.hostedBaseUrl.trim();
+    if (baseUrl.isEmpty) {
+      await _store.saveAppSetting(_hasHostedSessionKey, 'false');
+      return null;
+    }
+    final session = await _refreshHostedSession(baseUrl);
+    if (session == null) {
+      return null;
+    }
+    return SyncConfig(
+      baseUrl: baseUrl,
+      accessToken: session.accessToken.trim(),
+    );
   }
 
   Future<void> save({
