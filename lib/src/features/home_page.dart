@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../models/app_run_mode.dart';
 import '../models/model_settings.dart';
 import '../models/period_type.dart';
 import '../models/summary_record.dart';
@@ -21,6 +22,7 @@ part 'home_page/action_pane.dart';
 part 'home_page/task_detail_panel.dart';
 part 'home_page/summary_panel.dart';
 part 'home_page/model_settings_dialog.dart';
+part 'home_page/startup_gate.dart';
 part 'home_page/summary_widgets.dart';
 part 'home_page/history_panel.dart';
 part 'home_page/shared_widgets.dart';
@@ -39,17 +41,33 @@ const _minActionPaneWidth = 380.0;
 const _maxActionPaneWidth = 720.0;
 const _minTaskPaneWidth = 420.0;
 
-class HomePage extends ConsumerStatefulWidget {
+class HomePage extends ConsumerWidget {
   const HomePage({super.key});
 
   @override
-  ConsumerState<HomePage> createState() => _HomePageState();
+  Widget build(BuildContext context, WidgetRef ref) {
+    final appRunMode = ref.watch(appRunModeProvider);
+    return appRunMode.when(
+      data: (mode) =>
+          mode == null ? const _StartupChoicePage() : const _HomeWorkspace(),
+      loading: () => const _StartupLoadingPage(),
+      error: (error, _) => _StartupErrorPage(error: error),
+    );
+  }
 }
 
-class _HomePageState extends ConsumerState<HomePage> {
+class _HomeWorkspace extends ConsumerStatefulWidget {
+  const _HomeWorkspace();
+
+  @override
+  ConsumerState<_HomeWorkspace> createState() => _HomeWorkspaceState();
+}
+
+class _HomeWorkspaceState extends ConsumerState<_HomeWorkspace> {
   double _actionPaneWidth = _defaultActionPaneWidth;
   late final MemoStore _database;
   Timer? _saveActionPaneWidthTimer;
+  bool _actionPaneWidthChanged = false;
 
   @override
   void initState() {
@@ -63,7 +81,9 @@ class _HomePageState extends ConsumerState<HomePage> {
   @override
   void dispose() {
     _saveActionPaneWidthTimer?.cancel();
-    unawaited(_database.saveActionPaneWidth(_actionPaneWidth));
+    if (_actionPaneWidthChanged) {
+      unawaited(_database.saveActionPaneWidth(_actionPaneWidth));
+    }
     super.dispose();
   }
 
@@ -137,6 +157,7 @@ class _HomePageState extends ConsumerState<HomePage> {
   }
 
   void _scheduleActionPaneWidthSave(double width) {
+    _actionPaneWidthChanged = true;
     _saveActionPaneWidthTimer?.cancel();
     _saveActionPaneWidthTimer = Timer(const Duration(milliseconds: 350), () {
       unawaited(_database.saveActionPaneWidth(width));

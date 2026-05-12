@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
 
+import '../models/app_run_mode.dart';
 import '../models/model_settings.dart';
 import '../models/period_type.dart';
 import 'memo_store.dart';
@@ -134,6 +135,7 @@ class ModelSettingsRepository {
   static const _hasApiKeyKey = 'model_has_api_key';
   static const _hostedBaseUrlKey = 'hosted_base_url';
   static const _hasHostedSessionKey = 'hosted_has_session';
+  static const _appRunModeKey = 'app_run_mode';
 
   final MemoStore _store;
   final ApiKeyVault _apiKeyVault;
@@ -153,6 +155,14 @@ class ModelSettingsRepository {
       hasHostedSession:
           await _store.getAppSetting(_hasHostedSessionKey) == 'true',
     );
+  }
+
+  Future<AppRunMode?> loadAppRunMode() async {
+    return AppRunMode.fromValue(await _store.getAppSetting(_appRunModeKey));
+  }
+
+  Future<void> saveAppRunMode(AppRunMode mode) async {
+    await _store.saveAppSetting(_appRunModeKey, mode.value);
   }
 
   Future<void> save({

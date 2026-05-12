@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'models/app_run_mode.dart';
 import 'models/model_settings.dart';
 import 'models/period_type.dart';
 import 'models/summary_record.dart';
@@ -48,6 +49,16 @@ final hostedQuotaProvider = FutureProvider<HostedQuota?>((ref) async {
     return null;
   }
   return ref.watch(modelSettingsRepositoryProvider).loadHostedQuota();
+});
+
+final appRunModeProvider = FutureProvider<AppRunMode?>((ref) async {
+  final repository = ref.watch(modelSettingsRepositoryProvider);
+  final settings = await repository.load();
+  if (settings.hasHostedSession) {
+    return AppRunMode.sync;
+  }
+  final mode = await repository.loadAppRunMode();
+  return mode == AppRunMode.local ? AppRunMode.local : null;
 });
 
 final taskTagFilterProvider = StateProvider<Set<String>>((ref) => <String>{});

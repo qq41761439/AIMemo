@@ -1,4 +1,5 @@
 import 'package:aimemo/src/app.dart';
+import 'package:aimemo/src/models/app_run_mode.dart';
 import 'package:aimemo/src/models/model_settings.dart';
 import 'package:aimemo/src/providers.dart';
 import 'package:aimemo/src/services/app_database.dart';
@@ -21,6 +22,7 @@ void main() {
         overrides: [
           appDatabaseProvider.overrideWithValue(database),
           apiKeyVaultProvider.overrideWithValue(apiKeyVault),
+          appRunModeProvider.overrideWith((ref) async => AppRunMode.local),
         ],
         child: const AIMemoApp(),
       ),
@@ -33,6 +35,68 @@ void main() {
     expect(find.text('添加任务'), findsWidgets);
     expect(find.text('任务内容'), findsOneWidget);
     expect(find.text('标题'), findsNothing);
+  });
+
+  testWidgets('startup page lets users choose local mode', (tester) async {
+    final database = AppDatabase(pathOverride: inMemoryDatabasePath);
+    final apiKeyVault = MemoryApiKeyVault();
+    final repository = _FakeHostedLoginRepository(
+      store: database,
+      apiKeyVault: apiKeyVault,
+    );
+
+    await _pumpApp(
+      tester,
+      database: database,
+      apiKeyVault: apiKeyVault,
+      modelSettingsRepository: repository,
+      skipStartup: false,
+    );
+    await _pumpFrame(tester);
+
+    expect(find.text('选择这台设备的使用方式'), findsOneWidget);
+    expect(find.text('本地运行'), findsOneWidget);
+    expect(find.text('登录同步'), findsOneWidget);
+
+    await tester.tap(find.text('本地运行'));
+    await _pumpFrame(tester);
+
+    expect(find.text('添加任务'), findsWidgets);
+    expect(find.text('选择这台设备的使用方式'), findsNothing);
+
+    await database.close();
+  });
+
+  testWidgets('startup login uses hosted account flow', (tester) async {
+    final database = AppDatabase(pathOverride: inMemoryDatabasePath);
+    final apiKeyVault = MemoryApiKeyVault();
+    final repository = _FakeHostedLoginRepository(
+      store: database,
+      apiKeyVault: apiKeyVault,
+    );
+
+    await _pumpApp(
+      tester,
+      database: database,
+      apiKeyVault: apiKeyVault,
+      modelSettingsRepository: repository,
+      skipStartup: false,
+    );
+    await _pumpFrame(tester);
+
+    await tester.tap(find.text('登录同步'));
+    await _pumpFrame(tester);
+    await tester.enterText(find.byType(TextField).at(0), 'user@example.com');
+    await tester.tap(find.text('发送验证码'));
+    await _pumpFrame(tester);
+    await tester.enterText(find.byType(TextField).at(1), '123456');
+    await tester.tap(find.text('登录并同步'));
+    await _pumpFrame(tester);
+
+    expect(find.text('添加任务'), findsWidgets);
+    expect(find.text('登录并同步'), findsNothing);
+
+    await database.close();
   });
 
   testWidgets('model settings button shows unconfigured state', (tester) async {
@@ -161,7 +225,9 @@ class _FakeHostedLoginRepository extends ModelSettingsRepository {
     required String hostedBaseUrl,
     required String email,
     required String code,
-  }) async {}
+  }) async {
+    _settings = _settings.copyWith(hasHostedSession: true);
+  }
 
   @override
   Future<void> save({
@@ -185,6 +251,16 @@ class _FakeHostedLoginRepository extends ModelSettingsRepository {
   Future<void> clearHostedSession() async {
     _settings = _settings.copyWith(hasHostedSession: false);
   }
+
+  @override
+  Future<AppRunMode?> loadAppRunMode() async => _runMode;
+
+  @override
+  Future<void> saveAppRunMode(AppRunMode mode) async {
+    _runMode = mode;
+  }
+
+  AppRunMode? _runMode;
 }
 
 Future<AppDatabase> _pumpApp(
@@ -194,6 +270,7 @@ Future<AppDatabase> _pumpApp(
   ModelSettingsRepository? modelSettingsRepository,
   ModelSettings? modelSettings,
   bool openSummary = false,
+  bool skipStartup = true,
 }) async {
   sqfliteFfiInit();
   databaseFactory = databaseFactoryFfi;
@@ -210,6 +287,8 @@ Future<AppDatabase> _pumpApp(
       overrides: [
         appDatabaseProvider.overrideWithValue(appDatabase),
         apiKeyVaultProvider.overrideWithValue(vault),
+        if (skipStartup)
+          appRunModeProvider.overrideWith((ref) async => AppRunMode.local),
         if (modelSettingsRepository != null)
           modelSettingsRepositoryProvider.overrideWithValue(
             modelSettingsRepository,
