@@ -92,6 +92,11 @@ void main() {
     await tester.pump();
     expect(FocusManager.instance.primaryFocus?.debugLabel, 'task tags input');
 
+    await tester.tapAt(const Offset(24, 24));
+    await tester.pump();
+    expect(FocusManager.instance.primaryFocus?.debugLabel,
+        isNot('task tags input'));
+
     expect(tester.takeException(), isNull);
 
     await database.close();
