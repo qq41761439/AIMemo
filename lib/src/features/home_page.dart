@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../models/model_settings.dart';
 import '../models/period_type.dart';
+import '../models/summary_record.dart';
 import '../models/task_record.dart';
 import '../providers.dart';
 import '../services/memo_store.dart';

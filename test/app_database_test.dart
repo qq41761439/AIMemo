@@ -457,6 +457,119 @@ void main() {
     expect(rows.toString(), isNot(contains('refresh-token')));
   });
 
+  test('loads hosted quota after refreshing expired session', () async {
+    final vault = MemoryApiKeyVault();
+    await database.saveAppSetting(
+      'hosted_base_url',
+      'https://backend.example.test',
+    );
+    await database.saveAppSetting('hosted_has_session', 'true');
+    await vault.saveHostedSession(
+      const HostedSession(
+        accessToken: 'expired-token',
+        refreshToken: 'refresh-token',
+      ),
+    );
+
+    final requests = <String>[];
+    final repository = ModelSettingsRepository(
+      store: database,
+      apiKeyVault: vault,
+      httpClient: MockClient((request) async {
+        requests.add(
+          '${request.method} ${request.url.path} ${request.headers['authorization'] ?? ''}',
+        );
+        if (request.url.path == '/me/quota' &&
+            request.headers['authorization'] == 'Bearer expired-token') {
+          return http.Response.bytes(
+            utf8.encode(
+              '{"error":{"code":"unauthorized","message":"登录已过期。"}}',
+            ),
+            401,
+            headers: const {'content-type': 'application/json; charset=utf-8'},
+          );
+        }
+        if (request.url.path == '/auth/refresh') {
+          final body = jsonDecode(request.body) as Map<String, dynamic>;
+          expect(body['refreshToken'], 'refresh-token');
+          return http.Response(
+            '{"accessToken":"fresh-token","refreshToken":"fresh-refresh-token"}',
+            200,
+          );
+        }
+        expect(request.headers['authorization'], 'Bearer fresh-token');
+        return http.Response(
+          '{"period":"2026-05","limit":30,"used":7,"remaining":23}',
+          200,
+        );
+      }),
+    );
+
+    final quota = await repository.loadHostedQuota();
+    final session = await vault.readHostedSession();
+
+    expect(quota?.remaining, 23);
+    expect(session?.accessToken, 'fresh-token');
+    expect(session?.refreshToken, 'fresh-refresh-token');
+    expect(requests, [
+      'GET /me/quota Bearer expired-token',
+      'POST /auth/refresh ',
+      'GET /me/quota Bearer fresh-token',
+    ]);
+  });
+
+  test('lists hosted summary history', () async {
+    final vault = MemoryApiKeyVault();
+    await database.saveAppSetting(
+      'hosted_base_url',
+      'https://backend.example.test',
+    );
+    await database.saveAppSetting('hosted_has_session', 'true');
+    await vault.saveHostedSession(
+      const HostedSession(
+        accessToken: 'access-token',
+        refreshToken: 'refresh-token',
+      ),
+    );
+    final repository = ModelSettingsRepository(
+      store: database,
+      apiKeyVault: vault,
+      httpClient: MockClient((request) async {
+        expect(request.url.path, '/summaries');
+        expect(request.url.queryParameters['limit'], '50');
+        expect(request.headers['authorization'], 'Bearer access-token');
+        return http.Response.bytes(
+          utf8.encode(
+            jsonEncode({
+              'items': [
+                {
+                  'id': 'summary-id',
+                  'periodType': 'weekly',
+                  'periodLabel': '2026-W20',
+                  'periodStart': '2026-05-11T00:00:00.000Z',
+                  'periodEnd': '2026-05-18T00:00:00.000Z',
+                  'tags': ['工作'],
+                  'output': '本周完成了同步设计。',
+                  'model': 'deepseek-chat',
+                  'createdAt': '2026-05-12T08:00:00.000Z',
+                },
+              ],
+            }),
+          ),
+          200,
+          headers: const {'content-type': 'application/json; charset=utf-8'},
+        );
+      }),
+    );
+
+    final summaries = await repository.listHostedSummaries();
+
+    expect(summaries, hasLength(1));
+    expect(summaries.single.periodType, PeriodType.weekly);
+    expect(summaries.single.tags, ['工作']);
+    expect(summaries.single.output, '本周完成了同步设计。');
+  });
+
   test('times out when secure model key storage hangs', () async {
     final repository = ModelSettingsRepository(
       store: database,

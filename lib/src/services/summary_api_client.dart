@@ -5,9 +5,12 @@ import 'package:http/http.dart' as http;
 class SummaryApiClient {
   SummaryApiClient({
     http.Client? httpClient,
-  }) : _httpClient = httpClient ?? http.Client();
+    Future<Map<String, Object?>?> Function()? refreshHostedConfig,
+  })  : _httpClient = httpClient ?? http.Client(),
+        _refreshHostedConfig = refreshHostedConfig;
 
   final http.Client _httpClient;
+  final Future<Map<String, Object?>?> Function()? _refreshHostedConfig;
 
   Future<String> generateSummary({
     required String periodType,
@@ -32,6 +35,7 @@ class SummaryApiClient {
         tags: tags,
         tasks: tasks,
         prompt: prompt,
+        allowRefresh: true,
       );
     }
     final customConfig = config as _CustomLlmConfig;
@@ -93,6 +97,7 @@ class SummaryApiClient {
     required List<String> tags,
     required String tasks,
     required String prompt,
+    required bool allowRefresh,
   }) async {
     final uri = Uri.parse(
       '${config.baseUrl.replaceAll(RegExp(r'/+$'), '')}/summaries/generate',
@@ -119,6 +124,26 @@ class SummaryApiClient {
       throw SummaryApiException(_hostedNetworkErrorMessage(error));
     } catch (error) {
       throw SummaryApiException('生成失败：无法请求 AIMemo 后端。$error');
+    }
+
+    if (response.statusCode == 401 &&
+        allowRefresh &&
+        _refreshHostedConfig != null) {
+      final refreshHostedConfig = _refreshHostedConfig;
+      final refreshedConfig = _resolveConfig(await refreshHostedConfig());
+      if (refreshedConfig is _HostedLlmConfig) {
+        return _generateHostedSummary(
+          config: refreshedConfig,
+          periodType: periodType,
+          period: period,
+          periodStart: periodStart,
+          periodEnd: periodEnd,
+          tags: tags,
+          tasks: tasks,
+          prompt: prompt,
+          allowRefresh: false,
+        );
+      }
     }
 
     if (response.statusCode < 200 || response.statusCode >= 300) {

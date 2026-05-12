@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'models/model_settings.dart';
 import 'models/period_type.dart';
 import 'models/summary_record.dart';
 import 'models/task_record.dart';
@@ -19,7 +20,10 @@ final appDatabaseProvider = Provider<MemoStore>((ref) {
 });
 
 final summaryApiClientProvider = Provider<SummaryApiClient>((ref) {
-  return SummaryApiClient();
+  final repository = ref.watch(modelSettingsRepositoryProvider);
+  return SummaryApiClient(
+    refreshHostedConfig: repository.refreshHostedConfig,
+  );
 });
 
 final apiKeyVaultProvider = Provider<ApiKeyVault>((ref) {
@@ -36,6 +40,14 @@ final modelSettingsRepositoryProvider =
 
 final modelSettingsProvider = FutureProvider((ref) {
   return ref.watch(modelSettingsRepositoryProvider).load();
+});
+
+final hostedQuotaProvider = FutureProvider<HostedQuota?>((ref) async {
+  final settings = await ref.watch(modelSettingsProvider.future);
+  if (settings.mode != ModelMode.hosted || !settings.hasHostedSession) {
+    return null;
+  }
+  return ref.watch(modelSettingsRepositoryProvider).loadHostedQuota();
 });
 
 final taskTagFilterProvider = StateProvider<Set<String>>((ref) => <String>{});
@@ -60,6 +72,15 @@ final tagListProvider = FutureProvider<List<String>>((ref) async {
 final summaryHistoryProvider = FutureProvider<List<SummaryRecord>>((ref) async {
   final database = ref.watch(appDatabaseProvider);
   return database.listSummaries();
+});
+
+final hostedSummaryHistoryProvider =
+    FutureProvider<List<HostedSummaryRecord>>((ref) async {
+  final settings = await ref.watch(modelSettingsProvider.future);
+  if (settings.mode != ModelMode.hosted || !settings.hasHostedSession) {
+    return const [];
+  }
+  return ref.watch(modelSettingsRepositoryProvider).listHostedSummaries();
 });
 
 final templateProvider = FutureProvider.family<String, PeriodType>((ref, type) {

@@ -229,6 +229,53 @@ void main() {
     expect(summary, '已使用官方托管模型。');
   });
 
+  test('refreshes hosted config and retries once after unauthorized', () async {
+    final seenTokens = <String>[];
+    final client = SummaryApiClient(
+      refreshHostedConfig: () async => const {
+        'mode': 'hosted',
+        'hosted_base_url': 'https://backend.example.test',
+        'access_token': 'fresh-token',
+      },
+      httpClient: MockClient((request) async {
+        seenTokens.add(request.headers['authorization'] ?? '');
+        if (seenTokens.length == 1) {
+          return http.Response.bytes(
+            utf8.encode(
+              '{"error":{"code":"unauthorized","message":"登录已过期。"}}',
+            ),
+            401,
+            headers: const {'content-type': 'application/json; charset=utf-8'},
+          );
+        }
+        return http.Response.bytes(
+          utf8.encode('{"summary":"刷新后生成成功。"}'),
+          200,
+          headers: const {'content-type': 'application/json; charset=utf-8'},
+        );
+      }),
+    );
+
+    final summary = await client.generateSummary(
+      periodType: 'daily',
+      period: '今天',
+      periodStart: DateTime.utc(2026, 5, 11),
+      periodEnd: DateTime.utc(2026, 5, 12),
+      tags: const [],
+      tasks: '任务',
+      template: '{tasks}',
+      prompt: '任务',
+      llmConfig: const {
+        'mode': 'hosted',
+        'hosted_base_url': 'https://backend.example.test',
+        'access_token': 'expired-token',
+      },
+    );
+
+    expect(summary, '刷新后生成成功。');
+    expect(seenTokens, ['Bearer expired-token', 'Bearer fresh-token']);
+  });
+
   test('explains hosted backend model config missing', () async {
     final client = SummaryApiClient(
       httpClient: MockClient((request) async {

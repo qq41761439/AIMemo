@@ -5,6 +5,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
 
 import '../models/model_settings.dart';
+import '../models/period_type.dart';
 import 'memo_store.dart';
 
 abstract class ApiKeyVault {
@@ -255,10 +256,7 @@ class ModelSettingsRepository {
   Future<Map<String, Object?>?> requestConfig() async {
     final settings = await load();
     if (settings.mode == ModelMode.hosted) {
-      final hostedSession = await _secureStorageOperation(
-        () => _apiKeyVault.readHostedSession(),
-        timeoutMessage: '读取登录状态超时，请检查 macOS 钥匙串权限后重试。',
-      );
+      final hostedSession = await _readHostedSession();
       if (hostedSession == null ||
           hostedSession.accessToken.trim().isEmpty ||
           settings.hostedBaseUrl.trim().isEmpty) {
@@ -298,30 +296,211 @@ class ModelSettingsRepository {
     };
   }
 
+  Future<Map<String, Object?>?> refreshHostedConfig() async {
+    final settings = await load();
+    if (settings.hostedBaseUrl.trim().isEmpty) {
+      await _store.saveAppSetting(_hasHostedSessionKey, 'false');
+      return null;
+    }
+    final session = await _refreshHostedSession(settings.hostedBaseUrl);
+    if (session == null) {
+      return null;
+    }
+    return {
+      'mode': 'hosted',
+      'hosted_base_url': settings.hostedBaseUrl.trim(),
+      'access_token': session.accessToken.trim(),
+    };
+  }
+
+  Future<HostedQuota?> loadHostedQuota() async {
+    final body = await _getAuthorizedHostedJson(path: '/me/quota');
+    return HostedQuota.fromJson(body);
+  }
+
+  Future<List<HostedSummaryRecord>> listHostedSummaries({
+    int limit = 50,
+  }) async {
+    final body = await _getAuthorizedHostedJson(
+      path: '/summaries',
+      queryParameters: {'limit': limit.toString()},
+    );
+    final items = body['items'];
+    if (items is! List) {
+      throw const ModelSettingsException('AIMemo 后端返回格式无效。');
+    }
+    return items
+        .map((item) => HostedSummaryRecord.fromJson(
+              item as Map<String, dynamic>,
+            ))
+        .toList();
+  }
+
+  Future<Map<String, dynamic>> _getAuthorizedHostedJson({
+    required String path,
+    Map<String, String>? queryParameters,
+  }) async {
+    return _authorizedHostedJson(
+      method: 'GET',
+      path: path,
+      queryParameters: queryParameters,
+    );
+  }
+
+  Future<Map<String, dynamic>> _authorizedHostedJson({
+    required String method,
+    required String path,
+    Map<String, String>? queryParameters,
+    Map<String, Object?>? body,
+    bool allowRefresh = true,
+  }) async {
+    final settings = await load();
+    final baseUrl = settings.hostedBaseUrl.trim();
+    if (baseUrl.isEmpty) {
+      throw const ModelSettingsException('官方模型服务地址未配置。');
+    }
+
+    final session = await _readHostedSession();
+    if (session == null) {
+      await _store.saveAppSetting(_hasHostedSessionKey, 'false');
+      throw const ModelSettingsException('请先登录 AIMemo 官方托管模型。');
+    }
+
+    final response = await _requestHostedJsonResponse(
+      method: method,
+      hostedBaseUrl: baseUrl,
+      path: path,
+      queryParameters: queryParameters,
+      headers: {'authorization': 'Bearer ${session.accessToken.trim()}'},
+      body: body,
+    );
+
+    if (response.statusCode == 401 && allowRefresh) {
+      final refreshed = await _refreshHostedSession(baseUrl);
+      if (refreshed == null) {
+        throw ModelSettingsException(_hostedErrorMessage(response));
+      }
+      return _authorizedHostedJson(
+        method: method,
+        path: path,
+        queryParameters: queryParameters,
+        body: body,
+        allowRefresh: false,
+      );
+    }
+
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw ModelSettingsException(_hostedErrorMessage(response));
+    }
+    return _decodeHostedJson(response);
+  }
+
+  Future<HostedSession?> _readHostedSession() {
+    return _secureStorageOperation(
+      () => _apiKeyVault.readHostedSession(),
+      timeoutMessage: '读取登录状态超时，请检查 macOS 钥匙串权限后重试。',
+    );
+  }
+
+  Future<HostedSession?> _refreshHostedSession(String hostedBaseUrl) async {
+    final session = await _readHostedSession();
+    final refreshToken = session?.refreshToken.trim();
+    if (refreshToken == null || refreshToken.isEmpty) {
+      await _store.saveAppSetting(_hasHostedSessionKey, 'false');
+      return null;
+    }
+
+    final response = await _requestHostedJsonResponse(
+      method: 'POST',
+      hostedBaseUrl: hostedBaseUrl,
+      path: '/auth/refresh',
+      body: {'refreshToken': refreshToken},
+    );
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      await clearHostedSession();
+      throw ModelSettingsException(_hostedErrorMessage(response));
+    }
+
+    final body = _decodeHostedJson(response);
+    final accessToken = body['accessToken'];
+    final nextRefreshToken = body['refreshToken'];
+    if (accessToken is! String ||
+        accessToken.trim().isEmpty ||
+        nextRefreshToken is! String ||
+        nextRefreshToken.trim().isEmpty) {
+      throw const ModelSettingsException('刷新登录状态失败：后端返回格式无效。');
+    }
+
+    final refreshed = HostedSession(
+      accessToken: accessToken.trim(),
+      refreshToken: nextRefreshToken.trim(),
+    );
+    await _secureStorageOperation(
+      () => _apiKeyVault.saveHostedSession(refreshed),
+      timeoutMessage: '保存登录状态超时，请检查 macOS 钥匙串权限后重试。',
+    );
+    await _store.saveAppSetting(_hasHostedSessionKey, 'true');
+    return refreshed;
+  }
+
   Future<Map<String, dynamic>> _postHostedJson({
     required String hostedBaseUrl,
     required String path,
     required Map<String, Object?> body,
   }) async {
-    final client = _httpClient ?? http.Client();
-    final uri = Uri.parse(
-      '${hostedBaseUrl.replaceAll(RegExp(r'/+$'), '')}$path',
+    final response = await _requestHostedJsonResponse(
+      method: 'POST',
+      hostedBaseUrl: hostedBaseUrl,
+      path: path,
+      body: body,
     );
-    final http.Response response;
-    try {
-      response = await client.post(
-        uri,
-        headers: const {'content-type': 'application/json'},
-        body: jsonEncode(body),
-      );
-    } on http.ClientException catch (error) {
-      throw ModelSettingsException('无法连接 AIMemo 后端。${error.message}');
-    } catch (error) {
-      throw ModelSettingsException('无法请求 AIMemo 后端。$error');
-    }
     if (response.statusCode < 200 || response.statusCode >= 300) {
       throw ModelSettingsException(_hostedErrorMessage(response));
     }
+    return _decodeHostedJson(response);
+  }
+
+  Future<http.Response> _requestHostedJsonResponse({
+    required String method,
+    required String hostedBaseUrl,
+    required String path,
+    Map<String, String>? queryParameters,
+    Map<String, String>? headers,
+    Map<String, Object?>? body,
+  }) async {
+    final client = _httpClient ?? http.Client();
+    var uri = Uri.parse(
+      '${hostedBaseUrl.replaceAll(RegExp(r'/+$'), '')}$path',
+    );
+    if (queryParameters != null && queryParameters.isNotEmpty) {
+      uri = uri.replace(queryParameters: queryParameters);
+    }
+    final requestHeaders = {
+      'content-type': 'application/json',
+      ...?headers,
+    };
+    final http.Response response;
+    try {
+      response = switch (method) {
+        'GET' => await client.get(uri, headers: requestHeaders),
+        'POST' => await client.post(
+            uri,
+            headers: requestHeaders,
+            body: jsonEncode(body ?? const <String, Object?>{}),
+          ),
+        _ => throw const ModelSettingsException('不支持的 AIMemo 后端请求方法。'),
+      };
+    } on http.ClientException catch (error) {
+      throw ModelSettingsException('无法连接 AIMemo 后端。${error.message}');
+    } on ModelSettingsException {
+      rethrow;
+    } catch (error) {
+      throw ModelSettingsException('无法请求 AIMemo 后端。$error');
+    }
+    return response;
+  }
+
+  Map<String, dynamic> _decodeHostedJson(http.Response response) {
     try {
       return jsonDecode(response.body) as Map<String, dynamic>;
     } catch (_) {
@@ -370,6 +549,67 @@ class HostedSession {
 
   final String accessToken;
   final String refreshToken;
+}
+
+class HostedQuota {
+  const HostedQuota({
+    required this.period,
+    required this.limit,
+    required this.used,
+    required this.remaining,
+  });
+
+  final String period;
+  final int limit;
+  final int used;
+  final int remaining;
+
+  factory HostedQuota.fromJson(Map<String, dynamic> json) {
+    return HostedQuota(
+      period: json['period'] as String,
+      limit: json['limit'] as int,
+      used: json['used'] as int,
+      remaining: json['remaining'] as int,
+    );
+  }
+}
+
+class HostedSummaryRecord {
+  const HostedSummaryRecord({
+    required this.id,
+    required this.periodType,
+    required this.periodLabel,
+    required this.periodStart,
+    required this.periodEnd,
+    required this.tags,
+    required this.output,
+    required this.model,
+    required this.createdAt,
+  });
+
+  final String id;
+  final PeriodType periodType;
+  final String periodLabel;
+  final DateTime periodStart;
+  final DateTime periodEnd;
+  final List<String> tags;
+  final String output;
+  final String model;
+  final DateTime createdAt;
+
+  factory HostedSummaryRecord.fromJson(Map<String, dynamic> json) {
+    return HostedSummaryRecord(
+      id: json['id'] as String,
+      periodType: PeriodType.fromValue(json['periodType'] as String),
+      periodLabel: json['periodLabel'] as String,
+      periodStart: DateTime.parse(json['periodStart'] as String).toLocal(),
+      periodEnd: DateTime.parse(json['periodEnd'] as String).toLocal(),
+      tags: (json['tags'] as List<dynamic>).cast<String>(),
+      output: json['output'] as String,
+      model: json['model'] as String,
+      createdAt: DateTime.parse(json['createdAt'] as String).toLocal(),
+    );
+  }
 }
 
 class ModelSettingsException implements Exception {

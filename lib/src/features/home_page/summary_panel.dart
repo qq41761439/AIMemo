@@ -43,6 +43,7 @@ class _SummaryPanelState extends ConsumerState<_SummaryPanel> {
   Widget build(BuildContext context) {
     final tags = ref.watch(tagListProvider);
     final modelSettings = ref.watch(modelSettingsProvider);
+    final hostedQuota = ref.watch(hostedQuotaProvider);
 
     return _PanelPadding(
       child: Column(
@@ -59,6 +60,7 @@ class _SummaryPanelState extends ConsumerState<_SummaryPanel> {
             icon: Icons.settings_outlined,
             child: _ModelSettingsButton(
               settings: modelSettings,
+              hostedQuota: hostedQuota,
               onPressed: () {
                 unawaited(_openModelSettings());
               },
@@ -238,6 +240,8 @@ class _SummaryPanelState extends ConsumerState<_SummaryPanel> {
       );
 
       ref.invalidate(summaryHistoryProvider);
+      ref.invalidate(hostedQuotaProvider);
+      ref.invalidate(hostedSummaryHistoryProvider);
       if (!mounted) {
         return;
       }
@@ -269,6 +273,8 @@ class _SummaryPanelState extends ConsumerState<_SummaryPanel> {
     );
     if (saved == true && mounted) {
       ref.invalidate(modelSettingsProvider);
+      ref.invalidate(hostedQuotaProvider);
+      ref.invalidate(hostedSummaryHistoryProvider);
     }
   }
 
@@ -520,16 +526,32 @@ class _ConfigRow extends StatelessWidget {
 class _ModelSettingsButton extends StatelessWidget {
   const _ModelSettingsButton({
     required this.settings,
+    required this.hostedQuota,
     required this.onPressed,
   });
 
   final AsyncValue<ModelSettings> settings;
+  final AsyncValue<HostedQuota?> hostedQuota;
   final VoidCallback onPressed;
 
   @override
   Widget build(BuildContext context) {
     final label = settings.when(
-      data: (settings) => settings.statusLabel,
+      data: (settings) {
+        if (settings.mode == ModelMode.hosted && settings.hasHostedSession) {
+          return hostedQuota.when(
+            data: (quota) {
+              if (quota == null) {
+                return settings.statusLabel;
+              }
+              return '官方托管 · 剩余 ${quota.remaining}/${quota.limit}';
+            },
+            loading: () => settings.statusLabel,
+            error: (_, __) => settings.statusLabel,
+          );
+        }
+        return settings.statusLabel;
+      },
       loading: () => '读取中',
       error: (_, __) => '读取失败',
     );
