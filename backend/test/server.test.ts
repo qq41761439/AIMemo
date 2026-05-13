@@ -1,7 +1,12 @@
 import { describe, expect, test } from 'vitest';
 
 import { loadConfig, type AppConfig } from '../src/config.js';
-import { ConsoleEmailSender, SmtpEmailSender, createEmailSender } from '../src/email.js';
+import {
+  ConsoleEmailSender,
+  ResendEmailSender,
+  SmtpEmailSender,
+  createEmailSender,
+} from '../src/email.js';
 import { InMemoryStore } from '../src/inMemoryStore.js';
 import { OpenAiCompatibleClient, type LlmClient } from '../src/llm.js';
 import { createServer } from '../src/server.js';
@@ -108,6 +113,20 @@ describe('AIMemo backend API', () => {
     expect(config.smtpPort).toBe(465);
     expect(config.smtpSecure).toBe(true);
     expect(createEmailSender(config)).toBeInstanceOf(SmtpEmailSender);
+  });
+
+  test('uses Resend email sender when Resend env is configured', () => {
+    const config = loadConfig({
+      NODE_ENV: 'test',
+      AUTH_SECRET: 'test-secret',
+      RESEND_API_KEY: 're_test_123',
+      RESEND_FROM: 'AIMemo <onboarding@resend.dev>',
+      LLM_API_KEY_KEYCHAIN_DISABLED: 'true',
+    });
+
+    expect(config.resendApiKey).toBe('re_test_123');
+    expect(config.resendFrom).toBe('AIMemo <onboarding@resend.dev>');
+    expect(createEmailSender(config)).toBeInstanceOf(ResendEmailSender);
   });
 
   test('falls back to console email sender when SMTP env is missing', () => {

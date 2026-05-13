@@ -62,9 +62,14 @@ export async function createServer(
 
   await app.register(cors, { origin: true });
 
-  if (!dependencies.emailSender && config.nodeEnv === 'production' && !config.smtpHost) {
+  if (
+    !dependencies.emailSender &&
+    config.nodeEnv === 'production' &&
+    !config.resendApiKey &&
+    !config.smtpHost
+  ) {
     app.log.warn(
-      'SMTP is not configured. Email login codes will only be printed to the backend logs.',
+      'No email provider is configured. Login codes will only be printed to the backend logs.',
     );
   }
 

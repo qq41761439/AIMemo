@@ -70,7 +70,16 @@ LLM_MODEL=deepseek-v4-flash
 FREE_MONTHLY_SUMMARY_LIMIT=30
 ```
 
-如果要让邮箱验证码真正发到用户邮箱，还需要配置 SMTP：
+如果要让邮箱验证码真正发到用户邮箱，推荐优先配置 Resend API。因为 Render 免费 Web Service 不能访问 SMTP 常用端口 `25`、`465`、`587`，但可以正常请求 HTTPS API。
+
+Resend API 配置：
+
+```text
+RESEND_API_KEY=re_xxxxxxxxx
+RESEND_FROM=AIMemo <onboarding@resend.dev>
+```
+
+如果你后续升级到 Render 付费实例，也可以改用 SMTP：
 
 ```text
 SMTP_HOST=smtp.example.com
@@ -90,7 +99,7 @@ WECHAT_MINI_PROGRAM_APP_ID=小程序 AppID
 WECHAT_MINI_PROGRAM_APP_SECRET=小程序 AppSecret
 ```
 
-如果未配置 `SMTP_HOST` 和 `SMTP_FROM`，后端会回退到控制台模式，验证码只打印在日志里。
+如果未配置 `RESEND_API_KEY` / `RESEND_FROM`，且也未配置 `SMTP_HOST` / `SMTP_FROM`，后端会回退到控制台模式，验证码只打印在日志里。
 
 ## 部署到 Render
 
@@ -118,6 +127,8 @@ WECHAT_MINI_PROGRAM_APP_SECRET=小程序 AppSecret
 3. 连接仓库，选择这个项目。
 4. 确认 Render 识别仓库根目录的 `render.yaml`。
 5. 在首次创建时填写 `sync: false` 的环境变量：
+   - `RESEND_API_KEY`
+   - `RESEND_FROM`
    - `SMTP_HOST`
    - `SMTP_USER`
    - `SMTP_PASS`
@@ -144,9 +155,10 @@ https://你的服务名.onrender.com/health
 
 ### 部署后的注意事项
 
-- 只有在 Render 已配置 `SMTP_HOST` 和 `SMTP_FROM` 后，邮箱验证码才会真实发送。
-- 如果 SMTP 没配好，后端会回退到 `ConsoleEmailSender`，验证码仍然只会打印在 Render 日志里。
-- 常见做法是接 Resend SMTP、腾讯企业邮箱 SMTP、SendGrid SMTP 或其他已验证发件域名的 SMTP 服务。
+- Render 免费档推荐使用 Resend API，不要优先走 SMTP。
+- 只有在 Render 已配置 `RESEND_API_KEY` 和 `RESEND_FROM`，或者服务升级为付费实例并正确配置 SMTP 后，邮箱验证码才会真实发送。
+- 如果邮件配置没配好，后端会回退到 `ConsoleEmailSender`，验证码仍然只会打印在 Render 日志里。
+- Resend 的 `onboarding@resend.dev` 只适合测试，并且通常只能发到 Resend 账号自己的邮箱；要发给其他用户，需要在 Resend 验证你自己的域名。
 - `sync: false` 的密钥只会在 Blueprint 首次创建时提示输入；后续新增这类变量时，需要在 Render 控制台里手动补。
 - 免费版更适合演示和自测，不适合正式生产环境。
 

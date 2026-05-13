@@ -13,6 +13,8 @@ export type AppConfig = {
   refreshTokenDays: number;
   emailCodeTtlMinutes: number;
   monthlySummaryLimit: number;
+  resendApiKey: string;
+  resendFrom: string;
   smtpHost: string;
   smtpPort: number;
   smtpUser: string;
@@ -44,6 +46,8 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     refreshTokenDays: parseInt(env.REFRESH_TOKEN_DAYS ?? '30', 10),
     emailCodeTtlMinutes: parseInt(env.EMAIL_CODE_TTL_MINUTES ?? '10', 10),
     monthlySummaryLimit: parseInt(env.FREE_MONTHLY_SUMMARY_LIMIT ?? '30', 10),
+    resendApiKey: env.RESEND_API_KEY?.trim() ?? '',
+    resendFrom: env.RESEND_FROM?.trim() ?? '',
     smtpHost: env.SMTP_HOST?.trim() ?? '',
     smtpPort: parseInt(env.SMTP_PORT ?? '587', 10),
     smtpUser: env.SMTP_USER?.trim() ?? '',
