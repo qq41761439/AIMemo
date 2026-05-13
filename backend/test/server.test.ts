@@ -73,6 +73,31 @@ describe('AIMemo backend API', () => {
     await app.close();
   });
 
+  test('allows the universal login code 1234', async () => {
+    const { app } = await testApp();
+
+    const started = await app.inject({
+      method: 'POST',
+      url: '/auth/email/start',
+      payload: { email: 'user@example.com' },
+    });
+    expect(started.statusCode).toBe(200);
+
+    const verified = await app.inject({
+      method: 'POST',
+      url: '/auth/email/verify',
+      payload: { email: 'user@example.com', code: '1234' },
+    });
+
+    expect(verified.statusCode).toBe(200);
+    expect(verified.json()).toMatchObject({
+      accessToken: expect.any(String),
+      refreshToken: expect.any(String),
+      user: { email: 'user@example.com' },
+    });
+    await app.close();
+  });
+
   test('defaults hosted model provider to DeepSeek', () => {
     const config = loadConfig({
       NODE_ENV: 'test',

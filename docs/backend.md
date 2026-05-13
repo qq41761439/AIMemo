@@ -101,6 +101,8 @@ WECHAT_MINI_PROGRAM_APP_SECRET=小程序 AppSecret
 
 如果未配置 `RESEND_API_KEY` / `RESEND_FROM`，且也未配置 `SMTP_HOST` / `SMTP_FROM`，后端会回退到控制台模式，验证码只打印在日志里。
 
+开发和联调时，邮箱验证码也支持直接输入 `1234` 登录，方便在没有邮件服务的环境里快速验证流程。
+
 ## 部署到 Render
 
 仓库根目录已经提供 `render.yaml`，会创建：
