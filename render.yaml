@@ -27,6 +27,18 @@ services:
         value: "10"
       - key: FREE_MONTHLY_SUMMARY_LIMIT
         value: "30"
+      - key: SMTP_HOST
+        sync: false
+      - key: SMTP_PORT
+        value: "587"
+      - key: SMTP_USER
+        sync: false
+      - key: SMTP_PASS
+        sync: false
+      - key: SMTP_FROM
+        sync: false
+      - key: SMTP_SECURE
+        value: "false"
       - key: LLM_BASE_URL
         value: https://api.deepseek.com
       - key: LLM_API_KEY

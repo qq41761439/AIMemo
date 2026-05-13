@@ -13,6 +13,12 @@ export type AppConfig = {
   refreshTokenDays: number;
   emailCodeTtlMinutes: number;
   monthlySummaryLimit: number;
+  smtpHost: string;
+  smtpPort: number;
+  smtpUser: string;
+  smtpPass: string;
+  smtpFrom: string;
+  smtpSecure: boolean;
   llmBaseUrl: string;
   llmApiKey: string;
   llmModel: string;
@@ -38,6 +44,12 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     refreshTokenDays: parseInt(env.REFRESH_TOKEN_DAYS ?? '30', 10),
     emailCodeTtlMinutes: parseInt(env.EMAIL_CODE_TTL_MINUTES ?? '10', 10),
     monthlySummaryLimit: parseInt(env.FREE_MONTHLY_SUMMARY_LIMIT ?? '30', 10),
+    smtpHost: env.SMTP_HOST?.trim() ?? '',
+    smtpPort: parseInt(env.SMTP_PORT ?? '587', 10),
+    smtpUser: env.SMTP_USER?.trim() ?? '',
+    smtpPass: env.SMTP_PASS?.trim() ?? '',
+    smtpFrom: env.SMTP_FROM?.trim() ?? '',
+    smtpSecure: parseBoolean(env.SMTP_SECURE),
     llmBaseUrl: env.LLM_BASE_URL ?? 'https://api.deepseek.com',
     llmApiKey: resolveLlmApiKey(env),
     llmModel: env.LLM_MODEL ?? 'deepseek-v4-flash',
@@ -137,4 +149,8 @@ function stripQuotes(value: string): string {
     return value.slice(1, -1);
   }
   return value;
+}
+
+function parseBoolean(value: string | undefined): boolean {
+  return value?.trim().toLowerCase() === 'true';
 }

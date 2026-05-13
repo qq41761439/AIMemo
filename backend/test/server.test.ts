@@ -1,6 +1,7 @@
 import { describe, expect, test } from 'vitest';
 
 import { loadConfig, type AppConfig } from '../src/config.js';
+import { ConsoleEmailSender, SmtpEmailSender, createEmailSender } from '../src/email.js';
 import { InMemoryStore } from '../src/inMemoryStore.js';
 import { OpenAiCompatibleClient, type LlmClient } from '../src/llm.js';
 import { createServer } from '../src/server.js';
@@ -88,6 +89,35 @@ describe('AIMemo backend API', () => {
 
     expect(config.accessTokenTtl).toBe('30d');
     expect(config.refreshTokenDays).toBe(30);
+  });
+
+  test('uses SMTP email sender when SMTP env is configured', () => {
+    const config = loadConfig({
+      NODE_ENV: 'test',
+      AUTH_SECRET: 'test-secret',
+      SMTP_HOST: 'smtp.example.com',
+      SMTP_PORT: '465',
+      SMTP_USER: 'mailer',
+      SMTP_PASS: 'secret',
+      SMTP_FROM: 'AIMemo <no-reply@example.com>',
+      SMTP_SECURE: 'true',
+      LLM_API_KEY_KEYCHAIN_DISABLED: 'true',
+    });
+
+    expect(config.smtpHost).toBe('smtp.example.com');
+    expect(config.smtpPort).toBe(465);
+    expect(config.smtpSecure).toBe(true);
+    expect(createEmailSender(config)).toBeInstanceOf(SmtpEmailSender);
+  });
+
+  test('falls back to console email sender when SMTP env is missing', () => {
+    const config = loadConfig({
+      NODE_ENV: 'test',
+      AUTH_SECRET: 'test-secret',
+      LLM_API_KEY_KEYCHAIN_DISABLED: 'true',
+    });
+
+    expect(createEmailSender(config)).toBeInstanceOf(ConsoleEmailSender);
   });
 
   test('refreshes access tokens and rejects reused refresh token', async () => {

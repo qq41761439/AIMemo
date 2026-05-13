@@ -37,7 +37,7 @@ API Key: CLIProxyAPI 配置中的 api-keys 值
 https://aimemo-backend.onrender.com
 ```
 
-验证码会打印在后端控制台。验证成功后，模型设置会显示已登录状态，生成总结会请求后端的 `/summaries/generate`。
+如果后端已经配置 SMTP，验证码会发到邮箱；如果 SMTP 未配置，验证码会回退到后端控制台日志。验证成功后，模型设置会显示已登录状态，生成总结会请求后端的 `/summaries/generate`。
 
 如果你是在本机联调后端开发环境，也可以把官方后端地址改回本地地址，例如：
 

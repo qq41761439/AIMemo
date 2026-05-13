@@ -70,6 +70,17 @@ LLM_MODEL=deepseek-v4-flash
 FREE_MONTHLY_SUMMARY_LIMIT=30
 ```
 
+如果要让邮箱验证码真正发到用户邮箱，还需要配置 SMTP：
+
+```text
+SMTP_HOST=smtp.example.com
+SMTP_PORT=587
+SMTP_USER=mailer@example.com
+SMTP_PASS=真实 SMTP 密码或授权码
+SMTP_FROM=AIMemo <mailer@example.com>
+SMTP_SECURE=false
+```
+
 如果本地开发也需要持久化后端数据，可以把 `.env` 里的 `DATA_STORE` 改为 `prisma`，并提供可连接且已同步结构的 `DATABASE_URL`；仓库内的 `backend/docker-compose.yml` 已经提供了本地 Postgres。
 
 微信小程序登录需要配置：
@@ -79,7 +90,7 @@ WECHAT_MINI_PROGRAM_APP_ID=小程序 AppID
 WECHAT_MINI_PROGRAM_APP_SECRET=小程序 AppSecret
 ```
 
-上线前需要把控制台验证码替换为真实邮件服务。
+如果未配置 `SMTP_HOST` 和 `SMTP_FROM`，后端会回退到控制台模式，验证码只打印在日志里。
 
 ## 部署到 Render
 
@@ -107,6 +118,10 @@ WECHAT_MINI_PROGRAM_APP_SECRET=小程序 AppSecret
 3. 连接仓库，选择这个项目。
 4. 确认 Render 识别仓库根目录的 `render.yaml`。
 5. 在首次创建时填写 `sync: false` 的环境变量：
+   - `SMTP_HOST`
+   - `SMTP_USER`
+   - `SMTP_PASS`
+   - `SMTP_FROM`
    - `LLM_API_KEY`
    - `WECHAT_MINI_PROGRAM_APP_ID`
    - `WECHAT_MINI_PROGRAM_APP_SECRET`
@@ -129,9 +144,9 @@ https://你的服务名.onrender.com/health
 
 ### 部署后的注意事项
 
-- 当前邮箱验证码仍然由 `ConsoleEmailSender` 打到后端日志，不会真的发到用户邮箱。
-- 也就是说，部署到 Render 后，邮箱登录仍然需要你去 Render 日志里查看验证码。
-- 如果要让真实用户通过邮箱登录，下一步需要接入真实邮件服务，例如 Resend、Postmark、SendGrid 或自建 SMTP 方案。
+- 只有在 Render 已配置 `SMTP_HOST` 和 `SMTP_FROM` 后，邮箱验证码才会真实发送。
+- 如果 SMTP 没配好，后端会回退到 `ConsoleEmailSender`，验证码仍然只会打印在 Render 日志里。
+- 常见做法是接 Resend SMTP、腾讯企业邮箱 SMTP、SendGrid SMTP 或其他已验证发件域名的 SMTP 服务。
 - `sync: false` 的密钥只会在 Blueprint 首次创建时提示输入；后续新增这类变量时，需要在 Render 控制台里手动补。
 - 免费版更适合演示和自测，不适合正式生产环境。
 

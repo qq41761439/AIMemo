@@ -5,8 +5,8 @@ import { z } from 'zod';
 import { AuthService } from './auth.js';
 import type { AppConfig } from './config.js';
 import { loadConfig } from './config.js';
+import { createEmailSender } from './email.js';
 import type { EmailSender } from './email.js';
-import { ConsoleEmailSender } from './email.js';
 import { AppError, badRequest, notFound, quotaExceeded, unauthorized } from './errors.js';
 import { InMemoryStore } from './inMemoryStore.js';
 import type { LlmClient } from './llm.js';
@@ -53,14 +53,20 @@ export async function createServer(
   dependencies: ServerDependencies = {},
 ): Promise<FastifyInstance> {
   const config = dependencies.config ?? loadConfig();
+  const app = Fastify({ logger: config.nodeEnv !== 'test' });
   const store = dependencies.store ?? (await createDefaultStore(config));
   const auth = new AuthService(store, config);
-  const emailSender = dependencies.emailSender ?? new ConsoleEmailSender();
+  const emailSender = dependencies.emailSender ?? createEmailSender(config);
   const llmClient = dependencies.llmClient ?? new OpenAiCompatibleClient(config);
   const wechatClient = dependencies.wechatClient ?? new WechatApiClient(config);
 
-  const app = Fastify({ logger: config.nodeEnv !== 'test' });
   await app.register(cors, { origin: true });
+
+  if (!dependencies.emailSender && config.nodeEnv === 'production' && !config.smtpHost) {
+    app.log.warn(
+      'SMTP is not configured. Email login codes will only be printed to the backend logs.',
+    );
+  }
 
   app.setErrorHandler((error, _request, reply) => {
     if (error instanceof AppError) {
