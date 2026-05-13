@@ -91,10 +91,14 @@ WECHAT_MINI_PROGRAM_APP_SECRET=小程序 AppSecret
 当前 Blueprint 默认使用：
 
 - 服务区域：`singapore`
-- Web Service 规格：`starter`
-- Postgres 规格：`basic-256mb`
+- Web Service 规格：`free`
+- Postgres 规格：`free`
 
-之所以不用免费 Postgres，是因为 Render 当前免费 Postgres 会在创建 30 天后过期，不适合长期保留 AIMemo 用户和任务数据。这个限制来自 Render 当前文档（最近抓取时间：2026-05-13）。
+当前仓库已经切到免费版 Blueprint，适合先试跑。但要注意 Render 当前免费档限制（最近核对时间：2026-05-13）：
+
+- 免费 Web Service 在 15 分钟没有入站请求后会休眠，下次请求可能要等待大约 1 分钟冷启动。
+- 免费 Postgres 会在创建 30 天后过期，不适合长期保留 AIMemo 用户和任务数据。
+- 免费 Web Service 不能使用 `preDeployCommand`，所以仓库里把 Prisma schema 同步放进了 `buildCommand`。
 
 ### Render 部署步骤
 
@@ -118,8 +122,7 @@ https://你的服务名.onrender.com/health
 ### Blueprint 当前行为
 
 - `rootDir: backend`：只在 `backend/` 相关改动时触发这个服务重新构建。
-- `buildCommand`：安装依赖、生成 Prisma Client、编译 TypeScript 到 `dist/`。
-- `preDeployCommand`：执行 `prisma db push`，把 Prisma schema 同步到 Render Postgres。
+- `buildCommand`：安装依赖、生成 Prisma Client、编译 TypeScript 到 `dist/`，然后执行 `prisma db push` 把 schema 同步到 Render Postgres。
 - `healthCheckPath: /health`：让 Render 用后端健康接口判断是否可接流量。
 - `DATABASE_URL`：自动引用 `aimemo-postgres` 的连接串，不需要手填。
 - `AUTH_SECRET`：由 Render 自动生成随机值。
@@ -130,6 +133,7 @@ https://你的服务名.onrender.com/health
 - 也就是说，部署到 Render 后，邮箱登录仍然需要你去 Render 日志里查看验证码。
 - 如果要让真实用户通过邮箱登录，下一步需要接入真实邮件服务，例如 Resend、Postmark、SendGrid 或自建 SMTP 方案。
 - `sync: false` 的密钥只会在 Blueprint 首次创建时提示输入；后续新增这类变量时，需要在 Render 控制台里手动补。
+- 免费版更适合演示和自测，不适合正式生产环境。
 
 ### 客户端如何接到 Render 后端
 
