@@ -1,6 +1,23 @@
+buildscript {
+    repositories {
+        google()
+        maven { url = uri("https://maven.aliyun.com/repository/google") }
+        maven { url = uri("https://maven.aliyun.com/repository/public") }
+        mavenCentral()
+        maven { url = uri("https://maven.aliyun.com/repository/gradle-plugin") }
+    }
+    dependencies {
+        classpath("com.android.tools.build:gradle:8.0.2")
+        classpath("org.jetbrains.kotlin:kotlin-gradle-plugin:1.9.20")
+    }
+}
+
 allprojects {
     repositories {
         google()
+        maven { url = uri("https://maven.aliyun.com/repository/google") }
+        maven { url = uri("https://maven.aliyun.com/repository/public") }
+        maven { url = uri("https://maven.aliyun.com/repository/jcenter") }
         mavenCentral()
     }
 }
