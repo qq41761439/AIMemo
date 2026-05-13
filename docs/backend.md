@@ -81,6 +81,66 @@ WECHAT_MINI_PROGRAM_APP_SECRET=小程序 AppSecret
 
 上线前需要把控制台验证码替换为真实邮件服务。
 
+## 部署到 Render
+
+仓库根目录已经提供 `render.yaml`，会创建：
+
+- 一个 Node Web Service：`aimemo-backend`
+- 一个 Render Postgres：`aimemo-postgres`
+
+当前 Blueprint 默认使用：
+
+- 服务区域：`singapore`
+- Web Service 规格：`starter`
+- Postgres 规格：`basic-256mb`
+
+之所以不用免费 Postgres，是因为 Render 当前免费 Postgres 会在创建 30 天后过期，不适合长期保留 AIMemo 用户和任务数据。这个限制来自 Render 当前文档（最近抓取时间：2026-05-13）。
+
+### Render 部署步骤
+
+1. 把代码推到你的 GitHub 仓库。
+2. 登录 Render，点击 `New` -> `Blueprint`。
+3. 连接仓库，选择这个项目。
+4. 确认 Render 识别仓库根目录的 `render.yaml`。
+5. 在首次创建时填写 `sync: false` 的环境变量：
+   - `LLM_API_KEY`
+   - `WECHAT_MINI_PROGRAM_APP_ID`
+   - `WECHAT_MINI_PROGRAM_APP_SECRET`
+6. 点击创建，等待 Render 自动执行 build、`prisma generate`、`prisma db push` 和启动服务。
+7. 部署完成后，用 Render 分配的服务地址访问：
+
+```text
+https://你的服务名.onrender.com/health
+```
+
+如果返回 `{"ok":true}`，说明基础部署成功。
+
+### Blueprint 当前行为
+
+- `rootDir: backend`：只在 `backend/` 相关改动时触发这个服务重新构建。
+- `buildCommand`：安装依赖、生成 Prisma Client、编译 TypeScript 到 `dist/`。
+- `preDeployCommand`：执行 `prisma db push`，把 Prisma schema 同步到 Render Postgres。
+- `healthCheckPath: /health`：让 Render 用后端健康接口判断是否可接流量。
+- `DATABASE_URL`：自动引用 `aimemo-postgres` 的连接串，不需要手填。
+- `AUTH_SECRET`：由 Render 自动生成随机值。
+
+### 部署后的注意事项
+
+- 当前邮箱验证码仍然由 `ConsoleEmailSender` 打到后端日志，不会真的发到用户邮箱。
+- 也就是说，部署到 Render 后，邮箱登录仍然需要你去 Render 日志里查看验证码。
+- 如果要让真实用户通过邮箱登录，下一步需要接入真实邮件服务，例如 Resend、Postmark、SendGrid 或自建 SMTP 方案。
+- `sync: false` 的密钥只会在 Blueprint 首次创建时提示输入；后续新增这类变量时，需要在 Render 控制台里手动补。
+
+### 客户端如何接到 Render 后端
+
+部署完成后，把桌面端“官方模型服务地址”改成你的 Render 地址，例如：
+
+```text
+https://aimemo-backend.onrender.com
+```
+
+当前桌面端默认仍然指向本机开发地址 `http://127.0.0.1:8787`，这是为了本地开发方便；线上使用时需要手动改成 Render 地址。
+
 ## 托管模型配置
 
 如果要用“官方托管模型”生成总结，后端需要配置托管模型服务。默认后端模型服务为 DeepSeek：

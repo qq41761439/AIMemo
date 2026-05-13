@@ -1,0 +1,50 @@
+services:
+  - type: web
+    name: aimemo-backend
+    runtime: node
+    region: singapore
+    plan: starter
+    rootDir: backend
+    buildCommand: npm ci && npm run prisma:generate && npm run build
+    preDeployCommand: npm run prisma:generate && npm run prisma:push
+    startCommand: npm run start
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: HOST
+        value: 0.0.0.0
+      - key: PORT
+        value: "10000"
+      - key: DATA_STORE
+        value: prisma
+      - key: AUTH_SECRET
+        generateValue: true
+      - key: ACCESS_TOKEN_TTL
+        value: 30d
+      - key: REFRESH_TOKEN_DAYS
+        value: "30"
+      - key: EMAIL_CODE_TTL_MINUTES
+        value: "10"
+      - key: FREE_MONTHLY_SUMMARY_LIMIT
+        value: "30"
+      - key: LLM_BASE_URL
+        value: https://api.deepseek.com
+      - key: LLM_API_KEY
+        sync: false
+      - key: LLM_MODEL
+        value: deepseek-v4-flash
+      - key: WECHAT_MINI_PROGRAM_APP_ID
+        sync: false
+      - key: WECHAT_MINI_PROGRAM_APP_SECRET
+        sync: false
+      - key: DATABASE_URL
+        fromDatabase:
+          name: aimemo-postgres
+          property: connectionString
+
+databases:
+  - name: aimemo-postgres
+    region: singapore
+    plan: basic-256mb
+    databaseName: aimemo

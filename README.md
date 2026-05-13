@@ -89,11 +89,20 @@ npm run users:list
 npm run db:studio
 ```
 
+部署到 Render：
+
+```bash
+# 仓库根目录已经提供 render.yaml
+git push origin main
+```
+
+然后在 Render 里使用 Blueprint 部署，详情见 [后端服务指南](docs/backend.md#部署到-render)。
+
 ## 文档
 
 - [产品与技术规划](docs/product-and-technology-plan.md)：产品定位、多端同步、账号体系、路线图和风险原则。
 - [开发与运行指南](docs/development.md)：本机环境、Web/macOS/Windows 运行、测试检查和项目结构。
-- [后端服务指南](docs/backend.md)：后端启动、Postgres 持久化、用户记录查看、环境变量和 API。
+- [后端服务指南](docs/backend.md)：后端启动、Postgres 持久化、Render 部署、用户记录查看、环境变量和 API。
 - [模型服务与隐私](docs/model-and-privacy.md)：自定义模型、官方托管模型、密钥存储和数据隐私边界。
 
 ## 技术栈
