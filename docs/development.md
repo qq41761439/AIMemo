@@ -93,6 +93,29 @@ flutter pub get
 dist\windows\AIMemoSetup-版本号.exe
 ```
 
+## Android Release APK
+
+当前仓库已经接入本机 Android release 签名配置。签名文件默认放在：
+
+```text
+android/key.properties
+android/aimemo-release.jks
+```
+
+这两个文件都已加入 `.gitignore`，不会提交到 git。重打 release APK：
+
+```bash
+flutter build apk --release
+```
+
+产物位置：
+
+```text
+build/app/outputs/flutter-apk/app-release.apk
+```
+
+如果换机器构建，需要把 `android/key.properties` 和 `android/aimemo-release.jks` 一起带过去，否则会回退到 debug 签名。
+
 ## 测试和检查
 
 Flutter：
