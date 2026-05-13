@@ -9,8 +9,10 @@ This guide is for coding agents working in this repository. Follow it before fin
 
 ## Project Basics
 
-- AIMemo is a Flutter desktop app that can call user-configured OpenAI-compatible model services directly.
-- The main Flutter UI is in `lib/src/features/home_page.dart`.
+- AIMemo currently keeps the Flutter app as the desktop maintenance line for macOS, Windows, and Web preview.
+- New iOS and Android mobile work should be native-first: iOS uses SwiftUI, Android uses Kotlin + Jetpack Compose + Material 3.
+- The mobile design source of truth is `docs/mobile-design-guidelines.md`.
+- The main Flutter desktop UI is in `lib/src/features/home_page.dart`.
 - Persistent macOS data is handled by `lib/src/services/app_database.dart`.
 - Web preview data is handled by `lib/src/services/in_memory_memo_store.dart`.
 - Summary prompt templates are rendered by `lib/src/services/template_renderer.dart`.
@@ -28,11 +30,11 @@ This guide is for coding agents working in this repository. Follow it before fin
 
 Run the checks that match the files touched:
 
-- Flutter changes:
+- Flutter desktop/Web changes:
   - `flutter analyze`
   - `flutter test`
 
-After verification passes for app changes, build and open the macOS Release app:
+After verification passes for Flutter desktop app changes, build and open the macOS Release app:
 
 ```bash
 flutter build macos
@@ -43,7 +45,17 @@ open build/macos/Build/Products/Release/aimemo.app
 
 Always close the old app before opening the newly built app, otherwise macOS may show the previous version.
 
-After verification passes for iOS/mobile app changes, also open the iOS Simulator and launch the app there:
+- Native Android changes:
+  - Run the relevant Gradle unit/UI checks for the native Android project once it exists.
+  - Launch the app on an Android emulator for user-facing UI changes.
+
+- Native iOS changes:
+  - Run the relevant Xcode build/tests for the native iOS project once it exists.
+  - Launch the app in the iOS Simulator for user-facing UI changes.
+
+Legacy Flutter iOS/Android targets are not the new mobile product direction. Only run Flutter mobile verification when intentionally touching the old Flutter mobile targets.
+
+If intentionally touching the legacy Flutter iOS target, also open the iOS Simulator and launch the app there:
 
 ```bash
 open -a Simulator
@@ -74,7 +86,7 @@ If multiple simulators are available, use `flutter devices` and run the app on a
 - Custom model mode calls `{baseUrl}/chat/completions` directly from the desktop app.
 - Store real model API keys in system secure storage only; do not write real API keys to SQLite, README, `.env`, tests, or git.
 - `mode`, `baseUrl`, and `model` may be saved in local `app_settings`.
-- The official AIMemo hosted model is currently a placeholder and should show a clear unavailable state until backend auth, quota, and billing exist.
+- Official AIMemo hosted model availability depends on backend configuration, account state, and quota. Show clear unavailable, unauthenticated, quota, network, and generation error states.
 
 ## Current Product Expectations
 
@@ -84,9 +96,13 @@ If multiple simulators are available, use `flutter devices` and run the app on a
 - Daily and weekly templates should stay simple: completed work and next plan.
 - Monthly and yearly templates can include richer review structure.
 - Custom summary templates should behave like weekly summaries for ranges of 7 days or less, and like monthly summaries for longer ranges.
+- New iOS/Android V1 focuses on the cloud account mode: tasks, tags, summary generation, summary history, and My account page.
+- Do not design native mobile V1 around local-only mode, custom model API keys, or offline edit sync unless explicitly requested.
+- Mobile top-level navigation should use the "任务 / 总结" switch with a top-right "我的" entry. Do not reintroduce the old bottom four-tab Flutter mobile layout.
 
 ## UI Style Expectations
 
+- For new iOS/Android work, follow `docs/mobile-design-guidelines.md` first.
 - Keep the summary generation controls compact; avoid wrapping small control groups in large card-like frames unless there is a clear need.
 - Controls in the same row should share the same visual language. For example, the summary period selector and date range picker should both use a 40px height, 6px radius, `_border` outline, `_ink` text, and similar icon sizing.
 - Date range selection must look clickable. Use a compact outlined button with a calendar icon instead of plain text.
