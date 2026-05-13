@@ -53,13 +53,24 @@ flutter pub get
 flutter run -d macos
 ```
 
-iOS/Android 移动端：
+iOS/Android 旧 Flutter 移动端：
 
 ```bash
 flutter pub get
 flutter run -d ios
 flutter run -d android
 ```
+
+原生 Android V1 云端账号版：
+
+```bash
+cd native/android
+# 可选：本机联调时在 local.properties 里设置 aimemo.backendBaseUrl=http://127.0.0.1:8787
+./gradlew assembleDebug
+./gradlew test
+```
+
+原生 Android 工程使用 Kotlin、Jetpack Compose 和 Material 3，默认连接 `https://aimemo-backend.onrender.com`。首版聚焦云端账号闭环：邮箱验证码登录、任务、标签、总结生成、总结历史和“我的”页；不提供本地运行模式、自定义模型 API Key 或离线编辑同步。
 
 首次打开桌面版时，可以选择“本地运行”直接使用本机 SQLite，也可以选择“登录同步”用邮箱验证码登录 AIMemo 账号。登录同步模式会复用官方账号会话同步任务数据；本地未同步改动会先上传，随后拉取云端增量变更。
 
@@ -131,6 +142,14 @@ flutter test
 flutter build macos
 ```
 
+原生 Android：
+
+```bash
+cd native/android
+./gradlew test
+./gradlew assembleDebug
+```
+
 后端：
 
 ```bash
@@ -154,3 +173,4 @@ Windows 安装包需要在 Windows 环境执行：
 - `lib/src/services/template_renderer.dart`：总结模板渲染。
 - `backend/src/server.ts`：后端 API 路由。
 - `backend/prisma/schema.prisma`：Postgres 数据模型。
+- `native/android/`：原生 Android V1 云端账号版工程。
