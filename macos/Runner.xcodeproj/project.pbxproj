@@ -482,7 +482,7 @@
 				PRODUCT_BUNDLE_IDENTIFIER = com.aimemo.aimemo.RunnerTests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_VERSION = 5.0;
-				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/aimemo.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/aimemo";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/aimemo-dev.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/aimemo-dev";
 			};
 			name = Debug;
 		};
@@ -497,7 +497,7 @@
 				PRODUCT_BUNDLE_IDENTIFIER = com.aimemo.aimemo.RunnerTests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_VERSION = 5.0;
-				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/aimemo.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/aimemo";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/aimemo-dev.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/aimemo-dev";
 			};
 			name = Release;
 		};
@@ -512,7 +512,7 @@
 				PRODUCT_BUNDLE_IDENTIFIER = com.aimemo.aimemo.RunnerTests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_VERSION = 5.0;
-				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/aimemo.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/aimemo";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/aimemo-dev.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/aimemo-dev";
 			};
 			name = Profile;
 		};
@@ -706,6 +706,8 @@
 				CODE_SIGN_ENTITLEMENTS = Runner/DebugProfile.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
+				PRODUCT_BUNDLE_IDENTIFIER = com.aimemo.aimemo.dev;
+				PRODUCT_NAME = aimemo-dev;
 				INFOPLIST_FILE = Runner/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -726,6 +728,8 @@
 				CODE_SIGN_ENTITLEMENTS = Runner/Release.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
+				PRODUCT_BUNDLE_IDENTIFIER = com.aimemo.aimemo;
+				PRODUCT_NAME = aimemo;
 				INFOPLIST_FILE = Runner/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",

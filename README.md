@@ -164,6 +164,8 @@ Windows 安装包需要在 Windows 环境执行：
 .\scripts\build_windows_installer.ps1
 ```
 
+macOS 开发版默认产物名为 `aimemo-dev.app`，生产版仍保持 `aimemo.app`，可以同时打开两份。
+
 ## 关键文件
 
 - `lib/src/features/home_page.dart`：主界面和交互入口。
