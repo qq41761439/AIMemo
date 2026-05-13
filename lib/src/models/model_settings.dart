@@ -30,7 +30,7 @@ class ModelSettings {
       baseUrl: 'https://api.openai.com/v1',
       model: 'gpt-4o-mini',
       hasApiKey: false,
-      hostedBaseUrl: 'http://127.0.0.1:8787',
+      hostedBaseUrl: 'https://aimemo-backend.onrender.com',
       hasHostedSession: false,
     );
   }
