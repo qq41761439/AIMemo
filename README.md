@@ -102,6 +102,7 @@ git push origin main
 
 ## 文档
 
+- [产品文档](docs/product-document.md)：产品定位、目标用户、核心流程、功能规格、隐私边界和路线图。
 - [产品与技术规划](docs/product-and-technology-plan.md)：产品定位、多端同步、账号体系、路线图和风险原则。
 - [开发与运行指南](docs/development.md)：本机环境、Web/macOS/Windows 运行、测试检查和项目结构。
 - [后端服务指南](docs/backend.md)：后端启动、Postgres 持久化、Render 部署、用户记录查看、环境变量和 API。
