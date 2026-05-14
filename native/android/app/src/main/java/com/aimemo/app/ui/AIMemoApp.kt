@@ -23,6 +23,7 @@ private object Routes {
     const val Onboarding = "onboarding"
     const val Auth = "auth"
     const val Tasks = "main/tasks"
+    const val SummaryMain = "main/summary"
     const val TaskEdit = "task-edit/{taskId}"
     const val SummaryEntry = "summary-entry"
     const val SummaryResult = "summary-result"
@@ -99,11 +100,25 @@ fun AIMemoApp(viewModel: AIMemoViewModel) {
                     snackbarHostState = snackbarHostState,
                     onOpenProfile = { navController.navigate(Routes.Profile) },
                     onOpenSettings = { navController.navigate(Routes.Settings) },
-                    onOpenSummary = { navController.navigate(Routes.SummaryEntry) },
+                    onOpenSummary = { navController.navigate(Routes.SummaryMain) },
                     onEditTask = { navController.navigate(Routes.taskEdit(it)) },
                     onRefresh = viewModel::refreshTasks,
                     onSelectTag = viewModel::selectTag,
                     onToggleCompleted = viewModel::toggleTaskCompleted,
+                    onAddTask = viewModel::addQuickTask,
+                )
+            }
+            composable(Routes.SummaryMain) {
+                SummaryMainScreen(
+                    state = state,
+                    snackbarHostState = snackbarHostState,
+                    onOpenTasks = { navController.navigate(Routes.Tasks) },
+                    onOpenProfile = { navController.navigate(Routes.Profile) },
+                    onGenerate = { navController.navigate(Routes.SummaryEntry) },
+                    onHistory = {
+                        viewModel.refreshHistory()
+                        navController.navigate(Routes.SummaryHistory)
+                    },
                     onAddTask = viewModel::addQuickTask,
                 )
             }
