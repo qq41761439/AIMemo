@@ -72,7 +72,7 @@ cd native/android
 ./gradlew test
 ```
 
-原生 Android 工程使用 Kotlin、Jetpack Compose 和 Material 3。Debug 构建默认连接 Android 模拟器可访问的宿主机地址 `http://10.0.2.2:8787`，Release 构建默认连接 `https://aimemo-backend.onrender.com`。首版聚焦云端账号闭环：邮箱验证码登录、任务、标签、总结生成、总结历史和“我的”页；不提供本地运行模式、自定义模型 API Key 或离线编辑同步。
+原生 Android 工程使用 Kotlin、Jetpack Compose 和 Material 3。Debug 构建默认连接 Android 模拟器可访问的宿主机地址 `http://10.0.2.2:8787`，并通过 Debug 专用网络安全配置允许本地 HTTP；Release 构建默认连接 `https://aimemo-backend.onrender.com`。首版聚焦云端账号闭环：邮箱验证码登录、任务、标签、总结生成、总结历史和“我的”页；不提供本地运行模式、自定义模型 API Key 或离线编辑同步。
 
 首次打开桌面版时，可以选择“本地运行”直接使用本机 SQLite，也可以选择“登录同步”用邮箱验证码登录 AIMemo 账号。登录同步模式会复用官方账号会话同步任务数据；本地未同步改动会先上传，随后拉取云端增量变更。
 
