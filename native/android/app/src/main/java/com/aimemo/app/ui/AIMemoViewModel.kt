@@ -85,6 +85,7 @@ class AIMemoViewModel(
     }
 
     fun bootstrap() = viewModelScope.launch {
+        _uiState.update { it.copy(isBooting = false) }
         runCatching { clientConfigRepository.getConfig() }
             .onSuccess { config -> _uiState.update { it.copy(clientConfig = config) } }
         runCatching { authRepository.currentAccount() }
@@ -95,7 +96,6 @@ class AIMemoViewModel(
                 }
             }
             .onFailure { handleFailure(it) }
-        _uiState.update { it.copy(isBooting = false) }
     }
 
     fun selectMainTab(tab: MainTab) {

@@ -3,6 +3,7 @@ package com.aimemo.app.ui
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -72,6 +73,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -1068,11 +1070,22 @@ private fun LoginAccount(
     Column(
         modifier
             .fillMaxSize()
+            .background(MaterialTheme.colorScheme.background)
             .verticalScroll(rememberScrollState())
             .imePadding()
-            .padding(20.dp),
+            .padding(horizontal = 20.dp, vertical = 28.dp),
         verticalArrangement = Arrangement.Center,
+        horizontalAlignment = Alignment.CenterHorizontally,
     ) {
+        Image(
+            painterResource(R.drawable.logo),
+            contentDescription = null,
+            modifier = Modifier
+                .size(92.dp)
+                .clip(RoundedCornerShape(22.dp)),
+            contentScale = ContentScale.Fit,
+        )
+        Spacer(Modifier.height(24.dp))
         Text(
             "AIMemo",
             style = MaterialTheme.typography.headlineLarge,
@@ -1084,43 +1097,57 @@ private fun LoginAccount(
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
-        Spacer(Modifier.height(24.dp))
-        OutlinedTextField(
-            value = state.authEmail,
-            onValueChange = onEmailChange,
-            label = { Text("邮箱") },
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email, imeAction = ImeAction.Next),
+        Spacer(Modifier.height(32.dp))
+        Surface(
+            color = MaterialTheme.colorScheme.surface,
+            shape = RoundedCornerShape(12.dp),
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
+            shadowElevation = 0.dp,
             modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(6.dp),
-        )
-        Spacer(Modifier.height(12.dp))
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-            OutlinedTextField(
-                value = state.authCode,
-                onValueChange = onCodeChange,
-                label = { Text("验证码") },
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Done),
-                modifier = Modifier.weight(1f),
-                shape = RoundedCornerShape(6.dp),
-            )
-            OutlinedButton(
-                onClick = onSendCode,
-                enabled = !state.isSendingCode,
-                modifier = Modifier.height(56.dp),
-                shape = RoundedCornerShape(6.dp),
+        ) {
+            Column(
+                Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
-                if (state.isSendingCode) CircularProgressIndicator(Modifier.size(16.dp)) else Text("发送")
+                OutlinedTextField(
+                    value = state.authEmail,
+                    onValueChange = onEmailChange,
+                    label = { Text("邮箱") },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email, imeAction = ImeAction.Next),
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(6.dp),
+                )
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                    OutlinedTextField(
+                        value = state.authCode,
+                        onValueChange = onCodeChange,
+                        label = { Text("验证码") },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Done),
+                        modifier = Modifier.weight(1f),
+                        shape = RoundedCornerShape(6.dp),
+                    )
+                    OutlinedButton(
+                        onClick = onSendCode,
+                        enabled = !state.isSendingCode,
+                        modifier = Modifier.height(56.dp),
+                        shape = RoundedCornerShape(6.dp),
+                    ) {
+                        if (state.isSendingCode) CircularProgressIndicator(Modifier.size(16.dp)) else Text("发送")
+                    }
+                }
+                Button(
+                    onClick = onLogin,
+                    enabled = !state.isLoggingIn,
+                    modifier = Modifier.fillMaxWidth().height(48.dp),
+                    shape = RoundedCornerShape(6.dp),
+                ) {
+                    if (state.isLoggingIn) CircularProgressIndicator(Modifier.size(18.dp), color = MaterialTheme.colorScheme.onPrimary) else Text("登录")
+                }
             }
         }
-        Spacer(Modifier.height(12.dp))
-        Button(
-            onClick = onLogin,
-            enabled = !state.isLoggingIn,
-            modifier = Modifier.fillMaxWidth().height(48.dp),
-            shape = RoundedCornerShape(6.dp),
-        ) {
-            if (state.isLoggingIn) CircularProgressIndicator(Modifier.size(18.dp), color = MaterialTheme.colorScheme.onPrimary) else Text("登录")
-        }
+        Spacer(Modifier.height(28.dp))
     }
 }
 
@@ -1133,23 +1160,44 @@ private fun LoggedInAccount(
     Column(
         modifier
             .fillMaxSize()
-            .verticalScroll(rememberScrollState())
-            .padding(20.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
+            .background(MaterialTheme.colorScheme.background)
+            .padding(horizontal = 20.dp, vertical = 24.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
-        Text(state.user?.email ?: "AIMemo 账号", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.SemiBold)
-        InfoRow("免费额度", state.quota?.let { "${it.remaining}/${it.limit} 剩余" } ?: "加载中")
-        InfoRow("官方模型", if (state.clientConfig?.hostedModelAvailable == true) "可用" else "暂不可用")
-        InfoRow("同步状态", "云端账号模式")
-        Spacer(Modifier.height(8.dp))
-        OutlinedButton(
-            onClick = onLogout,
-            modifier = Modifier.fillMaxWidth().height(48.dp),
-            shape = RoundedCornerShape(6.dp),
+        Image(
+            painterResource(R.drawable.logo),
+            contentDescription = null,
+            modifier = Modifier.size(132.dp),
+            contentScale = ContentScale.Fit,
+        )
+        Surface(
+            color = MaterialTheme.colorScheme.surface,
+            shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
+            shadowElevation = 8.dp,
+            modifier = Modifier.fillMaxWidth().weight(1f),
         ) {
-            Icon(painterResource(R.drawable.ic_logout_round), contentDescription = null, modifier = Modifier.size(18.dp))
-            Spacer(Modifier.width(8.dp))
-            Text("退出登录")
+            Column(
+                Modifier
+                    .fillMaxSize()
+                    .verticalScroll(rememberScrollState())
+                    .padding(20.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                Text(state.user?.email ?: "AIMemo 账号", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.SemiBold)
+                InfoRow("免费额度", state.quota?.let { "${it.remaining}/${it.limit} 剩余" } ?: "加载中")
+                InfoRow("官方模型", if (state.clientConfig?.hostedModelAvailable == true) "可用" else "暂不可用")
+                InfoRow("同步状态", "云端账号模式")
+                Spacer(Modifier.height(8.dp))
+                OutlinedButton(
+                    onClick = onLogout,
+                    modifier = Modifier.fillMaxWidth().height(48.dp),
+                    shape = RoundedCornerShape(6.dp),
+                ) {
+                    Icon(painterResource(R.drawable.ic_logout_round), contentDescription = null, modifier = Modifier.size(18.dp))
+                    Spacer(Modifier.width(8.dp))
+                    Text("退出登录")
+                }
+            }
         }
     }
 }
