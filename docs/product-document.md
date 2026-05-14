@@ -552,7 +552,6 @@ Windows 桌面工程和 Inno Setup 安装脚本已接入。GitHub Actions 的 Wi
 
 - [产品与技术规划](product-and-technology-plan.md)
 - [移动端产品文档](product-document-app.md)
-- [iOS/Android 设计规范](mobile-design-guidelines.md)
 - [开发与运行指南](development.md)
 - [后端服务指南](backend.md)
 - [模型服务与隐私](model-and-privacy.md)

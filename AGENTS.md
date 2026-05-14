@@ -11,7 +11,7 @@ This guide is for coding agents working in this repository. Follow it before fin
 
 - AIMemo currently keeps the Flutter app as the desktop maintenance line for macOS, Windows, and Web preview.
 - New iOS and Android mobile work should be native-first: iOS uses SwiftUI, Android uses Kotlin + Jetpack Compose + Material 3.
-- The mobile app product, page, and visual source of truth is `docs/product-document-app.md`; `docs/mobile-design-guidelines.md` is supplemental and loses when the two conflict.
+- The mobile app product, page, visual, platform implementation, state feedback, accessibility, and acceptance source of truth is `docs/product-document-app.md`.
 - The main Flutter desktop UI is in `lib/src/features/home_page.dart`.
 - Persistent macOS data is handled by `lib/src/services/app_database.dart`.
 - Web preview data is handled by `lib/src/services/in_memory_memo_store.dart`.

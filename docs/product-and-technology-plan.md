@@ -303,7 +303,7 @@ createdAt
 
 ### 阶段四：原生移动端与微信小程序任务闭环
 
-- iOS 和 Android 按 [iOS/Android 设计规范](mobile-design-guidelines.md) 先实现云端账号版。
+- iOS 和 Android 按 [移动端产品文档](product-document-app.md) 先实现云端账号版。
 - Android 优先落地任务、标签、总结、历史和我的。
 - 微信登录接入真实小程序配置。
 - 小程序读取云端任务、标签和总结历史。

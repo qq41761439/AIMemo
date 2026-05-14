@@ -116,9 +116,8 @@ git push origin main
 ## 文档
 
 - [产品文档](docs/product-document.md)：产品定位、目标用户、核心流程、功能规格、隐私边界和路线图。
-- [移动端产品文档](docs/product-document-app.md)：iOS/Android App 页面清单、字体规范、交互规范和 UI 风格。
+- [移动端产品文档](docs/product-document-app.md)：iOS/Android App 页面清单、字体规范、交互规范、平台实现、状态反馈、可访问性和验收清单。
 - [产品与技术规划](docs/product-and-technology-plan.md)：产品定位、多端同步、账号体系、路线图和风险原则。
-- [iOS/Android 设计规范](docs/mobile-design-guidelines.md)：原生移动端实现补充规范；与移动端产品文档冲突时，以移动端产品文档为准。
 - [开发与运行指南](docs/development.md)：本机环境、Web/macOS/Windows 运行、测试检查和项目结构。
 - [后端服务指南](docs/backend.md)：后端启动、Postgres 持久化、Render 部署、用户记录查看、环境变量和 API。
 - [模型服务与隐私](docs/model-and-privacy.md)：自定义模型、官方托管模型、密钥存储和数据隐私边界。
