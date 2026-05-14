@@ -41,6 +41,7 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
@@ -86,6 +87,7 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.material.icons.Icons
@@ -1223,6 +1225,7 @@ private fun AccountScreen(
             LoggedInAccount(
                 state = state,
                 onLogout = onLogout,
+                snackbarHostState = snackbarHostState,
                 modifier = Modifier.padding(padding),
             )
         } else {
@@ -1335,65 +1338,298 @@ private fun LoginAccount(
 private fun LoggedInAccount(
     state: AIMemoUiState,
     onLogout: () -> Unit,
+    snackbarHostState: SnackbarHostState,
     modifier: Modifier,
 ) {
+    var confirmLogout by rememberSaveable { mutableStateOf(false) }
+    val coroutineScope = rememberCoroutineScope()
+    val quota = state.quota
+    val quotaLimit = quota?.limit ?: state.clientConfig?.monthlyFreeSummaryLimit ?: 0
+    val quotaRemaining = quota?.remaining ?: quotaLimit
+    val quotaProgress = if (quotaLimit > 0) {
+        (quotaRemaining.toFloat() / quotaLimit.toFloat()).coerceIn(0f, 1f)
+    } else {
+        0f
+    }
+    val email = state.user?.email?.takeIf { it.isNotBlank() } ?: "AIMemo 账号"
+    val modelStatus = if (state.clientConfig?.hostedModelAvailable == false) "模型暂不可用" else "已同步"
+
     Column(
         modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
-            .padding(horizontal = 20.dp, vertical = 24.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp),
+            .verticalScroll(rememberScrollState())
+            .padding(horizontal = 20.dp, vertical = 18.dp),
+        verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
-        Image(
-            painterResource(R.drawable.logo),
-            contentDescription = null,
-            modifier = Modifier.size(132.dp),
-            contentScale = ContentScale.Fit,
+        ProfileCard(
+            email = email,
+            syncStatus = modelStatus,
+            onEdit = {
+                coroutineScope.launch { snackbarHostState.showSnackbar("编辑资料暂未开放。") }
+            },
         )
-        Surface(
-            color = MaterialTheme.colorScheme.surface,
-            shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
-            shadowElevation = 8.dp,
-            modifier = Modifier.fillMaxWidth().weight(1f),
+        CreditsCard(
+            remaining = quotaRemaining,
+            limit = quotaLimit,
+            progress = quotaProgress,
+            loaded = quota != null || quotaLimit > 0,
+            onUpgrade = {
+                coroutineScope.launch { snackbarHostState.showSnackbar("升级功能暂未开放。") }
+            },
+        )
+        AccountMenu(
+            onComingSoon = { title ->
+                coroutineScope.launch { snackbarHostState.showSnackbar("$title 暂未开放。") }
+            },
+        )
+        OutlinedButton(
+            onClick = { confirmLogout = true },
+            modifier = Modifier.fillMaxWidth().height(56.dp),
+            shape = RoundedCornerShape(8.dp),
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.error),
+            colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error),
         ) {
-            Column(
-                Modifier
-                    .fillMaxSize()
-                    .verticalScroll(rememberScrollState())
-                    .padding(20.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp),
-            ) {
-                Text(state.user?.email ?: "AIMemo 账号", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.SemiBold)
-                InfoRow("免费额度", state.quota?.let { "${it.remaining}/${it.limit} 剩余" } ?: "加载中")
-                InfoRow("官方模型", if (state.clientConfig?.hostedModelAvailable == true) "可用" else "暂不可用")
-                InfoRow("同步状态", "云端账号模式")
-                Spacer(Modifier.height(8.dp))
-                OutlinedButton(
-                    onClick = onLogout,
-                    modifier = Modifier.fillMaxWidth().height(48.dp),
+            Icon(painterResource(R.drawable.ic_logout_round), contentDescription = null, modifier = Modifier.size(20.dp))
+            Spacer(Modifier.width(10.dp))
+            Text("退出登录", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+        }
+        Spacer(Modifier.height(10.dp))
+    }
+
+    if (confirmLogout) {
+        AlertDialog(
+            onDismissRequest = { confirmLogout = false },
+            title = { Text("退出登录") },
+            text = { Text("退出后，本机将清除当前账号会话。") },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        confirmLogout = false
+                        onLogout()
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error),
                     shape = RoundedCornerShape(6.dp),
                 ) {
-                    Icon(painterResource(R.drawable.ic_logout_round), contentDescription = null, modifier = Modifier.size(18.dp))
-                    Spacer(Modifier.width(8.dp))
-                    Text("退出登录")
+                    Text("退出")
                 }
+            },
+            dismissButton = {
+                TextButton(onClick = { confirmLogout = false }) { Text("取消") }
+            },
+        )
+    }
+}
+
+@Composable
+private fun ProfileCard(
+    email: String,
+    syncStatus: String,
+    onEdit: () -> Unit,
+) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(8.dp),
+        color = MaterialTheme.colorScheme.surface,
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+        tonalElevation = 1.dp,
+        shadowElevation = 2.dp,
+    ) {
+        Row(
+            Modifier.padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(14.dp),
+        ) {
+            Surface(
+                modifier = Modifier.size(88.dp),
+                shape = CircleShape,
+                color = MaterialTheme.colorScheme.primaryContainer,
+            ) {
+                Image(
+                    painterResource(R.drawable.portrait),
+                    contentDescription = null,
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = ContentScale.Crop,
+                )
+            }
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                Text(
+                    "我的账号",
+                    style = MaterialTheme.typography.headlineSmall,
+                    fontWeight = FontWeight.SemiBold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                Text(
+                    email,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                SyncBadge(syncStatus)
+            }
+            IconButton(
+                onClick = onEdit,
+                modifier = Modifier
+                    .size(48.dp)
+                    .semantics { contentDescription = "编辑资料" },
+                colors = IconButtonDefaults.filledIconButtonColors(
+                    containerColor = MaterialTheme.colorScheme.primaryContainer,
+                    contentColor = MaterialTheme.colorScheme.primary,
+                ),
+            ) {
+                Icon(Icons.Rounded.Edit, contentDescription = null)
             }
         }
     }
 }
 
 @Composable
-private fun InfoRow(label: String, value: String) {
-    Card(
+private fun SyncBadge(label: String) {
+    Surface(
+        shape = RoundedCornerShape(999.dp),
+        color = MaterialTheme.colorScheme.primaryContainer,
+        contentColor = MaterialTheme.colorScheme.primary,
+    ) {
+        Row(
+            Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(5.dp),
+        ) {
+            Icon(Icons.Rounded.CheckCircle, contentDescription = null, modifier = Modifier.size(16.dp))
+            Text(label, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.SemiBold)
+        }
+    }
+}
+
+@Composable
+private fun CreditsCard(
+    remaining: Int,
+    limit: Int,
+    progress: Float,
+    loaded: Boolean,
+    onUpgrade: () -> Unit,
+) {
+    Surface(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(8.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
+        color = MaterialTheme.colorScheme.surface,
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+        tonalElevation = 1.dp,
     ) {
-        Row(Modifier.fillMaxWidth().padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
-            Text(label, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.weight(1f))
-            Text(value, fontWeight = FontWeight.Medium)
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                IconTile(
+                    icon = R.drawable.ic_auto_awesome_round,
+                    tint = MaterialTheme.colorScheme.tertiary,
+                    background = MaterialTheme.colorScheme.tertiaryContainer,
+                )
+                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    Text("免费额度", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                    Row(verticalAlignment = Alignment.Bottom) {
+                        Text(
+                            if (loaded) remaining.toString() else "--",
+                            style = MaterialTheme.typography.headlineMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.tertiary,
+                        )
+                        Text(
+                            " / ${if (limit > 0) limit else "--"}",
+                            modifier = Modifier.padding(bottom = 3.dp),
+                            style = MaterialTheme.typography.titleMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
+                OutlinedButton(
+                    onClick = onUpgrade,
+                    modifier = Modifier.height(48.dp),
+                    shape = RoundedCornerShape(8.dp),
+                    contentPadding = PaddingValues(horizontal = 16.dp),
+                ) {
+                    Text("升级", fontWeight = FontWeight.SemiBold)
+                }
+            }
+            LinearProgressIndicator(
+                progress = { progress },
+                modifier = Modifier.fillMaxWidth().height(8.dp).clip(RoundedCornerShape(999.dp)),
+                color = MaterialTheme.colorScheme.tertiary,
+                trackColor = MaterialTheme.colorScheme.tertiaryContainer,
+            )
+        }
+    }
+}
+
+@Composable
+private fun AccountMenu(onComingSoon: (String) -> Unit) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(8.dp),
+        color = MaterialTheme.colorScheme.surface,
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+        tonalElevation = 1.dp,
+    ) {
+        Column(Modifier.padding(horizontal = 14.dp, vertical = 8.dp)) {
+            MenuRow(R.drawable.ic_history_round, "总结历史", onClick = { onComingSoon("总结历史") })
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+            MenuRow(R.drawable.ic_notifications_round, "通知与同步", onClick = { onComingSoon("通知与同步") })
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+            MenuRow(R.drawable.ic_security_round, "隐私与安全", onClick = { onComingSoon("隐私与安全") })
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+            MenuRow(R.drawable.ic_help_outline_round, "帮助", onClick = { onComingSoon("帮助") })
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+            MenuRow(R.drawable.ic_info_outline_round, "关于 AIMemo", onClick = { onComingSoon("关于 AIMemo") })
+        }
+    }
+}
+
+@Composable
+private fun MenuRow(icon: Int, title: String, onClick: () -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(64.dp)
+            .clickable(onClick = onClick),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        IconTile(icon = icon)
+        Text(
+            title,
+            modifier = Modifier.weight(1f),
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.Medium,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+        Icon(
+            painterResource(R.drawable.ic_chevron_right_round),
+            contentDescription = null,
+            modifier = Modifier.size(24.dp),
+            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
+}
+
+@Composable
+private fun IconTile(
+    icon: Int,
+    tint: Color = MaterialTheme.colorScheme.primary,
+    background: Color = MaterialTheme.colorScheme.primaryContainer,
+) {
+    Surface(
+        modifier = Modifier.size(48.dp),
+        shape = RoundedCornerShape(8.dp),
+        color = background,
+        contentColor = tint,
+    ) {
+        Box(contentAlignment = Alignment.Center) {
+            Icon(
+                painterResource(icon),
+                contentDescription = null,
+                modifier = Modifier.size(26.dp),
+            )
         }
     }
 }
