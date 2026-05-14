@@ -122,10 +122,23 @@ fun AIMemoApp(viewModel: AIMemoViewModel) {
 
     var showMe by rememberSaveable { mutableStateOf(false) }
 
-    if (showMe) {
+    if (!state.isLoggedIn) {
+        AccountScreen(
+            state = state,
+            onBack = {},
+            showBack = false,
+            onEmailChange = viewModel::updateAuthEmail,
+            onCodeChange = viewModel::updateAuthCode,
+            onSendCode = viewModel::sendLoginCode,
+            onLogin = viewModel::verifyLogin,
+            onLogout = viewModel::logout,
+            snackbarHostState = snackbarHostState,
+        )
+    } else if (showMe) {
         AccountScreen(
             state = state,
             onBack = { showMe = false },
+            showBack = true,
             onEmailChange = viewModel::updateAuthEmail,
             onCodeChange = viewModel::updateAuthCode,
             onSendCode = viewModel::sendLoginCode,
@@ -224,16 +237,6 @@ private fun MainScreen(
             }
         },
     ) { padding ->
-        if (!state.isLoggedIn) {
-            EmptyGate(
-                modifier = Modifier.padding(padding),
-                title = "登录后开始记录",
-                message = "任务、总结和历史会保存到 AIMemo 云端账号。",
-                action = "去登录",
-                onAction = onOpenMe,
-            )
-            return@Scaffold
-        }
         when (state.mainTab) {
             MainTab.Tasks -> TaskScreen(
                 state = state,
@@ -1007,6 +1010,7 @@ private fun HistoryScreen(
 private fun AccountScreen(
     state: AIMemoUiState,
     onBack: () -> Unit,
+    showBack: Boolean = true,
     onEmailChange: (String) -> Unit,
     onCodeChange: (String) -> Unit,
     onSendCode: () -> Unit,
@@ -1018,15 +1022,19 @@ private fun AccountScreen(
         containerColor = MaterialTheme.colorScheme.background,
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
-            TopAppBar(
-                title = { Text("我的", fontWeight = FontWeight.SemiBold) },
-                navigationIcon = {
-                    IconButton(onClick = onBack, modifier = Modifier.semantics { contentDescription = "返回" }) {
-                        Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = null)
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.background),
-            )
+            if (showBack || state.isLoggedIn) {
+                TopAppBar(
+                    title = { Text("我的", fontWeight = FontWeight.SemiBold) },
+                    navigationIcon = {
+                        if (showBack) {
+                            IconButton(onClick = onBack, modifier = Modifier.semantics { contentDescription = "返回" }) {
+                                Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = null)
+                            }
+                        }
+                    },
+                    colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.background),
+                )
+            }
         },
     ) { padding ->
         if (state.isLoggedIn) {
@@ -1063,9 +1071,20 @@ private fun LoginAccount(
             .verticalScroll(rememberScrollState())
             .imePadding()
             .padding(20.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
+        verticalArrangement = Arrangement.Center,
     ) {
-        Text("登录 AIMemo", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.SemiBold)
+        Text(
+            "AIMemo",
+            style = MaterialTheme.typography.headlineLarge,
+            fontWeight = FontWeight.SemiBold,
+        )
+        Spacer(Modifier.height(8.dp))
+        Text(
+            "登录后开始记录任务和生成总结。",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Spacer(Modifier.height(24.dp))
         OutlinedTextField(
             value = state.authEmail,
             onValueChange = onEmailChange,
@@ -1074,6 +1093,7 @@ private fun LoginAccount(
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(6.dp),
         )
+        Spacer(Modifier.height(12.dp))
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
             OutlinedTextField(
                 value = state.authCode,
@@ -1092,6 +1112,7 @@ private fun LoginAccount(
                 if (state.isSendingCode) CircularProgressIndicator(Modifier.size(16.dp)) else Text("发送")
             }
         }
+        Spacer(Modifier.height(12.dp))
         Button(
             onClick = onLogin,
             enabled = !state.isLoggingIn,
