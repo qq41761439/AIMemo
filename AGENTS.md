@@ -11,7 +11,7 @@ This guide is for coding agents working in this repository. Follow it before fin
 
 - AIMemo currently keeps the Flutter app as the desktop maintenance line for macOS, Windows, and Web preview.
 - New iOS and Android mobile work should be native-first: iOS uses SwiftUI, Android uses Kotlin + Jetpack Compose + Material 3.
-- The mobile design source of truth is `docs/mobile-design-guidelines.md`.
+- The mobile app product, page, and visual source of truth is `docs/product-document-app.md`; `docs/mobile-design-guidelines.md` is supplemental and loses when the two conflict.
 - The main Flutter desktop UI is in `lib/src/features/home_page.dart`.
 - Persistent macOS data is handled by `lib/src/services/app_database.dart`.
 - Web preview data is handled by `lib/src/services/in_memory_memo_store.dart`.
@@ -99,15 +99,13 @@ If multiple simulators are available, use `flutter devices` and run the app on a
 - Daily and weekly templates should stay simple: completed work and next plan.
 - Monthly and yearly templates can include richer review structure.
 - Custom summary templates should behave like weekly summaries for ranges of 7 days or less, and like monthly summaries for longer ranges.
-- New iOS/Android V1 focuses on the cloud account mode: tasks, tags, summary generation, summary history, and My account page.
-- Do not design native mobile V1 around local-only mode, custom model API keys, or offline edit sync unless explicitly requested.
-- Mobile top-level navigation should use the "任务 / 总结" switch with a top-right "我的" entry. Do not reintroduce the old bottom four-tab Flutter mobile layout.
+- New iOS/Android App work follows `docs/product-document-app.md`: login/register, onboarding, Tasks, Task edit, optional Task detail, Profile, Settings, Summary entry, Summary result, and Summary history.
+- Do not design native mobile App work around local-only mode, custom model API keys, or offline edit sync unless explicitly requested.
+- Do not continue the old mobile top-level "任务 / 总结" switch as the product source of truth; migrate App UX toward `docs/product-document-app.md`.
 
 ## UI Style Expectations
 
-- For new iOS/Android work, follow `docs/mobile-design-guidelines.md` first.
-- Keep the summary generation controls compact; avoid wrapping small control groups in large card-like frames unless there is a clear need.
-- Controls in the same row should share the same visual language. For example, the summary period selector and date range picker should both use a 40px height, 6px radius, `_border` outline, `_ink` text, and similar icon sizing.
-- Date range selection must look clickable. Use a compact outlined button with a calendar icon instead of plain text.
-- Do not add explanatory helper text below obvious controls when the same meaning is already communicated by labels, icons, or tooltips.
-- Keep the template module lightweight: use a compact title row for expand/collapse, and avoid an outer card frame around the collapsed template header.
+- For new iOS/Android App work, follow `docs/product-document-app.md` first.
+- Use the mobile App style from that document: white background, rounded cards, soft shadows, purple gradient buttons, internationalized readable typography, and 390 x 844 pt as the reference portrait canvas.
+- Use the font sizes and touch targets specified in `docs/product-document-app.md`, including 22 pt page titles, 16 pt section text/buttons, 14 pt tags, 12 pt subtext, buttons at least 44 pt high, and tags 24-28 pt high.
+- Summary UX should include the AI Summary entry, report type selection, generated result page, dialog-style modification input, confirmation, Copy / Share, and in-place expandable history list.
