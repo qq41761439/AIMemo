@@ -15,11 +15,12 @@ val localProperties = Properties().apply {
     }
 }
 
-val backendBaseUrl = localProperties
+val configuredBackendBaseUrl = localProperties
     .getProperty("aimemo.backendBaseUrl")
     ?.trim()
     ?.takeIf { it.isNotEmpty() }
-    ?: "https://aimemo-backend.onrender.com"
+val debugBackendBaseUrl = configuredBackendBaseUrl ?: "http://10.0.2.2:8787"
+val releaseBackendBaseUrl = configuredBackendBaseUrl ?: "https://aimemo-backend.onrender.com"
 
 android {
     namespace = "com.aimemo.app"
@@ -32,7 +33,15 @@ android {
         versionCode = 1
         versionName = "0.1.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
-        buildConfigField("String", "AIMEMO_BACKEND_BASE_URL", "\"$backendBaseUrl\"")
+    }
+
+    buildTypes {
+        debug {
+            buildConfigField("String", "AIMEMO_BACKEND_BASE_URL", "\"$debugBackendBaseUrl\"")
+        }
+        release {
+            buildConfigField("String", "AIMEMO_BACKEND_BASE_URL", "\"$releaseBackendBaseUrl\"")
+        }
     }
 
     buildFeatures {
