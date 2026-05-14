@@ -48,6 +48,9 @@ Always close the old app before opening the newly built app, otherwise macOS may
 - Native Android changes:
   - Run the relevant Gradle unit/UI checks for the native Android project once it exists.
   - Launch the app on an Android emulator for user-facing UI changes.
+  - The local Android SDK is at `~/Library/Android/sdk`; `~/.zshrc` should export `ANDROID_HOME`, `ANDROID_SDK_ROOT`, and add `platform-tools` plus `emulator` to `PATH`.
+  - This machine has `Pixel_10_Pro` and `Pixel_8` AVDs. Check availability with `adb devices` and `emulator -list-avds`; if no device is running, prefer `emulator -avd Pixel_10_Pro`.
+  - For native Android UI verification, run from `native/android`: `./gradlew installDebug`, then `adb shell am force-stop com.aimemo.app` and `adb shell am start -n com.aimemo.app/.MainActivity`.
 
 - Native iOS changes:
   - Run the relevant Xcode build/tests for the native iOS project once it exists.
