@@ -28,13 +28,9 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.time.Instant
 
-enum class MainTab { Tasks, Summary }
-enum class SummaryTab { Generate, History }
-
 data class AIMemoUiState(
-    val mainTab: MainTab = MainTab.Tasks,
-    val summaryTab: SummaryTab = SummaryTab.Generate,
     val isBooting: Boolean = true,
+    val onboardingCompleted: Boolean = false,
     val isLoadingTasks: Boolean = false,
     val isSavingTask: Boolean = false,
     val isDeletingTask: Boolean = false,
@@ -49,6 +45,7 @@ data class AIMemoUiState(
     val expandedTaskId: String? = null,
     val summaries: List<SummaryRecord> = emptyList(),
     val selectedPeriod: PeriodType = PeriodType.Weekly,
+    val selectedHistoryPeriod: PeriodType = PeriodType.Weekly,
     val selectedSummaryTags: Set<String> = emptySet(),
     val templateExpanded: Boolean = false,
     val templateText: String = defaultTemplate(PeriodType.Weekly),
@@ -98,15 +95,7 @@ class AIMemoViewModel(
             .onFailure { handleFailure(it) }
     }
 
-    fun selectMainTab(tab: MainTab) {
-        _uiState.update { it.copy(mainTab = tab) }
-        if (tab == MainTab.Summary) refreshHistory()
-    }
-
-    fun selectSummaryTab(tab: SummaryTab) {
-        _uiState.update { it.copy(summaryTab = tab) }
-        if (tab == SummaryTab.History) refreshHistory()
-    }
+    fun completeOnboarding() = _uiState.update { it.copy(onboardingCompleted = true) }
 
     fun updateAuthEmail(value: String) = _uiState.update { it.copy(authEmail = value) }
 
@@ -165,11 +154,13 @@ class AIMemoViewModel(
     }
 
     fun logout() = viewModelScope.launch {
+        val onboardingCompleted = uiState.value.onboardingCompleted
         authRepository.logout()
         _uiState.update {
             AIMemoUiState(
                 clientConfig = it.clientConfig,
                 isBooting = false,
+                onboardingCompleted = onboardingCompleted,
                 lastStatus = "已退出登录。",
             )
         }
@@ -283,16 +274,20 @@ class AIMemoViewModel(
         state.copy(selectedSummaryTags = tags)
     }
 
+    fun selectHistoryPeriod(periodType: PeriodType) = _uiState.update {
+        it.copy(selectedHistoryPeriod = periodType)
+    }
+
     fun setTemplateExpanded(expanded: Boolean) = _uiState.update { it.copy(templateExpanded = expanded) }
 
     fun updateTemplate(value: String) = _uiState.update { it.copy(templateText = value) }
 
     fun resetTemplate() = _uiState.update { it.copy(templateText = defaultTemplate(it.selectedPeriod)) }
 
-    fun generateSummary() = viewModelScope.launch {
+    fun generateSummary(refinement: String? = null) = viewModelScope.launch {
         val state = uiState.value
         if (!state.isLoggedIn) {
-            _uiState.update { it.copy(errorMessage = "请先在“我的”页登录。") }
+            _uiState.update { it.copy(errorMessage = "请先登录 AIMemo。") }
             return@launch
         }
         if (state.clientConfig?.hostedModelAvailable == false) {
@@ -306,9 +301,22 @@ class AIMemoViewModel(
             periodStart = range.start,
             periodEnd = range.end,
             tags = state.selectedSummaryTags.toList(),
-            template = state.templateText.ifBlank { defaultTemplate(state.selectedPeriod) },
+            template = buildString {
+                append(state.templateText.ifBlank { defaultTemplate(state.selectedPeriod) })
+                val instruction = refinement?.trim().orEmpty()
+                if (instruction.isNotEmpty()) {
+                    append("\n\n请根据这条修改意见重新生成：")
+                    append(instruction)
+                }
+            },
         )
-        _uiState.update { it.copy(isGeneratingSummary = true, errorMessage = null) }
+        _uiState.update {
+            it.copy(
+                isGeneratingSummary = true,
+                latestSummary = if (refinement == null) null else it.latestSummary,
+                errorMessage = null,
+            )
+        }
         runCatching { summaryRepository.generate(draft, state.summaryTasks) }
             .onSuccess { generated ->
                 _uiState.update {
@@ -339,6 +347,10 @@ class AIMemoViewModel(
     }
 
     fun clearTransientMessages() = _uiState.update { it.copy(errorMessage = null, lastStatus = null) }
+
+    fun showComingSoon(feature: String) = _uiState.update {
+        it.copy(lastStatus = "$feature 暂未开放。")
+    }
 
     private fun refreshMe() = viewModelScope.launch {
         runCatching { authRepository.currentAccount() }
