@@ -23,25 +23,27 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.Divider
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
@@ -50,10 +52,11 @@ import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Tab
-import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.PrimaryTabRow
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -66,8 +69,10 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.AnnotatedString
@@ -76,12 +81,24 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.rounded.ArrowBack
+import androidx.compose.material.icons.automirrored.rounded.Send
+import androidx.compose.material.icons.rounded.AccountCircle
+import androidx.compose.material.icons.rounded.CheckCircle
+import androidx.compose.material.icons.rounded.Edit
+import androidx.compose.material.icons.rounded.KeyboardArrowDown
+import androidx.compose.material.icons.rounded.KeyboardArrowUp
+import androidx.compose.material.icons.rounded.Refresh
+import com.aimemo.app.R
 import com.aimemo.app.domain.PeriodType
 import com.aimemo.app.domain.TaskRecord
 import com.aimemo.app.domain.defaultTemplate
 import com.aimemo.app.domain.periodRange
 import kotlinx.coroutines.launch
 import java.time.Instant
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
 
 @Composable
 fun AIMemoApp(viewModel: AIMemoViewModel) {
@@ -165,31 +182,40 @@ private fun MainScreen(
     onRefreshHistory: () -> Unit,
 ) {
     Scaffold(
+        containerColor = MaterialTheme.colorScheme.background,
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
-            TopAppBar(
-                title = {
-                    SingleChoiceSegmentedButtonRow {
-                        MainTab.entries.forEachIndexed { index, tab ->
-                            SegmentedButton(
-                                selected = state.mainTab == tab,
-                                onClick = { onSelectMainTab(tab) },
-                                shape = SegmentedButtonDefaults.itemShape(index, MainTab.entries.size),
-                            ) {
-                                Text(if (tab == MainTab.Tasks) "任务" else "总结")
+            Surface(color = MaterialTheme.colorScheme.background) {
+                Column {
+                    TopAppBar(
+                        title = {
+                            Text(
+                                "AIMemo",
+                                style = MaterialTheme.typography.titleLarge,
+                                fontWeight = FontWeight.SemiBold,
+                            )
+                        },
+                        actions = {
+                            IconButton(onClick = onOpenMe, modifier = Modifier.semantics { contentDescription = "我的" }) {
+                                Icon(Icons.Rounded.AccountCircle, contentDescription = null)
                             }
-                        }
-                    }
-                },
-                actions = {
-                    TextButton(onClick = onOpenMe, modifier = Modifier.semantics { contentDescription = "我的" }) {
-                        Text("我的")
-                    }
-                },
-            )
+                        },
+                        colors = TopAppBarDefaults.topAppBarColors(
+                            containerColor = MaterialTheme.colorScheme.background,
+                            titleContentColor = MaterialTheme.colorScheme.onBackground,
+                            actionIconContentColor = MaterialTheme.colorScheme.onBackground,
+                        ),
+                    )
+                    MainTabSwitch(
+                        selected = state.mainTab,
+                        onSelect = onSelectMainTab,
+                        modifier = Modifier.padding(start = 16.dp, end = 16.dp, bottom = 10.dp),
+                    )
+                }
+            }
         },
         bottomBar = {
-            if (state.mainTab == MainTab.Tasks) {
+            if (state.mainTab == MainTab.Tasks && state.isLoggedIn) {
                 QuickInputBar(
                     enabled = state.isLoggedIn && !state.isSavingTask,
                     loading = state.isSavingTask,
@@ -222,6 +248,7 @@ private fun MainScreen(
             MainTab.Summary -> SummaryScreen(
                 state = state,
                 modifier = Modifier.padding(padding),
+                snackbarHostState = snackbarHostState,
                 onSelectSummaryTab = onSelectSummaryTab,
                 onSelectPeriod = onSelectPeriod,
                 onToggleSummaryTag = onToggleSummaryTag,
@@ -236,6 +263,142 @@ private fun MainScreen(
 }
 
 @Composable
+private fun MainTabSwitch(
+    selected: MainTab,
+    onSelect: (MainTab) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    SingleChoiceSegmentedButtonRow(modifier = modifier.fillMaxWidth()) {
+        MainTab.entries.forEachIndexed { index, tab ->
+            SegmentedButton(
+                selected = selected == tab,
+                onClick = { onSelect(tab) },
+                shape = SegmentedButtonDefaults.itemShape(index, MainTab.entries.size),
+                icon = {},
+                colors = SegmentedButtonDefaults.colors(
+                    activeContainerColor = MaterialTheme.colorScheme.primaryContainer,
+                    activeContentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                    inactiveContainerColor = MaterialTheme.colorScheme.surface,
+                    inactiveContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                    activeBorderColor = MaterialTheme.colorScheme.primary,
+                    inactiveBorderColor = MaterialTheme.colorScheme.outline,
+                ),
+            ) {
+                Text(
+                    if (tab == MainTab.Tasks) "任务" else "总结",
+                    fontWeight = if (selected == tab) FontWeight.SemiBold else FontWeight.Medium,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun PageHeader(
+    title: String,
+    subtitle: String,
+    actionLabel: String,
+    onAction: () -> Unit,
+    enabled: Boolean = true,
+) {
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .padding(start = 16.dp, end = 12.dp, top = 8.dp, bottom = 6.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Column(Modifier.weight(1f)) {
+            Text(title, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold)
+            Text(subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+        IconButton(onClick = onAction, enabled = enabled, modifier = Modifier.semantics { contentDescription = actionLabel }) {
+            Icon(Icons.Rounded.Refresh, contentDescription = null)
+        }
+    }
+}
+
+@Composable
+private fun CompactFilterChip(
+    label: String,
+    selected: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    FilterChip(
+        selected = selected,
+        onClick = onClick,
+        label = { Text(label, maxLines = 1, overflow = TextOverflow.Ellipsis) },
+        modifier = modifier.height(36.dp),
+        shape = RoundedCornerShape(999.dp),
+        colors = FilterChipDefaults.filterChipColors(
+            selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
+            selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer,
+            containerColor = MaterialTheme.colorScheme.surface,
+            labelColor = MaterialTheme.colorScheme.onSurfaceVariant,
+        ),
+        border = FilterChipDefaults.filterChipBorder(
+            enabled = true,
+            selected = selected,
+            borderColor = MaterialTheme.colorScheme.outline,
+            selectedBorderColor = MaterialTheme.colorScheme.primary,
+            borderWidth = 1.dp,
+            selectedBorderWidth = 1.dp,
+        ),
+    )
+}
+
+@Composable
+private fun TagPill(label: String) {
+    Surface(
+        shape = RoundedCornerShape(999.dp),
+        color = MaterialTheme.colorScheme.surfaceVariant,
+        contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+    ) {
+        Text(
+            label,
+            modifier = Modifier.padding(horizontal = 9.dp, vertical = 4.dp),
+            style = MaterialTheme.typography.labelMedium,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+    }
+}
+
+@Composable
+private fun CompletionIcon(completed: Boolean, modifier: Modifier = Modifier) {
+    if (completed) {
+        Icon(
+            Icons.Rounded.CheckCircle,
+            contentDescription = null,
+            modifier = modifier,
+            tint = MaterialTheme.colorScheme.primary,
+        )
+    } else {
+        Icon(
+            painterResource(R.drawable.ic_radio_button_unchecked_round),
+            contentDescription = null,
+            modifier = modifier,
+            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
+}
+
+private val CompactDateFormatter: DateTimeFormatter =
+    DateTimeFormatter.ofPattern("MM-dd HH:mm").withZone(ZoneId.systemDefault())
+
+private fun formatInstant(value: Instant?): String =
+    value?.let { CompactDateFormatter.format(it) } ?: "未完成"
+
+private fun taskMeta(task: TaskRecord): String =
+    if (task.isCompleted) "已完成 ${formatInstant(task.completedAt)}" else "开始 ${formatInstant(task.createdAt)}"
+
+private fun taskSubtitle(state: AIMemoUiState): String {
+    val total = state.tasks.count { it.deletedAt == null }
+    val open = state.tasks.count { it.deletedAt == null && !it.isCompleted }
+    return "$open 个待完成 · $total 条任务"
+}
+
+@Composable
 private fun EmptyGate(
     title: String,
     message: String,
@@ -244,15 +407,17 @@ private fun EmptyGate(
     modifier: Modifier = Modifier,
 ) {
     Column(
-        modifier = modifier.fillMaxSize().padding(24.dp),
+        modifier = modifier
+            .fillMaxSize()
+            .padding(24.dp),
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Text(title, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.SemiBold)
         Spacer(Modifier.height(8.dp))
-        Text(message, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(message, color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodyMedium)
         Spacer(Modifier.height(20.dp))
-        Button(onClick = onAction) { Text(action) }
+        Button(onClick = onAction, shape = RoundedCornerShape(6.dp)) { Text(action) }
     }
 }
 
@@ -264,13 +429,16 @@ private fun QuickInputBar(
 ) {
     var text by rememberSaveable { mutableStateOf("") }
     val focusManager = LocalFocusManager.current
-    Surface(tonalElevation = 3.dp) {
+    Surface(
+        color = MaterialTheme.colorScheme.surface,
+        shadowElevation = 8.dp,
+    ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .navigationBarsPadding()
                 .imePadding()
-                .padding(12.dp),
+                .padding(horizontal = 12.dp, vertical = 10.dp),
             verticalAlignment = Alignment.Bottom,
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
@@ -283,6 +451,12 @@ private fun QuickInputBar(
                 maxLines = 4,
                 placeholder = { Text("像发消息一样添加任务") },
                 shape = RoundedCornerShape(18.dp),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedBorderColor = MaterialTheme.colorScheme.primary,
+                    unfocusedBorderColor = MaterialTheme.colorScheme.outline,
+                    focusedContainerColor = MaterialTheme.colorScheme.background,
+                    unfocusedContainerColor = MaterialTheme.colorScheme.background,
+                ),
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
             )
             IconButton(
@@ -295,12 +469,18 @@ private fun QuickInputBar(
                     }
                 },
                 enabled = enabled && text.isNotBlank(),
-                modifier = Modifier.size(48.dp).background(MaterialTheme.colorScheme.primary, CircleShape),
+                modifier = Modifier.size(48.dp),
+                colors = IconButtonDefaults.filledIconButtonColors(
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    contentColor = MaterialTheme.colorScheme.onPrimary,
+                    disabledContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                    disabledContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                ),
             ) {
                 if (loading) {
                     CircularProgressIndicator(modifier = Modifier.size(20.dp), color = MaterialTheme.colorScheme.onPrimary)
                 } else {
-                    Text("发", color = MaterialTheme.colorScheme.onPrimary, fontWeight = FontWeight.SemiBold)
+                    Icon(Icons.AutoMirrored.Rounded.Send, contentDescription = "发送")
                 }
             }
         }
@@ -319,12 +499,13 @@ private fun TaskScreen(
     onDeleteTask: (TaskRecord) -> Unit,
 ) {
     Column(modifier.fillMaxSize()) {
-        Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-            Text("任务", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
-            IconButton(onClick = onRefresh, enabled = !state.isLoadingTasks) {
-                Text("刷新")
-            }
-        }
+        PageHeader(
+            title = "任务",
+            subtitle = taskSubtitle(state),
+            actionLabel = "刷新任务",
+            onAction = onRefresh,
+            enabled = !state.isLoadingTasks,
+        )
         if (state.availableTags.isNotEmpty() || state.selectedTag != null) {
             TagFilterRow(
                 tags = state.availableTags,
@@ -340,7 +521,7 @@ private fun TaskScreen(
             var editingTask by remember { mutableStateOf<TaskRecord?>(null) }
             var deletingTask by remember { mutableStateOf<TaskRecord?>(null) }
             LazyColumn(
-                contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 96.dp),
+                contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 104.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 items(state.filteredTasks, key = { it.id }) { task ->
@@ -371,10 +552,16 @@ private fun TaskScreen(
                     title = { Text("删除任务") },
                     text = { Text("删除后会从当前列表移除。") },
                     confirmButton = {
-                        Button(onClick = {
-                            onDeleteTask(task)
-                            deletingTask = null
-                        }) { Text("删除") }
+                        Button(
+                            onClick = {
+                                onDeleteTask(task)
+                                deletingTask = null
+                            },
+                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error),
+                            shape = RoundedCornerShape(6.dp),
+                        ) {
+                            Text("删除")
+                        }
                     },
                     dismissButton = {
                         TextButton(onClick = { deletingTask = null }) { Text("取消") }
@@ -399,10 +586,10 @@ private fun TagFilterRow(tags: List<String>, selected: String?, onSelect: (Strin
         horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         item {
-            FilterChip(selected = selected == null, onClick = { onSelect(null) }, label = { Text("全部") })
+            CompactFilterChip(selected = selected == null, onClick = { onSelect(null) }, label = "全部")
         }
         items(tags) { tag ->
-            FilterChip(selected = selected == tag, onClick = { onSelect(tag) }, label = { Text(tag) })
+            CompactFilterChip(selected = selected == tag, onClick = { onSelect(tag) }, label = tag)
         }
     }
 }
@@ -421,40 +608,54 @@ private fun TaskCard(
         modifier = Modifier.fillMaxWidth().clickable(onClick = onToggleExpanded),
         shape = RoundedCornerShape(8.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
     ) {
-        Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Column(Modifier.padding(horizontal = 12.dp, vertical = 10.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Row(verticalAlignment = Alignment.Top, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                IconButton(onClick = onToggleCompleted, modifier = Modifier.size(48.dp)) {
-                    Text(
-                        if (task.isCompleted) "已" else "未",
-                        color = if (task.isCompleted) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
-                        fontWeight = FontWeight.SemiBold,
-                    )
+                IconButton(
+                    onClick = onToggleCompleted,
+                    modifier = Modifier.size(48.dp).semantics { contentDescription = if (task.isCompleted) "取消完成" else "标记完成" },
+                ) {
+                    CompletionIcon(completed = task.isCompleted, modifier = Modifier.size(24.dp))
                 }
-                Column(Modifier.weight(1f)) {
-                    Text(task.title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
                     Text(
-                        if (task.isCompleted) "已完成 ${task.completedAt ?: ""}" else "未完成 ${task.createdAt}",
+                        task.title,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        maxLines = if (expanded) Int.MAX_VALUE else 2,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                    Text(
+                        taskMeta(task),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                     )
                 }
-                TextButton(onClick = onEdit) { Text("编辑") }
-                TextButton(onClick = onDelete) { Text("删除") }
+                IconButton(onClick = onEdit, modifier = Modifier.size(40.dp).semantics { contentDescription = "编辑任务" }) {
+                    Icon(Icons.Rounded.Edit, contentDescription = null)
+                }
+                IconButton(onClick = onDelete, modifier = Modifier.size(40.dp).semantics { contentDescription = "删除任务" }) {
+                    Icon(
+                        painterResource(R.drawable.ic_delete_outline_round),
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.error,
+                    )
+                }
             }
             if (task.tags.isNotEmpty()) {
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    task.tags.forEach { tag -> AssistChip(onClick = {}, label = { Text(tag) }) }
+                    task.tags.forEach { tag -> TagPill(tag) }
                 }
             }
             if (expanded) {
-                Divider()
+                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                 Text(task.body, style = MaterialTheme.typography.bodyMedium)
-                Text("开始：${task.createdAt}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                Text("完成：${task.completedAt ?: "未完成"}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text("开始：${formatInstant(task.createdAt)}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text("完成：${formatInstant(task.completedAt)}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
     }
@@ -518,6 +719,7 @@ private fun TaskEditSheet(
 private fun SummaryScreen(
     state: AIMemoUiState,
     modifier: Modifier,
+    snackbarHostState: SnackbarHostState,
     onSelectSummaryTab: (SummaryTab) -> Unit,
     onSelectPeriod: (PeriodType) -> Unit,
     onToggleSummaryTag: (String) -> Unit,
@@ -528,18 +730,28 @@ private fun SummaryScreen(
     onRefreshHistory: () -> Unit,
 ) {
     Column(modifier.fillMaxSize()) {
-        TabRow(selectedTabIndex = SummaryTab.entries.indexOf(state.summaryTab)) {
+        PrimaryTabRow(
+            selectedTabIndex = SummaryTab.entries.indexOf(state.summaryTab),
+            containerColor = MaterialTheme.colorScheme.background,
+            contentColor = MaterialTheme.colorScheme.primary,
+        ) {
             SummaryTab.entries.forEach { tab ->
                 Tab(
                     selected = state.summaryTab == tab,
                     onClick = { onSelectSummaryTab(tab) },
-                    text = { Text(if (tab == SummaryTab.Generate) "生成总结" else "历史记录") },
+                    text = {
+                        Text(
+                            if (tab == SummaryTab.Generate) "生成总结" else "历史记录",
+                            fontWeight = if (state.summaryTab == tab) FontWeight.SemiBold else FontWeight.Medium,
+                        )
+                    },
                 )
             }
         }
         when (state.summaryTab) {
             SummaryTab.Generate -> GenerateSummaryScreen(
                 state = state,
+                snackbarHostState = snackbarHostState,
                 onSelectPeriod = onSelectPeriod,
                 onToggleSummaryTag = onToggleSummaryTag,
                 onTemplateExpanded = onTemplateExpanded,
@@ -549,6 +761,7 @@ private fun SummaryScreen(
             )
             SummaryTab.History -> HistoryScreen(
                 state = state,
+                snackbarHostState = snackbarHostState,
                 onRefresh = onRefreshHistory,
             )
         }
@@ -559,6 +772,7 @@ private fun SummaryScreen(
 @Composable
 private fun GenerateSummaryScreen(
     state: AIMemoUiState,
+    snackbarHostState: SnackbarHostState,
     onSelectPeriod: (PeriodType) -> Unit,
     onToggleSummaryTag: (String) -> Unit,
     onTemplateExpanded: (Boolean) -> Unit,
@@ -567,32 +781,41 @@ private fun GenerateSummaryScreen(
     onGenerateSummary: () -> Unit,
 ) {
     val clipboard = LocalClipboardManager.current
+    val coroutineScope = rememberCoroutineScope()
     val range = periodRange(state.selectedPeriod)
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(16.dp),
+        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 14.dp, bottom = 24.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         item {
-            Text("周期", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-            Spacer(Modifier.height(8.dp))
-            LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                items(PeriodType.entries) { type ->
-                    FilterChip(
-                        selected = state.selectedPeriod == type,
-                        onClick = { onSelectPeriod(type) },
-                        label = { Text(type.title) },
-                    )
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                LazyRow(
+                    modifier = Modifier.weight(1f),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    items(PeriodType.entries) { type ->
+                        CompactFilterChip(
+                            selected = state.selectedPeriod == type,
+                            onClick = { onSelectPeriod(type) },
+                            label = type.title,
+                        )
+                    }
                 }
-            }
-        }
-        item {
-            OutlinedButton(
-                onClick = {},
-                modifier = Modifier.fillMaxWidth().height(48.dp),
-                shape = RoundedCornerShape(6.dp),
-            ) {
-                Text(range.label, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                OutlinedButton(
+                    onClick = {},
+                    modifier = Modifier.height(40.dp),
+                    shape = RoundedCornerShape(6.dp),
+                    contentPadding = PaddingValues(horizontal = 12.dp),
+                ) {
+                    Icon(
+                        painterResource(R.drawable.ic_calendar_month_round),
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp),
+                    )
+                    Spacer(Modifier.width(6.dp))
+                    Text(range.label, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                }
             }
         }
         if (state.availableTags.isNotEmpty()) {
@@ -601,50 +824,53 @@ private fun GenerateSummaryScreen(
                 Spacer(Modifier.height(8.dp))
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     state.availableTags.forEach { tag ->
-                        FilterChip(
+                        CompactFilterChip(
                             selected = tag in state.selectedSummaryTags,
                             onClick = { onToggleSummaryTag(tag) },
-                            label = { Text(tag) },
+                            label = tag,
                         )
                     }
                 }
             }
         }
         item {
-            Card(
-                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                shape = RoundedCornerShape(8.dp),
+            Column(
+                Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(MaterialTheme.colorScheme.surface)
+                    .clickable { onTemplateExpanded(!state.templateExpanded) }
+                    .padding(12.dp),
             ) {
-                Column(Modifier.fillMaxWidth().padding(12.dp)) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Column(Modifier.weight(1f)) {
-                            Text("模板", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-                            Text(
-                                if (state.templateExpanded) "可编辑" else "默认模板",
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                style = MaterialTheme.typography.bodySmall,
-                            )
-                        }
-                        TextButton(onClick = { onTemplateExpanded(!state.templateExpanded) }) {
-                            Text(if (state.templateExpanded) "收起" else "展开")
-                        }
-                    }
-                    if (state.templateExpanded) {
-                        Spacer(Modifier.height(8.dp))
-                        OutlinedTextField(
-                            value = state.templateText,
-                            onValueChange = onTemplateChange,
-                            minLines = 5,
-                            modifier = Modifier.fillMaxWidth(),
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Column(Modifier.weight(1f)) {
+                        Text("模板", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                        Text(
+                            if (state.templateExpanded) "可编辑" else "默认模板",
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            style = MaterialTheme.typography.bodySmall,
                         )
-                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-                            TextButton(onClick = { onTemplateChange(defaultTemplate(state.selectedPeriod)) }) {
-                                Text("恢复默认")
-                            }
-                            TextButton(onClick = onTemplateReset) {
-                                Text("重置")
-                            }
+                    }
+                    Icon(
+                        if (state.templateExpanded) Icons.Rounded.KeyboardArrowUp else Icons.Rounded.KeyboardArrowDown,
+                        contentDescription = null,
+                    )
+                }
+                if (state.templateExpanded) {
+                    Spacer(Modifier.height(8.dp))
+                    OutlinedTextField(
+                        value = state.templateText,
+                        onValueChange = onTemplateChange,
+                        minLines = 5,
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(6.dp),
+                    )
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                        TextButton(onClick = { onTemplateChange(defaultTemplate(state.selectedPeriod)) }) {
+                            Text("恢复默认")
+                        }
+                        TextButton(onClick = onTemplateReset) {
+                            Text("重置")
                         }
                     }
                 }
@@ -656,6 +882,7 @@ private fun GenerateSummaryScreen(
                 enabled = !state.isGeneratingSummary && state.clientConfig?.hostedModelAvailable != false,
                 modifier = Modifier.fillMaxWidth().height(48.dp),
                 shape = RoundedCornerShape(6.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
             ) {
                 if (state.isGeneratingSummary) {
                     CircularProgressIndicator(Modifier.size(18.dp), color = MaterialTheme.colorScheme.onPrimary)
@@ -676,12 +903,19 @@ private fun GenerateSummaryScreen(
                     border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
                     shape = RoundedCornerShape(8.dp),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
                 ) {
                     Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Text("最新总结", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
-                            IconButton(onClick = { clipboard.setText(AnnotatedString(output)) }) {
-                                Text("复制")
+                            IconButton(
+                                onClick = {
+                                    clipboard.setText(AnnotatedString(output))
+                                    coroutineScope.launch { snackbarHostState.showSnackbar("已复制总结。") }
+                                },
+                                modifier = Modifier.semantics { contentDescription = "复制最新总结" },
+                            ) {
+                                Icon(painterResource(R.drawable.ic_content_copy_round), contentDescription = null)
                             }
                         }
                         Text(output, style = MaterialTheme.typography.bodyMedium)
@@ -695,17 +929,20 @@ private fun GenerateSummaryScreen(
 @Composable
 private fun HistoryScreen(
     state: AIMemoUiState,
+    snackbarHostState: SnackbarHostState,
     onRefresh: () -> Unit,
 ) {
     var expandedId by rememberSaveable { mutableStateOf<String?>(null) }
     val clipboard = LocalClipboardManager.current
+    val coroutineScope = rememberCoroutineScope()
     Column(Modifier.fillMaxSize()) {
-        Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-            Text("历史记录", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
-            IconButton(onClick = onRefresh, enabled = !state.isLoadingHistory) {
-                Text("刷新")
-            }
-        }
+        PageHeader(
+            title = "历史记录",
+            subtitle = "${state.summaries.size} 条总结",
+            actionLabel = "刷新历史",
+            onAction = onRefresh,
+            enabled = !state.isLoadingHistory,
+        )
         if (state.isLoadingHistory && state.summaries.isEmpty()) {
             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
         } else if (state.summaries.isEmpty()) {
@@ -721,6 +958,8 @@ private fun HistoryScreen(
                             expandedId = if (expandedId == summary.id) null else summary.id
                         },
                         shape = RoundedCornerShape(8.dp),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
                         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
                     ) {
                         Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -735,12 +974,20 @@ private fun HistoryScreen(
                                         overflow = TextOverflow.Ellipsis,
                                     )
                                 }
-                                IconButton(onClick = { clipboard.setText(AnnotatedString(summary.output)) }) {
-                                    Text("复制")
+                                IconButton(
+                                    onClick = {
+                                        clipboard.setText(AnnotatedString(summary.output))
+                                        coroutineScope.launch { snackbarHostState.showSnackbar("已复制总结。") }
+                                    },
+                                    modifier = Modifier.semantics { contentDescription = "复制总结" },
+                                ) {
+                                    Icon(painterResource(R.drawable.ic_content_copy_round), contentDescription = null)
                                 }
                             }
                             if (summary.tags.isNotEmpty()) {
-                                Text(summary.tags.joinToString("、"), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.secondary)
+                                FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                    summary.tags.forEach { TagPill(it) }
+                                }
                             }
                             Text(
                                 summary.output,
@@ -768,15 +1015,17 @@ private fun AccountScreen(
     snackbarHostState: SnackbarHostState,
 ) {
     Scaffold(
+        containerColor = MaterialTheme.colorScheme.background,
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
-                title = { Text("我的") },
+                title = { Text("我的", fontWeight = FontWeight.SemiBold) },
                 navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Text("关闭")
+                    IconButton(onClick = onBack, modifier = Modifier.semantics { contentDescription = "返回" }) {
+                        Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = null)
                     }
                 },
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.background),
             )
         },
     ) { padding ->
@@ -823,6 +1072,7 @@ private fun LoginAccount(
             label = { Text("邮箱") },
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email, imeAction = ImeAction.Next),
             modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(6.dp),
         )
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
             OutlinedTextField(
@@ -831,11 +1081,13 @@ private fun LoginAccount(
                 label = { Text("验证码") },
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Done),
                 modifier = Modifier.weight(1f),
+                shape = RoundedCornerShape(6.dp),
             )
             OutlinedButton(
                 onClick = onSendCode,
                 enabled = !state.isSendingCode,
                 modifier = Modifier.height(56.dp),
+                shape = RoundedCornerShape(6.dp),
             ) {
                 if (state.isSendingCode) CircularProgressIndicator(Modifier.size(16.dp)) else Text("发送")
             }
@@ -844,6 +1096,7 @@ private fun LoginAccount(
             onClick = onLogin,
             enabled = !state.isLoggingIn,
             modifier = Modifier.fillMaxWidth().height(48.dp),
+            shape = RoundedCornerShape(6.dp),
         ) {
             if (state.isLoggingIn) CircularProgressIndicator(Modifier.size(18.dp), color = MaterialTheme.colorScheme.onPrimary) else Text("登录")
         }
@@ -871,7 +1124,10 @@ private fun LoggedInAccount(
         OutlinedButton(
             onClick = onLogout,
             modifier = Modifier.fillMaxWidth().height(48.dp),
+            shape = RoundedCornerShape(6.dp),
         ) {
+            Icon(painterResource(R.drawable.ic_logout_round), contentDescription = null, modifier = Modifier.size(18.dp))
+            Spacer(Modifier.width(8.dp))
             Text("退出登录")
         }
     }
@@ -882,6 +1138,8 @@ private fun InfoRow(label: String, value: String) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(8.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
     ) {
         Row(Modifier.fillMaxWidth().padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
