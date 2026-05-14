@@ -24,6 +24,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
@@ -55,6 +56,8 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.TextField
+import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.PrimaryTabRow
@@ -84,6 +87,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.automirrored.rounded.Send
@@ -358,13 +362,30 @@ private fun CompactFilterChip(
 private fun TagPill(label: String) {
     Surface(
         shape = RoundedCornerShape(999.dp),
+        color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.7f),
+        contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+    ) {
+        Text(
+            label,
+            modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
+            style = MaterialTheme.typography.labelSmall,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+    }
+}
+
+@Composable
+private fun itemTagPill(label: String) {
+    Surface(
+        shape = RoundedCornerShape(999.dp),
         color = MaterialTheme.colorScheme.surfaceVariant,
         contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
     ) {
         Text(
             label,
-            modifier = Modifier.padding(horizontal = 9.dp, vertical = 4.dp),
-            style = MaterialTheme.typography.labelMedium,
+            modifier = Modifier.padding(horizontal = 7.dp, vertical = 2.dp),
+            style = MaterialTheme.typography.labelSmall,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
         )
@@ -393,8 +414,14 @@ private fun CompletionIcon(completed: Boolean, modifier: Modifier = Modifier) {
 private val CompactDateFormatter: DateTimeFormatter =
     DateTimeFormatter.ofPattern("MM-dd HH:mm").withZone(ZoneId.systemDefault())
 
+private val CompactDayFormatter: DateTimeFormatter =
+    DateTimeFormatter.ofPattern("M/d").withZone(ZoneId.systemDefault())
+
 private fun formatInstant(value: Instant?): String =
     value?.let { CompactDateFormatter.format(it) } ?: "未完成"
+
+private fun compactTaskDate(task: TaskRecord): String =
+    CompactDayFormatter.format(if (task.isCompleted) task.completedAt ?: task.updatedAt else task.createdAt)
 
 private fun taskMeta(task: TaskRecord): String =
     if (task.isCompleted) "已完成 ${formatInstant(task.completedAt)}" else "开始 ${formatInstant(task.createdAt)}"
@@ -439,57 +466,73 @@ private fun QuickInputBar(
     var text by rememberSaveable { mutableStateOf("") }
     val focusManager = LocalFocusManager.current
     Surface(
-        color = MaterialTheme.colorScheme.surface,
-        shadowElevation = 8.dp,
+        color = MaterialTheme.colorScheme.background,
+        shadowElevation = 0.dp,
     ) {
-        Row(
+        Surface(
             modifier = Modifier
                 .fillMaxWidth()
                 .navigationBarsPadding()
                 .imePadding()
                 .padding(horizontal = 12.dp, vertical = 10.dp),
-            verticalAlignment = Alignment.Bottom,
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            shape = CircleShape,
+            color = MaterialTheme.colorScheme.surfaceVariant,
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+            tonalElevation = 1.dp,
         ) {
-            OutlinedTextField(
-                value = text,
-                onValueChange = { text = it.take(500) },
-                modifier = Modifier.weight(1f),
-                enabled = enabled,
-                minLines = 1,
-                maxLines = 4,
-                placeholder = { Text("像发消息一样添加任务") },
-                shape = RoundedCornerShape(18.dp),
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = MaterialTheme.colorScheme.primary,
-                    unfocusedBorderColor = MaterialTheme.colorScheme.outline,
-                    focusedContainerColor = MaterialTheme.colorScheme.background,
-                    unfocusedContainerColor = MaterialTheme.colorScheme.background,
-                ),
-                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
-            )
-            IconButton(
-                onClick = {
-                    val value = text.trim()
-                    if (value.isNotEmpty()) {
-                        onSend(value)
-                        text = ""
-                        focusManager.clearFocus()
-                    }
-                },
-                enabled = enabled && text.isNotBlank(),
-                modifier = Modifier.size(48.dp),
-                colors = IconButtonDefaults.filledIconButtonColors(
-                    containerColor = MaterialTheme.colorScheme.primary,
-                    contentColor = MaterialTheme.colorScheme.onPrimary,
-                    disabledContainerColor = MaterialTheme.colorScheme.surfaceVariant,
-                    disabledContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                ),
+            Row(
+                modifier = Modifier.padding(start = 12.dp, end = 6.dp, top = 4.dp, bottom = 4.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
             ) {
-                if (loading) {
-                    CircularProgressIndicator(modifier = Modifier.size(20.dp), color = MaterialTheme.colorScheme.onPrimary)
-                } else {
-                    Icon(Icons.AutoMirrored.Rounded.Send, contentDescription = "发送")
+                Text(
+                    "+",
+                    modifier = Modifier.width(24.dp),
+                    color = MaterialTheme.colorScheme.primary,
+                    fontSize = 24.sp,
+                    fontWeight = FontWeight.Medium,
+                )
+                TextField(
+                    value = text,
+                    onValueChange = { text = it.take(500) },
+                    modifier = Modifier.weight(1f),
+                    enabled = enabled,
+                    minLines = 1,
+                    maxLines = 4,
+                    placeholder = { Text("快速添加任务...") },
+                    colors = TextFieldDefaults.colors(
+                        focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                        unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                        disabledContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                        focusedIndicatorColor = androidx.compose.ui.graphics.Color.Transparent,
+                        unfocusedIndicatorColor = androidx.compose.ui.graphics.Color.Transparent,
+                        disabledIndicatorColor = androidx.compose.ui.graphics.Color.Transparent,
+                    ),
+                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
+                )
+                IconButton(
+                    onClick = {
+                        val value = text.trim()
+                        if (value.isNotEmpty()) {
+                            onSend(value)
+                            text = ""
+                            focusManager.clearFocus()
+                        }
+                    },
+                    enabled = enabled && text.isNotBlank(),
+                    modifier = Modifier.size(48.dp),
+                    colors = IconButtonDefaults.filledIconButtonColors(
+                        containerColor = MaterialTheme.colorScheme.primary,
+                        contentColor = MaterialTheme.colorScheme.onPrimary,
+                        disabledContainerColor = MaterialTheme.colorScheme.surface,
+                        disabledContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                    ),
+                ) {
+                    if (loading) {
+                        CircularProgressIndicator(modifier = Modifier.size(20.dp), color = MaterialTheme.colorScheme.onPrimary)
+                    } else {
+                        Icon(Icons.AutoMirrored.Rounded.Send, contentDescription = "发送")
+                    }
                 }
             }
         }
@@ -533,8 +576,8 @@ private fun TaskScreen(
             var editingTask by remember { mutableStateOf<TaskRecord?>(null) }
             var deletingTask by remember { mutableStateOf<TaskRecord?>(null) }
             LazyColumn(
-                contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 104.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
+                contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 6.dp, bottom = 112.dp),
+                verticalArrangement = Arrangement.spacedBy(6.dp),
             ) {
                 taskSection(
                     title = "进行中",
@@ -641,7 +684,7 @@ private fun androidx.compose.foundation.lazy.LazyListScope.taskSection(
             item(key = "$title-empty") {
                 Text(
                     if (title == "进行中") "今天没有待处理任务。" else "还没有未来开始的任务。",
-                    modifier = Modifier.padding(horizontal = 4.dp, vertical = 6.dp),
+                    modifier = Modifier.padding(horizontal = 4.dp, vertical = 4.dp),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -671,22 +714,24 @@ private fun TaskSectionHeader(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(top = 8.dp, bottom = 2.dp),
+            .padding(top = 10.dp, bottom = 0.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(
             "$title ($count)",
             modifier = Modifier.weight(1f),
-            style = MaterialTheme.typography.titleMedium,
+            style = MaterialTheme.typography.titleSmall,
             fontWeight = FontWeight.SemiBold,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
         IconButton(
             onClick = onToggle,
-            modifier = Modifier.size(48.dp).semantics { contentDescription = if (expanded) "收起$title" else "展开$title" },
+            modifier = Modifier.size(40.dp).semantics { contentDescription = if (expanded) "收起$title" else "展开$title" },
         ) {
             Icon(
                 if (expanded) Icons.Rounded.KeyboardArrowUp else Icons.Rounded.KeyboardArrowDown,
                 contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
     }
@@ -724,18 +769,19 @@ private fun TaskCard(
     onEdit: () -> Unit,
     onDelete: () -> Unit,
 ) {
-    Card(
+    Surface(
         modifier = Modifier.fillMaxWidth().clickable(onClick = onToggleExpanded),
         shape = RoundedCornerShape(8.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+        color = MaterialTheme.colorScheme.surface,
+        tonalElevation = if (expanded) 2.dp else 1.dp,
+        shadowElevation = if (expanded) 2.dp else 0.dp,
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
     ) {
-        Column(Modifier.padding(horizontal = 12.dp, vertical = 10.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Row(verticalAlignment = Alignment.Top, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        Column(Modifier.padding(horizontal = 10.dp, vertical = 9.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Row(verticalAlignment = Alignment.Top, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                 IconButton(
                     onClick = onToggleCompleted,
-                    modifier = Modifier.size(48.dp).semantics { contentDescription = if (task.isCompleted) "取消完成" else "标记完成" },
+                    modifier = Modifier.size(42.dp).semantics { contentDescription = if (task.isCompleted) "取消完成" else "标记完成" },
                 ) {
                     CompletionIcon(completed = task.isCompleted, modifier = Modifier.size(24.dp))
                 }
@@ -749,18 +795,35 @@ private fun TaskCard(
                         maxLines = if (expanded) Int.MAX_VALUE else 2,
                         overflow = TextOverflow.Ellipsis,
                     )
-                    Text(
-                        taskMeta(task),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
+                    if (task.tags.isNotEmpty() || !expanded) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        ) {
+                            if (task.tags.isNotEmpty()) {
+                                LazyRow(
+                                    modifier = Modifier.weight(1f),
+                                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                ) {
+                                    items(task.tags.take(4)) { tag -> itemTagPill(tag) }
+                                }
+                            } else {
+                                Spacer(Modifier.weight(1f))
+                            }
+                            Text(
+                                compactTaskDate(task),
+                                style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                maxLines = 1,
+                            )
+                        }
+                    }
                 }
-                IconButton(onClick = onEdit, modifier = Modifier.size(40.dp).semantics { contentDescription = "编辑任务" }) {
+                IconButton(onClick = onEdit, modifier = Modifier.size(36.dp).semantics { contentDescription = "编辑任务" }) {
                     Icon(Icons.Rounded.Edit, contentDescription = null)
                 }
-                IconButton(onClick = onDelete, modifier = Modifier.size(40.dp).semantics { contentDescription = "删除任务" }) {
+                IconButton(onClick = onDelete, modifier = Modifier.size(36.dp).semantics { contentDescription = "删除任务" }) {
                     Icon(
                         painterResource(R.drawable.ic_delete_outline_round),
                         contentDescription = null,
@@ -768,13 +831,13 @@ private fun TaskCard(
                     )
                 }
             }
-            if (task.tags.isNotEmpty()) {
-                FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    task.tags.forEach { tag -> TagPill(tag) }
-                }
-            }
             if (expanded) {
                 HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                if (task.tags.isNotEmpty()) {
+                    FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        task.tags.forEach { tag -> TagPill(tag) }
+                    }
+                }
                 Text(task.body, style = MaterialTheme.typography.bodyMedium)
                 Text("开始：${formatInstant(task.createdAt)}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 Text("完成：${formatInstant(task.completedAt)}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
