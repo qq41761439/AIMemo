@@ -81,6 +81,7 @@ import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.material.icons.Icons
@@ -97,6 +98,7 @@ import com.aimemo.app.domain.PeriodType
 import com.aimemo.app.domain.TaskRecord
 import com.aimemo.app.domain.defaultTemplate
 import com.aimemo.app.domain.periodRange
+import com.aimemo.app.domain.sectionTasks
 import kotlinx.coroutines.launch
 import java.time.Instant
 import java.time.ZoneId
@@ -398,9 +400,11 @@ private fun taskMeta(task: TaskRecord): String =
     if (task.isCompleted) "已完成 ${formatInstant(task.completedAt)}" else "开始 ${formatInstant(task.createdAt)}"
 
 private fun taskSubtitle(state: AIMemoUiState): String {
-    val total = state.tasks.count { it.deletedAt == null }
-    val open = state.tasks.count { it.deletedAt == null && !it.isCompleted }
-    return "$open 个待完成 · $total 条任务"
+    val sections = sectionTasks(state.filteredTasks)
+    val total = sections.active.size + sections.upcoming.size + sections.completed.size
+    val open = sections.active.size + sections.upcoming.size
+    val upcomingText = if (sections.upcoming.isNotEmpty()) " · ${sections.upcoming.size} 个即将开始" else ""
+    return "$open 个待完成$upcomingText · $total 条任务"
 }
 
 @Composable
@@ -503,6 +507,9 @@ private fun TaskScreen(
     onSaveTask: (TaskRecord, String, String, Instant, Instant?) -> Unit,
     onDeleteTask: (TaskRecord) -> Unit,
 ) {
+    var showActive by rememberSaveable { mutableStateOf(true) }
+    var showUpcoming by rememberSaveable { mutableStateOf(true) }
+    val sections = remember(state.filteredTasks) { sectionTasks(state.filteredTasks) }
     Column(modifier.fillMaxSize()) {
         PageHeader(
             title = "任务",
@@ -529,15 +536,48 @@ private fun TaskScreen(
                 contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 104.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
-                items(state.filteredTasks, key = { it.id }) { task ->
-                    TaskCard(
-                        task = task,
-                        expanded = state.expandedTaskId == task.id,
-                        onToggleExpanded = { onToggleExpanded(task.id) },
-                        onToggleCompleted = { onToggleCompleted(task) },
-                        onEdit = { editingTask = task },
-                        onDelete = { deletingTask = task },
-                    )
+                taskSection(
+                    title = "进行中",
+                    tasks = sections.active,
+                    expanded = showActive,
+                    onToggle = { showActive = !showActive },
+                    expandedTaskId = state.expandedTaskId,
+                    onToggleExpanded = onToggleExpanded,
+                    onToggleCompleted = onToggleCompleted,
+                    onEdit = { editingTask = it },
+                    onDelete = { deletingTask = it },
+                )
+                taskSection(
+                    title = "即将开始",
+                    tasks = sections.upcoming,
+                    expanded = showUpcoming,
+                    onToggle = { showUpcoming = !showUpcoming },
+                    expandedTaskId = state.expandedTaskId,
+                    onToggleExpanded = onToggleExpanded,
+                    onToggleCompleted = onToggleCompleted,
+                    onEdit = { editingTask = it },
+                    onDelete = { deletingTask = it },
+                )
+                if (sections.completed.isNotEmpty()) {
+                    item(key = "completed-header") {
+                        Text(
+                            "已完成 (${sections.completed.size})",
+                            modifier = Modifier.padding(top = 8.dp, bottom = 2.dp),
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.SemiBold,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    items(sections.completed, key = { "completed-${it.id}" }) { task ->
+                        TaskCard(
+                            task = task,
+                            expanded = state.expandedTaskId == task.id,
+                            onToggleExpanded = { onToggleExpanded(task.id) },
+                            onToggleCompleted = { onToggleCompleted(task) },
+                            onEdit = { editingTask = task },
+                            onDelete = { deletingTask = task },
+                        )
+                    }
                 }
             }
             editingTask?.let { task ->
@@ -573,6 +613,81 @@ private fun TaskScreen(
                     },
                 )
             }
+        }
+    }
+}
+
+private fun androidx.compose.foundation.lazy.LazyListScope.taskSection(
+    title: String,
+    tasks: List<TaskRecord>,
+    expanded: Boolean,
+    onToggle: () -> Unit,
+    expandedTaskId: String?,
+    onToggleExpanded: (String) -> Unit,
+    onToggleCompleted: (TaskRecord) -> Unit,
+    onEdit: (TaskRecord) -> Unit,
+    onDelete: (TaskRecord) -> Unit,
+) {
+    item(key = "$title-header") {
+        TaskSectionHeader(
+            title = title,
+            count = tasks.size,
+            expanded = expanded,
+            onToggle = onToggle,
+        )
+    }
+    if (expanded) {
+        if (tasks.isEmpty()) {
+            item(key = "$title-empty") {
+                Text(
+                    if (title == "进行中") "今天没有待处理任务。" else "还没有未来开始的任务。",
+                    modifier = Modifier.padding(horizontal = 4.dp, vertical = 6.dp),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        } else {
+            items(tasks, key = { "$title-${it.id}" }) { task ->
+                TaskCard(
+                    task = task,
+                    expanded = expandedTaskId == task.id,
+                    onToggleExpanded = { onToggleExpanded(task.id) },
+                    onToggleCompleted = { onToggleCompleted(task) },
+                    onEdit = { onEdit(task) },
+                    onDelete = { onDelete(task) },
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun TaskSectionHeader(
+    title: String,
+    count: Int,
+    expanded: Boolean,
+    onToggle: () -> Unit,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(top = 8.dp, bottom = 2.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            "$title ($count)",
+            modifier = Modifier.weight(1f),
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.SemiBold,
+        )
+        IconButton(
+            onClick = onToggle,
+            modifier = Modifier.size(48.dp).semantics { contentDescription = if (expanded) "收起$title" else "展开$title" },
+        ) {
+            Icon(
+                if (expanded) Icons.Rounded.KeyboardArrowUp else Icons.Rounded.KeyboardArrowDown,
+                contentDescription = null,
+            )
         }
     }
 }
@@ -629,6 +744,8 @@ private fun TaskCard(
                         task.title,
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.SemiBold,
+                        color = if (task.isCompleted) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurface,
+                        textDecoration = if (task.isCompleted) TextDecoration.LineThrough else TextDecoration.None,
                         maxLines = if (expanded) Int.MAX_VALUE else 2,
                         overflow = TextOverflow.Ellipsis,
                     )

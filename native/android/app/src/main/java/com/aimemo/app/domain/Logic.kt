@@ -18,6 +18,25 @@ fun sortTasks(tasks: List<TaskRecord>): List<TaskRecord> {
     )
 }
 
+data class TaskSections(
+    val active: List<TaskRecord>,
+    val upcoming: List<TaskRecord>,
+    val completed: List<TaskRecord>,
+)
+
+fun sectionTasks(
+    tasks: List<TaskRecord>,
+    today: LocalDate = LocalDate.now(),
+    zone: ZoneId = ZoneId.systemDefault(),
+): TaskSections {
+    val sorted = sortTasks(tasks)
+    return TaskSections(
+        active = sorted.filter { !it.isCompleted && !it.createdAt.atZone(zone).toLocalDate().isAfter(today) },
+        upcoming = sorted.filter { !it.isCompleted && it.createdAt.atZone(zone).toLocalDate().isAfter(today) },
+        completed = sorted.filter { it.isCompleted },
+    )
+}
+
 fun tagsFromTasks(tasks: List<TaskRecord>): List<String> {
     data class TagMarker(val updatedAt: Instant, val order: Int)
     val latestByTag = linkedMapOf<String, TagMarker>()
