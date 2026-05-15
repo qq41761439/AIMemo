@@ -301,21 +301,7 @@ class ModelSettingsRepository {
   Future<Map<String, Object?>?> requestConfig() async {
     final settings = await load();
     if (settings.mode == ModelMode.hosted) {
-      final hostedSession = await _readHostedSession();
-      if (hostedSession == null ||
-          hostedSession.accessToken.trim().isEmpty ||
-          settings.hostedBaseUrl.trim().isEmpty) {
-        await _store.saveAppSetting(_hasHostedSessionKey, 'false');
-        return null;
-      }
-      if (!settings.hasHostedSession) {
-        await _store.saveAppSetting(_hasHostedSessionKey, 'true');
-      }
-      return {
-        'mode': 'hosted',
-        'hosted_base_url': settings.hostedBaseUrl.trim(),
-        'access_token': hostedSession.accessToken.trim(),
-      };
+      return requestHostedConfig();
     }
 
     final apiKey = await _secureStorageOperation(
@@ -338,6 +324,25 @@ class ModelSettingsRepository {
       'api_key': apiKey.trim(),
       'base_url': settings.baseUrl.trim(),
       'model': settings.model.trim(),
+    };
+  }
+
+  Future<Map<String, Object?>?> requestHostedConfig() async {
+    final settings = await load();
+    final hostedSession = await _readHostedSession();
+    if (hostedSession == null ||
+        hostedSession.accessToken.trim().isEmpty ||
+        settings.hostedBaseUrl.trim().isEmpty) {
+      await _store.saveAppSetting(_hasHostedSessionKey, 'false');
+      return null;
+    }
+    if (!settings.hasHostedSession) {
+      await _store.saveAppSetting(_hasHostedSessionKey, 'true');
+    }
+    return {
+      'mode': 'hosted',
+      'hosted_base_url': settings.hostedBaseUrl.trim(),
+      'access_token': hostedSession.accessToken.trim(),
     };
   }
 

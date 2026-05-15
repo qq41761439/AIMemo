@@ -4,6 +4,7 @@ import 'package:aimemo/src/app.dart';
 import 'package:aimemo/src/models/app_run_mode.dart';
 import 'package:aimemo/src/models/model_settings.dart';
 import 'package:aimemo/src/models/period_type.dart';
+import 'package:aimemo/src/mobile/mobile_components.dart';
 import 'package:aimemo/src/providers.dart';
 import 'package:aimemo/src/services/app_database.dart';
 import 'package:aimemo/src/services/in_memory_memo_store.dart';
@@ -26,12 +27,19 @@ void main() {
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
     final database = InMemoryMemoStore();
+    final apiKeyVault = MemoryApiKeyVault();
+    final repository = _FakeHostedLoginRepository(
+      store: database,
+      apiKeyVault: apiKeyVault,
+    );
     addTearDown(database.close);
 
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
           appDatabaseProvider.overrideWithValue(database),
+          apiKeyVaultProvider.overrideWithValue(apiKeyVault),
+          modelSettingsRepositoryProvider.overrideWithValue(repository),
           appRunModeProvider.overrideWith((ref) async => AppRunMode.local),
         ],
         child: const AIMemoApp(forceMobileShell: true),
@@ -47,9 +55,11 @@ void main() {
       find.widgetWithText(TextField, 'Email'),
       'user@example.com',
     );
+    await tester.tap(find.widgetWithText(GradientButton, 'Send code'));
+    await _pumpFrame(tester);
     await tester.enterText(
-      find.widgetWithText(TextField, 'Password'),
-      'secret',
+      find.widgetWithText(TextField, 'Verification code'),
+      '123456',
     );
     await tester.tap(find.text('Log in'));
     await _pumpFrame(tester);
@@ -76,12 +86,19 @@ void main() {
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
     final database = InMemoryMemoStore();
+    final apiKeyVault = MemoryApiKeyVault();
+    final repository = _FakeHostedLoginRepository(
+      store: database,
+      apiKeyVault: apiKeyVault,
+    );
     addTearDown(database.close);
 
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
           appDatabaseProvider.overrideWithValue(database),
+          apiKeyVaultProvider.overrideWithValue(apiKeyVault),
+          modelSettingsRepositoryProvider.overrideWithValue(repository),
           appRunModeProvider.overrideWith((ref) async => AppRunMode.local),
         ],
         child: const AIMemoApp(forceMobileShell: true),
@@ -95,9 +112,11 @@ void main() {
       find.widgetWithText(TextField, 'Email'),
       'user@example.com',
     );
+    await tester.tap(find.widgetWithText(GradientButton, 'Send code'));
+    await _pumpFrame(tester);
     await tester.enterText(
-      find.widgetWithText(TextField, 'Password'),
-      'secret',
+      find.widgetWithText(TextField, 'Verification code'),
+      '123456',
     );
     await tester.tap(find.text('Log in'));
     await _pumpFrame(tester);
@@ -127,8 +146,7 @@ void main() {
     expect(find.text('Collapsible active task'), findsOneWidget);
   });
 
-  testWidgets('Flutter mobile summary uses configured model API',
-      (tester) async {
+  testWidgets('Flutter mobile summary uses hosted backend API', (tester) async {
     sqfliteFfiInit();
     databaseFactory = databaseFactoryFfi;
     tester.view.physicalSize = const Size(390, 844);
@@ -137,18 +155,11 @@ void main() {
     addTearDown(tester.view.resetDevicePixelRatio);
     final database = InMemoryMemoStore();
     final apiKeyVault = MemoryApiKeyVault();
-    final repository = ModelSettingsRepository(
+    final repository = _FakeHostedLoginRepository(
       store: database,
       apiKeyVault: apiKeyVault,
     );
     addTearDown(database.close);
-    await repository.save(
-      mode: ModelMode.custom,
-      baseUrl: 'https://example.test/v1',
-      model: 'test-model',
-      hostedBaseUrl: 'http://127.0.0.1:8787',
-      apiKey: 'placeholder-token',
-    );
 
     Uri? requestedUri;
     Map<String, Object?>? requestBody;
@@ -156,14 +167,9 @@ void main() {
       httpClient: MockClient((request) async {
         requestedUri = request.url;
         requestBody = jsonDecode(request.body) as Map<String, Object?>;
+        expect(request.headers['authorization'], 'Bearer hosted-token');
         return http.Response(
-          jsonEncode({
-            'choices': [
-              {
-                'message': {'content': 'LLM mobile report'},
-              },
-            ],
-          }),
+          jsonEncode({'summary': 'LLM mobile report'}),
           200,
           headers: const {'content-type': 'application/json'},
         );
@@ -190,9 +196,11 @@ void main() {
       find.widgetWithText(TextField, 'Email'),
       'user@example.com',
     );
+    await tester.tap(find.widgetWithText(GradientButton, 'Send code'));
+    await _pumpFrame(tester);
     await tester.enterText(
-      find.widgetWithText(TextField, 'Password'),
-      'secret',
+      find.widgetWithText(TextField, 'Verification code'),
+      '123456',
     );
     await tester.tap(find.text('Log in'));
     await _pumpFrame(tester);
@@ -212,9 +220,12 @@ void main() {
     await tester.tap(find.text('Generate Summary').last);
     await _pumpFrame(tester);
 
-    expect(requestedUri, Uri.parse('https://example.test/v1/chat/completions'));
     expect(
-      requestBody?['messages'].toString(),
+      requestedUri,
+      Uri.parse('https://aimemo-backend.onrender.com/summaries/generate'),
+    );
+    expect(
+      requestBody?['prompt'].toString(),
       contains('Prepare investor update'),
     );
     expect(find.text('LLM mobile report'), findsOneWidget);
@@ -732,7 +743,7 @@ void main() {
       openSummary: true,
     );
 
-    expect(find.text('官方托管'), findsOneWidget);
+    expect(find.textContaining('官方托管'), findsOneWidget);
 
     await database.close();
   });
@@ -771,7 +782,7 @@ void main() {
     await tester.tap(find.text('完成'));
     await _pumpFrame(tester);
 
-    expect(find.text('官方托管'), findsOneWidget);
+    expect(find.textContaining('官方托管'), findsOneWidget);
 
     await database.close();
   });
@@ -811,7 +822,7 @@ void main() {
     await tester.tap(find.text('完成'));
     await _pumpFrame(tester);
 
-    expect(find.text('官方托管'), findsOneWidget);
+    expect(find.textContaining('官方托管'), findsOneWidget);
 
     await database.close();
   });
@@ -841,7 +852,7 @@ void main() {
       openSummary: true,
     );
 
-    expect(find.text('官方托管'), findsOneWidget);
+    expect(find.textContaining('官方托管'), findsOneWidget);
 
     await tester.tap(find.byIcon(Icons.storage_outlined));
     await _pumpFrame(tester);
@@ -888,6 +899,33 @@ class _FakeHostedLoginRepository extends ModelSettingsRepository {
     required String code,
   }) async {
     _settings = _settings.copyWith(hasHostedSession: true);
+  }
+
+  @override
+  Future<Map<String, Object?>?> requestHostedConfig() async {
+    if (!_settings.hasHostedSession) {
+      return null;
+    }
+    return {
+      'mode': 'hosted',
+      'hosted_base_url': _settings.hostedBaseUrl.trim().isEmpty
+          ? ModelSettings.defaults().hostedBaseUrl
+          : _settings.hostedBaseUrl,
+      'access_token': 'hosted-token',
+    };
+  }
+
+  @override
+  Future<HostedQuota?> loadHostedQuota() async {
+    if (!_settings.hasHostedSession) {
+      return null;
+    }
+    return const HostedQuota(
+      period: '2026-05',
+      limit: 30,
+      used: 8,
+      remaining: 22,
+    );
   }
 
   @override

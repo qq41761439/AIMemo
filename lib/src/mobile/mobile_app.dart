@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../models/model_settings.dart';
 import '../models/period_type.dart';
 import '../models/summary_record.dart';
 import '../models/task_record.dart';
 import '../providers.dart';
+import '../services/model_settings_repository.dart';
 import '../services/period_utils.dart';
 import '../services/template_renderer.dart';
 import 'mobile_components.dart';
@@ -52,7 +54,6 @@ class _MobileShellState extends ConsumerState<_MobileShell> {
   Set<String> _summaryTags = <String>{};
   int? _expandedSummaryId;
   String? _latestSummaryOutput;
-  bool _authenticated = false;
   bool _generating = false;
 
   @override
@@ -63,9 +64,12 @@ class _MobileShellState extends ConsumerState<_MobileShell> {
           onContinue: _openAuth,
         ),
       _MobileRoute.auth => _AuthScreen(
-          onAuthenticated: () {
+          onAuthenticated: () async {
+            ref.invalidate(modelSettingsProvider);
+            ref.invalidate(appRunModeProvider);
+            ref.invalidate(hostedQuotaProvider);
+            ref.invalidate(hostedSummaryHistoryProvider);
             setState(() {
-              _authenticated = true;
               _route = _MobileRoute.tasks;
             });
           },
@@ -94,21 +98,11 @@ class _MobileShellState extends ConsumerState<_MobileShell> {
           onBack: () => _go(_MobileRoute.tasks),
           onSettings: () => _go(_MobileRoute.settings),
           onHistory: () => _go(_MobileRoute.summaryHistory),
-          onLogout: () {
-            setState(() {
-              _authenticated = false;
-              _route = _MobileRoute.auth;
-            });
-          },
+          onLogout: _logout,
         )),
       _MobileRoute.settings => _guarded(_SettingsScreen(
           onBack: () => _go(_MobileRoute.profile),
-          onLogout: () {
-            setState(() {
-              _authenticated = false;
-              _route = _MobileRoute.auth;
-            });
-          },
+          onLogout: _logout,
         )),
       _MobileRoute.summaryEntry => _guarded(_SummaryEntryScreen(
           selectedPeriod: _selectedPeriod,
@@ -149,17 +143,34 @@ class _MobileShellState extends ConsumerState<_MobileShell> {
   }
 
   Widget _guarded(Widget child) {
-    if (!_authenticated) {
-      return _AuthScreen(
-        onAuthenticated: () {
-          setState(() {
-            _authenticated = true;
-            _route = _MobileRoute.tasks;
-          });
-        },
-      );
-    }
-    return child;
+    final settings = ref.watch(modelSettingsProvider);
+    return settings.when(
+      data: (settings) {
+        if (!settings.hasHostedSession) {
+          return _AuthScreen(
+            onAuthenticated: () async {
+              ref.invalidate(modelSettingsProvider);
+              ref.invalidate(appRunModeProvider);
+              ref.invalidate(hostedQuotaProvider);
+              ref.invalidate(hostedSummaryHistoryProvider);
+              setState(() {
+                _route = _MobileRoute.tasks;
+              });
+            },
+          );
+        }
+        return child;
+      },
+      loading: () => const _MobileLoadingScreen(),
+      error: (error, _) => MobileScreen(
+        title: 'AIMemo',
+        child: StatusCard(
+          title: 'Could not load account',
+          message: error.toString(),
+          icon: Icons.error_outline_rounded,
+        ),
+      ),
+    );
   }
 
   void _openAuth() {
@@ -171,6 +182,20 @@ class _MobileShellState extends ConsumerState<_MobileShell> {
   void _go(_MobileRoute route) {
     setState(() {
       _route = route;
+    });
+  }
+
+  Future<void> _logout() async {
+    await ref.read(modelSettingsRepositoryProvider).clearHostedSession();
+    ref.invalidate(modelSettingsProvider);
+    ref.invalidate(appRunModeProvider);
+    ref.invalidate(hostedQuotaProvider);
+    ref.invalidate(hostedSummaryHistoryProvider);
+    if (!mounted) {
+      return;
+    }
+    setState(() {
+      _route = _MobileRoute.auth;
     });
   }
 
@@ -219,8 +244,9 @@ class _MobileShellState extends ConsumerState<_MobileShell> {
             template: template,
             prompt: prompt,
             periodDays: periodDays,
-            llmConfig:
-                await ref.read(modelSettingsRepositoryProvider).requestConfig(),
+            llmConfig: await ref
+                .read(modelSettingsRepositoryProvider)
+                .requestHostedConfig(),
           );
       await store.insertSummary(
         periodType: _selectedPeriod,
@@ -320,26 +346,26 @@ class _OnboardingScreen extends StatelessWidget {
   }
 }
 
-class _AuthScreen extends StatefulWidget {
+class _AuthScreen extends ConsumerStatefulWidget {
   const _AuthScreen({required this.onAuthenticated});
 
-  final VoidCallback onAuthenticated;
+  final Future<void> Function() onAuthenticated;
 
   @override
-  State<_AuthScreen> createState() => _AuthScreenState();
+  ConsumerState<_AuthScreen> createState() => _AuthScreenState();
 }
 
-class _AuthScreenState extends State<_AuthScreen> {
+class _AuthScreenState extends ConsumerState<_AuthScreen> {
   final _emailController = TextEditingController();
-  final _passwordController = TextEditingController();
-  bool _obscure = true;
+  final _codeController = TextEditingController();
+  bool _codeSent = false;
   bool _loading = false;
   String? _error;
 
   @override
   void dispose() {
     _emailController.dispose();
-    _passwordController.dispose();
+    _codeController.dispose();
     super.dispose();
   }
 
@@ -383,30 +409,22 @@ class _AuthScreenState extends State<_AuthScreen> {
                 ),
                 const SizedBox(height: 16),
                 TextField(
-                  controller: _passwordController,
-                  obscureText: _obscure,
+                  controller: _codeController,
+                  keyboardType: TextInputType.number,
                   textInputAction: TextInputAction.done,
-                  decoration: InputDecoration(
-                    hintText: 'Password',
-                    prefixIcon: const Icon(Icons.lock_outline_rounded),
-                    suffixIcon: IconButton(
-                      tooltip: _obscure ? 'Show password' : 'Hide password',
-                      onPressed: () => setState(() {
-                        _obscure = !_obscure;
-                      }),
-                      icon: Icon(
-                        _obscure
-                            ? Icons.visibility_outlined
-                            : Icons.visibility_off_outlined,
-                      ),
-                    ),
+                  decoration: const InputDecoration(
+                    hintText: 'Verification code',
+                    prefixIcon: Icon(Icons.pin_outlined),
                   ),
+                  onSubmitted: (_) => _verifyCode(),
                 ),
                 Align(
                   alignment: Alignment.centerRight,
                   child: TextButton(
-                    onPressed: _loading ? null : _comingSoon,
-                    child: const Text('Forgot password?'),
+                    onPressed: _loading ? null : _sendCode,
+                    child: Text(
+                      _codeSent ? 'Resend code' : 'Send code',
+                    ),
                   ),
                 ),
                 if (_error != null) ...[
@@ -422,10 +440,10 @@ class _AuthScreenState extends State<_AuthScreen> {
                   const SizedBox(height: 10),
                 ],
                 GradientButton(
-                  label: 'Log in',
+                  label: _codeSent ? 'Log in' : 'Send code',
                   icon: Icons.auto_awesome_rounded,
                   loading: _loading,
-                  onPressed: _submit,
+                  onPressed: _codeSent ? _verifyCode : _sendCode,
                 ),
                 const SizedBox(height: 18),
                 Row(
@@ -490,18 +508,11 @@ class _AuthScreenState extends State<_AuthScreen> {
     );
   }
 
-  Future<void> _submit() async {
+  Future<void> _sendCode() async {
     final email = _emailController.text.trim();
-    final password = _passwordController.text.trim();
     if (email.isEmpty || !email.contains('@')) {
       setState(() {
         _error = 'Enter a valid email address.';
-      });
-      return;
-    }
-    if (password.isEmpty) {
-      setState(() {
-        _error = 'Enter your password.';
       });
       return;
     }
@@ -509,14 +520,83 @@ class _AuthScreenState extends State<_AuthScreen> {
       _loading = true;
       _error = null;
     });
-    await Future<void>.delayed(const Duration(milliseconds: 250));
-    if (!mounted) {
+    try {
+      final repository = ref.read(modelSettingsRepositoryProvider);
+      final baseUrl = ModelSettings.defaults().hostedBaseUrl;
+      await repository.startHostedEmailLogin(
+        hostedBaseUrl: baseUrl,
+        email: email,
+      );
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _codeSent = true;
+        _loading = false;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Verification code sent.')),
+      );
+    } catch (error) {
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _loading = false;
+        _error = error.toString();
+      });
+    }
+  }
+
+  Future<void> _verifyCode() async {
+    final email = _emailController.text.trim();
+    final code = _codeController.text.trim();
+    if (email.isEmpty || !email.contains('@')) {
+      setState(() {
+        _error = 'Enter a valid email address.';
+      });
+      return;
+    }
+    if (code.isEmpty) {
+      setState(() {
+        _error = 'Enter the verification code.';
+      });
       return;
     }
     setState(() {
-      _loading = false;
+      _loading = true;
+      _error = null;
     });
-    widget.onAuthenticated();
+    try {
+      final repository = ref.read(modelSettingsRepositoryProvider);
+      final defaults = ModelSettings.defaults();
+      await repository.verifyHostedEmailLogin(
+        hostedBaseUrl: defaults.hostedBaseUrl,
+        email: email,
+        code: code,
+      );
+      await repository.save(
+        mode: ModelMode.hosted,
+        baseUrl: defaults.baseUrl,
+        model: defaults.model,
+        hostedBaseUrl: defaults.hostedBaseUrl,
+      );
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _loading = false;
+      });
+      await widget.onAuthenticated();
+    } catch (error) {
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _loading = false;
+        _error = error.toString();
+      });
+    }
   }
 
   void _comingSoon() {
@@ -1469,7 +1549,7 @@ class _SummaryHistoryScreen extends ConsumerWidget {
   }
 }
 
-class _ProfileScreen extends StatelessWidget {
+class _ProfileScreen extends ConsumerWidget {
   const _ProfileScreen({
     required this.onBack,
     required this.onSettings,
@@ -1483,7 +1563,8 @@ class _ProfileScreen extends StatelessWidget {
   final VoidCallback onLogout;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final quota = ref.watch(hostedQuotaProvider);
     return MobileScreen(
       title: 'Me',
       onBack: onBack,
@@ -1532,6 +1613,8 @@ class _ProfileScreen extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 16),
+          _QuotaCard(quota: quota),
+          const SizedBox(height: 16),
           _MenuGroup(
             rows: [
               _MenuRowData('Summary history', Icons.history_rounded, onHistory),
@@ -1559,6 +1642,184 @@ class _ProfileScreen extends StatelessWidget {
         const SnackBar(content: Text('This setting is coming soon.')),
       );
     };
+  }
+}
+
+class _QuotaCard extends StatelessWidget {
+  const _QuotaCard({required this.quota});
+
+  final AsyncValue<HostedQuota?> quota;
+
+  @override
+  Widget build(BuildContext context) {
+    return SoftCard(
+      child: quota.when(
+        data: (quota) {
+          if (quota == null) {
+            return const _QuotaCardContent(
+              remainingText: '--',
+              limitText: '--',
+              progress: 0,
+              subtitle: 'Log in to view free credits.',
+            );
+          }
+          final limit = quota.limit <= 0 ? 1 : quota.limit;
+          final progress = (quota.remaining / limit).clamp(0.0, 1.0);
+          return _QuotaCardContent(
+            remainingText: quota.remaining.toString(),
+            limitText: quota.limit.toString(),
+            progress: progress,
+            subtitle: 'Free credits',
+          );
+        },
+        loading: () => const _QuotaCardContent(
+          remainingText: '--',
+          limitText: '--',
+          progress: 0,
+          subtitle: 'Loading credits...',
+          loading: true,
+        ),
+        error: (error, _) => _QuotaCardContent(
+          remainingText: '--',
+          limitText: '--',
+          progress: 0,
+          subtitle: 'Could not load credits.',
+          error: error.toString(),
+        ),
+      ),
+    );
+  }
+}
+
+class _QuotaCardContent extends StatelessWidget {
+  const _QuotaCardContent({
+    required this.remainingText,
+    required this.limitText,
+    required this.progress,
+    required this.subtitle,
+    this.loading = false,
+    this.error,
+  });
+
+  final String remainingText;
+  final String limitText;
+  final double progress;
+  final String subtitle;
+  final bool loading;
+  final String? error;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Container(
+              width: 58,
+              height: 58,
+              decoration: BoxDecoration(
+                color: MobileTokens.primarySoft,
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: const Icon(
+                Icons.auto_awesome_rounded,
+                color: MobileTokens.primary,
+                size: 30,
+              ),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(subtitle,
+                      style: Theme.of(context).textTheme.titleMedium),
+                  const SizedBox(height: 4),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Text(
+                        remainingText,
+                        style:
+                            Theme.of(context).textTheme.headlineSmall?.copyWith(
+                                  color: MobileTokens.primary,
+                                  fontSize: 34,
+                                  fontWeight: FontWeight.w800,
+                                ),
+                      ),
+                      Padding(
+                        padding: const EdgeInsets.only(left: 6, bottom: 5),
+                        child: Text(
+                          '/ $limitText',
+                          style:
+                              Theme.of(context).textTheme.titleMedium?.copyWith(
+                                    color: MobileTokens.muted,
+                                  ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            if (loading)
+              const SizedBox(
+                width: 22,
+                height: 22,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              )
+            else
+              OutlinedButton(
+                onPressed: () {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Upgrade is coming soon.')),
+                  );
+                },
+                child: const Text('Upgrade'),
+              ),
+          ],
+        ),
+        const SizedBox(height: 16),
+        ClipRRect(
+          borderRadius: BorderRadius.circular(999),
+          child: LinearProgressIndicator(
+            value: progress,
+            minHeight: 8,
+            backgroundColor: MobileTokens.primarySoft,
+            valueColor: const AlwaysStoppedAnimation<Color>(
+              MobileTokens.primary,
+            ),
+          ),
+        ),
+        if (error != null) ...[
+          const SizedBox(height: 8),
+          Text(
+            error!,
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: MobileTokens.danger,
+                ),
+          ),
+        ],
+      ],
+    );
+  }
+}
+
+class _MobileLoadingScreen extends StatelessWidget {
+  const _MobileLoadingScreen();
+
+  @override
+  Widget build(BuildContext context) {
+    return const MobileScreen(
+      title: 'AIMemo',
+      child: Center(
+        child: Padding(
+          padding: EdgeInsets.only(top: 180),
+          child: CircularProgressIndicator(strokeWidth: 2),
+        ),
+      ),
+    );
   }
 }
 

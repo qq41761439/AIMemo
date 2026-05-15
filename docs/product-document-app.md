@@ -48,9 +48,9 @@
 
 * 功能：
 
-  * 输入邮箱/密码登录
-  * 支持第三方登录（可选）
-  * 忘记密码
+  * 首版使用 AIMemo 后端邮箱验证码登录，登录态用于同步、总结生成和额度查询
+  * 支持第三方登录（可选，后续接入）
+  * 忘记密码（后续接入）
   * 登录、注册、忘记密码和第三方登录都需要 loading、success、error 和 disabled 状态
 * 风格：
 
@@ -109,6 +109,7 @@
 * 功能：
 
   * 账户信息、头像、通知、帮助与反馈
+  * 展示本月可用免费总结额度，样式参考 `assets/prototypes/main-profile.png`
   * Profile 不替代 Settings；更细的账户设置、同步、隐私与帮助入口放在 Settings
 * 简洁卡片布局，紫色点缀
 
@@ -127,6 +128,7 @@
 * Hero 卡片：AI Summary
 * 生成按钮：Generate Summary
 * 报告类型选择：Daily / Weekly / Monthly / Custom
+* 移动 App 首版只调用 AIMemo 后端托管模型生成总结，不展示自定义模型 API Key、Base URL 或 Model 配置
 * 点击生成 → Summary 生成结果页
 * 点击历史 → Summary 历史列表页
 
