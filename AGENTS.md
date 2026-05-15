@@ -16,6 +16,13 @@ This guide is for coding agents working in this repository. Follow it before fin
 - Update `README.md` when behavior, setup, workflow, templates, API shape, or user-facing features change.
 - Commit completed work to git. Do not leave finished work uncommitted unless the user explicitly says not to commit.
 
+## Current App Direction
+
+- Current mobile app work is focused on the Flutter app.
+- For iOS/Android mobile features, prefer `lib/src/mobile/`, `lib/src/mobile/mobile_components.dart`, and `lib/src/mobile/mobile_theme.dart`.
+- Use `docs/product-document-app.md`, `docs/mobile-component-system.md`, and `assets/prototypes/` as the mobile product and visual references.
+- Do not modify `native/android/` for current mobile feature work unless the user explicitly asks for the paused native Android Compose app.
+
 ## Verification
 
 Run the checks that match the files touched:

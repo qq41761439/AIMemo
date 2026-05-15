@@ -6,7 +6,7 @@ AIMemo 是一个待办 + 周期总结工具。桌面端和移动端使用 Flutte
 
 ## 当前状态
 
-记录时间：2026-05-12
+记录时间：2026-05-15
 
 - Flutter 桌面主界面、任务管理、标签筛选、模板编辑、总结生成入口和总结历史已完成。
 - 任务列表只有存在可用标签时才显示标签筛选条，避免无标签任务出现空标签提示。
@@ -16,6 +16,7 @@ AIMemo 是一个待办 + 周期总结工具。桌面端和移动端使用 Flutte
 - 任务列表和总结历史支持下拉刷新；登录同步模式会同步云端任务，官方托管历史会重新拉取云端总结。
 - 移动端标签筛选、任务卡片标签和记录表单候选标签使用紧凑展示，避免标签过多时撑乱页面。
 - 移动端记录表单支持在短屏和键盘场景下滚动填写任务内容、标签和提交按钮，点击空白处会收起键盘。
+- Flutter 移动端 Tasks 页面支持点击 Active、Upcoming 和 Completed 分组标题展开或收起对应任务列表。
 - 任务支持设置开始时间；任务列表中未完成任务按开始时间倒序，已完成任务按完成时间倒序。
 - 周期总结会纳入与所选周期有交集的任务，包括周期前开始但周期内完成或仍未完成的任务。
 - macOS 桌面版已接入 SQLite；Web 预览版使用内存 demo 数据。
@@ -26,7 +27,7 @@ AIMemo 是一个待办 + 周期总结工具。桌面端和移动端使用 Flutte
 - 自定义模型服务由桌面客户端直连，真实 API Key 保存在系统安全存储。
 - 打开桌面应用时会先让用户选择“本地运行”或“登录同步”；登录同步复用 AIMemo 官方账号的邮箱验证码登录。
 - 官方托管模式支持登录状态自动刷新、免费额度展示和云端总结历史查看，并与登录同步入口共用同一套账号会话。
-- 原生 Android Debug 包默认连接本机后端 `http://10.0.2.2:8787`；Release 包默认连接 `https://aimemo-backend.onrender.com`。
+- 原生 Android Debug 包默认连接本机后端 `http://10.0.2.2:8787`；Release 包默认连接 `https://aimemo-backend.onrender.com`，但该工程仅作历史探索保留。
 - 后端已支持 Resend API 和 SMTP 邮件发送；Render 免费档建议优先配置 `RESEND_*`，否则邮箱验证码仍会只打印在后端日志。开发和联调时也可以直接输入 `1234` 作为万能验证码登录。
 - 模型设置支持在官方模型和自定义模型之间保存切换；已登录官方账号时选择官方模型并完成会立即生效。
 - 桌面 SQLite 任务已记录 `clientId`、`cloudId`、`syncStatus` 和 `updatedAt` 同步元数据；后端任务创建支持 `clientId` 幂等去重。
@@ -62,6 +63,8 @@ flutter pub get
 flutter run -d ios
 flutter run -d android
 ```
+
+移动端主线开发请优先修改 `lib/src/mobile/`、`lib/src/mobile/mobile_components.dart` 和 `lib/src/mobile/mobile_theme.dart`，并参考 [Flutter 移动组件系统](docs/mobile-component-system.md)。`native/android/` 是暂停保留的 Compose 探索工程，除非专门处理历史原生 Android 包，否则不要作为移动端功能主线修改。
 
 暂停保留的原生 Android App：
 
