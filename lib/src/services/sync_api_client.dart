@@ -16,9 +16,13 @@ class SyncConfig {
 
   String get normalizedBaseUrl => baseUrl.trim().replaceAll(RegExp(r'/+$'), '');
 
-  Map<String, String> get headers => {
-        'content-type': 'application/json',
+  Map<String, String> get authHeaders => {
         'authorization': 'Bearer ${accessToken.trim()}',
+      };
+
+  Map<String, String> get jsonHeaders => {
+        ...authHeaders,
+        'content-type': 'application/json',
       };
 }
 
@@ -47,7 +51,7 @@ class SyncApiClient {
           'limit': limit.toString(),
         },
       );
-      return _httpClient.get(uri, headers: config.headers);
+      return _httpClient.get(uri, headers: config.authHeaders);
     });
     _throwForError(response, '拉取任务失败');
 
@@ -67,7 +71,7 @@ class SyncApiClient {
       final uri = Uri.parse('${config.normalizedBaseUrl}/tasks');
       return _httpClient.post(
         uri,
-        headers: config.headers,
+        headers: config.jsonHeaders,
         body: jsonEncode(_taskPayload(task, includeClientId: true)),
       );
     });
@@ -84,7 +88,7 @@ class SyncApiClient {
       final uri = Uri.parse('${config.normalizedBaseUrl}/tasks/$cloudId');
       return _httpClient.patch(
         uri,
-        headers: config.headers,
+        headers: config.jsonHeaders,
         body: jsonEncode(_taskPayload(task)),
       );
     });
@@ -99,7 +103,7 @@ class SyncApiClient {
     }
     final response = await _request((config) {
       final uri = Uri.parse('${config.normalizedBaseUrl}/tasks/$cloudId');
-      return _httpClient.delete(uri, headers: config.headers);
+      return _httpClient.delete(uri, headers: config.authHeaders);
     });
     _throwForError(response, '删除任务失败');
     return _taskFromResponse(response);

@@ -234,6 +234,33 @@ describe('AIMemo backend API', () => {
     await app.close();
   });
 
+  test('returns parser errors without converting them to internal errors', async () => {
+    const { app, login } = await testApp();
+    const session = await login();
+    const created = await app.inject({
+      method: 'POST',
+      url: '/tasks',
+      headers: bearer(session.accessToken),
+      payload: { body: '待删任务', tags: [] },
+    });
+
+    const deleted = await app.inject({
+      method: 'DELETE',
+      url: `/tasks/${created.json().task.id}`,
+      headers: {
+        ...bearer(session.accessToken),
+        'content-type': 'application/json',
+      },
+      payload: '',
+    });
+
+    expect(deleted.statusCode).toBe(400);
+    expect(deleted.json()).toMatchObject({
+      error: { code: 'FST_ERR_CTP_EMPTY_JSON_BODY' },
+    });
+    await app.close();
+  });
+
   test('creates tasks idempotently by client id', async () => {
     const { app, login } = await testApp();
     const session = await login();

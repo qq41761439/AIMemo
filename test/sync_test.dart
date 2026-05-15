@@ -90,6 +90,46 @@ void main() {
       expect(result.tasks, isEmpty);
       expect(calls, 2);
     });
+
+    test('pushes task deletes without json content type', () async {
+      final client = SyncApiClient(
+        config: const SyncConfig(
+          baseUrl: 'https://backend.example.test',
+          accessToken: 'token',
+        ),
+        httpClient: MockClient((request) async {
+          expect(request.method, 'DELETE');
+          expect(request.url.path, '/tasks/cloud-1');
+          expect(request.headers['authorization'], 'Bearer token');
+          expect(request.headers.containsKey('content-type'), isFalse);
+          expect(request.body, isEmpty);
+
+          return _jsonResponse({
+            'task': _remoteTaskJson(
+              id: 'cloud-1',
+              body: '待删任务',
+              tags: const [],
+              clientId: 'client-1',
+              deletedAt: '2026-05-12T10:00:00.000Z',
+            ),
+          });
+        }),
+      );
+
+      final task = await client.pushDelete(
+        TaskRecord(
+          id: 1,
+          title: '待删任务',
+          content: '',
+          tags: const [],
+          createdAt: DateTime.utc(2026, 5, 12, 9),
+          cloudId: 'cloud-1',
+          clientId: 'client-1',
+        ),
+      );
+
+      expect(task.deletedAt, isNotNull);
+    });
   });
 
   group('AppDatabase sync helpers', () {

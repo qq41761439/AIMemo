@@ -117,6 +117,15 @@ export async function createServer(
         error: { code: 'validation_failed', message: error.issues[0]?.message },
       });
     }
+    if (hasHttpStatusCode(error)) {
+      app.log.warn(error);
+      return reply.status(error.statusCode).send({
+        error: {
+          code: error.code ?? 'bad_request',
+          message: error.message,
+        },
+      });
+    }
     app.log.error(error);
     return reply.status(500).send({
       error: { code: 'internal_error', message: '服务暂时不可用。' },
@@ -423,4 +432,21 @@ function truncateForLog(value: string): string {
     return value;
   }
   return `${value.slice(0, maxLoggedStringLength)}... [truncated]`;
+}
+
+function hasHttpStatusCode(error: unknown): error is {
+  statusCode: number;
+  code?: string;
+  message: string;
+} {
+  if (!error || typeof error !== 'object') {
+    return false;
+  }
+  const candidate = error as { statusCode?: unknown; message?: unknown };
+  return (
+    typeof candidate.statusCode === 'number' &&
+    candidate.statusCode >= 400 &&
+    candidate.statusCode < 500 &&
+    typeof candidate.message === 'string'
+  );
 }
