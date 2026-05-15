@@ -30,6 +30,7 @@ Run the checks that match the files touched:
 - Flutter changes:
   - `flutter analyze`
   - `flutter test`
+  - For iOS/Android app changes, update the running simulator/emulator after the change and verify the affected screen when practical.
 
 - Native Android changes:
   - Run the relevant Gradle unit or UI checks.
