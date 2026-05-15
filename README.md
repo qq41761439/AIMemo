@@ -88,21 +88,13 @@ cd native/android
 cd backend
 npm install
 cp .env.example .env
-npm run prisma:generate
-npm run dev
-```
-
-后端使用本地 Postgres 持久化：
-
-```bash
-cd backend
 npm run db:up
-# 将 backend/.env 里的 DATA_STORE 改成 prisma
+npm run prisma:generate
 npm run prisma:push
 npm run dev
 ```
 
-查看后端用户记录：
+后端开发环境默认使用本地 Postgres 持久化；查看后端用户记录：
 
 ```bash
 cd backend

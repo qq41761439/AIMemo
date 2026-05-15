@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 
-import type { DataStore } from './store.js';
+import type { DataStore } from '../src/store.js';
 import type {
   CreateSummaryInput,
   CreateTaskInput,
@@ -11,15 +11,18 @@ import type {
   TaskRecord,
   UpdateTaskInput,
   User,
-} from './types.js';
+} from '../src/types.js';
 
-export class InMemoryStore implements DataStore {
+export class TestStore implements DataStore {
   private readonly users = new Map<string, User>();
   private readonly emailCodes = new Map<string, EmailLoginCode>();
   private readonly refreshSessions = new Map<string, RefreshSession>();
   private readonly tasks = new Map<string, TaskRecord>();
   private readonly summaries = new Map<string, SummaryRecord>();
-  private readonly quotas = new Map<string, { period: string; limit: number; used: number }>();
+  private readonly quotas = new Map<
+    string,
+    { period: string; limit: number; used: number }
+  >();
 
   async saveEmailCode(
     email: string,
@@ -50,7 +53,9 @@ export class InMemoryStore implements DataStore {
   }
 
   async findOrCreateUserByEmail(email: string): Promise<User> {
-    const existing = [...this.users.values()].find((user) => user.email === email);
+    const existing = [...this.users.values()].find(
+      (user) => user.email === email,
+    );
     if (existing) {
       return existing;
     }
@@ -123,7 +128,7 @@ export class InMemoryStore implements DataStore {
     const key = `${userId}:${period}`;
     const record = this.quotas.get(key) ?? { period, limit, used: 0 };
     this.quotas.set(key, { ...record, limit });
-    return toQuota(record.period, limit, record.used);
+    return quota(record.period, limit, record.used);
   }
 
   async incrementQuota(
@@ -135,7 +140,7 @@ export class InMemoryStore implements DataStore {
     const record = this.quotas.get(key) ?? { period, limit, used: 0 };
     const next = { period, limit, used: record.used + 1 };
     this.quotas.set(key, next);
-    return toQuota(period, limit, next.used);
+    return quota(period, limit, next.used);
   }
 
   async listTasks(
@@ -210,7 +215,10 @@ export class InMemoryStore implements DataStore {
     return task;
   }
 
-  async softDeleteTask(userId: string, taskId: string): Promise<TaskRecord | null> {
+  async softDeleteTask(
+    userId: string,
+    taskId: string,
+  ): Promise<TaskRecord | null> {
     const existing = this.tasks.get(taskId);
     if (!existing || existing.userId !== userId || existing.deletedAt) {
       return null;
@@ -221,17 +229,16 @@ export class InMemoryStore implements DataStore {
   }
 
   async listTags(userId: string): Promise<string[]> {
-    const firstSeen = new Map<string, number>();
+    const latest = new Map<string, number>();
     for (const task of this.tasks.values()) {
       if (task.userId !== userId || task.deletedAt) {
         continue;
       }
       for (const tag of task.tags) {
-        const seen = firstSeen.get(tag) ?? 0;
-        firstSeen.set(tag, Math.max(seen, task.updatedAt.getTime()));
+        latest.set(tag, Math.max(latest.get(tag) ?? 0, task.updatedAt.getTime()));
       }
     }
-    return [...firstSeen.entries()]
+    return [...latest.entries()]
       .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
       .map(([tag]) => tag);
   }
@@ -259,7 +266,7 @@ export class InMemoryStore implements DataStore {
   }
 }
 
-function toQuota(period: string, limit: number, used: number): QuotaRecord {
+function quota(period: string, limit: number, used: number): QuotaRecord {
   return {
     period,
     limit,

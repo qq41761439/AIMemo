@@ -94,7 +94,7 @@ class _MobileShellState extends ConsumerState<_MobileShell> {
       _MobileRoute.summary => _guarded(_SummaryMainScreen(
           onOpenTasks: () => _go(_MobileRoute.tasks),
           onOpenProfile: () => _go(_MobileRoute.profile),
-          onGenerate: () => _go(_MobileRoute.summaryEntry),
+          onGenerate: _openSummaryEntry,
           onHistory: () => _go(_MobileRoute.summaryHistory),
         )),
       _MobileRoute.taskEdit => _guarded(_TaskEditScreen(
@@ -182,6 +182,20 @@ class _MobileShellState extends ConsumerState<_MobileShell> {
     setState(() {
       _route = route;
     });
+  }
+
+  Future<void> _openSummaryEntry() async {
+    _go(_MobileRoute.summaryEntry);
+    try {
+      await _syncMobileTasks(ref);
+    } catch (error) {
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Task sync failed: $error')),
+      );
+    }
   }
 
   Future<void> _completeAuthentication() async {

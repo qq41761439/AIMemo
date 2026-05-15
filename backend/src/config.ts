@@ -1,7 +1,7 @@
 import { execFileSync } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
 
-export type DataStoreMode = 'memory' | 'prisma';
+export type DataStoreMode = 'prisma';
 
 export type AppConfig = {
   nodeEnv: string;
@@ -40,7 +40,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     nodeEnv,
     host: env.HOST ?? (nodeEnv === 'production' ? '0.0.0.0' : '127.0.0.1'),
     port: parseInt(env.PORT ?? '8787', 10),
-    dataStore: parseDataStore(env.DATA_STORE, nodeEnv),
+    dataStore: parseDataStore(env.DATA_STORE),
     authSecret: env.AUTH_SECRET ?? 'dev-only-change-me',
     accessTokenTtl: env.ACCESS_TOKEN_TTL ?? '30d',
     refreshTokenDays: parseInt(env.REFRESH_TOKEN_DAYS ?? '30', 10),
@@ -106,16 +106,10 @@ function isPlaceholderApiKey(value: string): boolean {
   return value === 'replace-with-real-provider-key';
 }
 
-function parseDataStore(
-  value: string | undefined,
-  nodeEnv: string,
-): DataStoreMode {
+function parseDataStore(value: string | undefined): DataStoreMode {
   const normalized = value?.trim().toLowerCase();
   if (!normalized) {
-    return nodeEnv === 'production' ? 'prisma' : 'memory';
-  }
-  if (['memory', 'in-memory', 'in_memory'].includes(normalized)) {
-    return 'memory';
+    return 'prisma';
   }
   if (['prisma', 'postgres', 'postgresql'].includes(normalized)) {
     return 'prisma';

@@ -8,7 +8,6 @@ import { loadConfig } from './config.js';
 import { createEmailSender } from './email.js';
 import type { EmailSender } from './email.js';
 import { AppError, badRequest, notFound, quotaExceeded, unauthorized } from './errors.js';
-import { InMemoryStore } from './inMemoryStore.js';
 import type { LlmClient } from './llm.js';
 import { OpenAiCompatibleClient } from './llm.js';
 import type { DataStore } from './store.js';
@@ -54,7 +53,7 @@ export async function createServer(
 ): Promise<FastifyInstance> {
   const config = dependencies.config ?? loadConfig();
   const app = Fastify({ logger: config.nodeEnv !== 'test' });
-  const store = dependencies.store ?? (await createDefaultStore(config));
+  const store = dependencies.store ?? (await createDefaultStore());
   const auth = new AuthService(store, config);
   const emailSender = dependencies.emailSender ?? createEmailSender(config);
   const llmClient = dependencies.llmClient ?? new OpenAiCompatibleClient(config);
@@ -288,10 +287,7 @@ export async function createServer(
   return app;
 }
 
-async function createDefaultStore(config: AppConfig): Promise<DataStore> {
-  if (config.dataStore === 'memory') {
-    return new InMemoryStore();
-  }
+async function createDefaultStore(): Promise<DataStore> {
   const { PrismaStore } = await import('./prismaStore.js');
   return new PrismaStore();
 }

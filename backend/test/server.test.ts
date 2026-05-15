@@ -7,10 +7,10 @@ import {
   SmtpEmailSender,
   createEmailSender,
 } from '../src/email.js';
-import { InMemoryStore } from '../src/inMemoryStore.js';
 import { OpenAiCompatibleClient, type LlmClient } from '../src/llm.js';
 import { createServer } from '../src/server.js';
 import type { WechatClient } from '../src/wechat.js';
+import { TestStore } from './testStore.js';
 
 describe('AIMemo backend API', () => {
   test('logs in with email code and returns current user quota', async () => {
@@ -34,43 +34,13 @@ describe('AIMemo backend API', () => {
     await app.close();
   });
 
-  test('uses in-memory store by default during local development', async () => {
-    let latestCode = '';
+  test('uses Prisma store by default during local development', () => {
     const localConfig = loadConfig({
       NODE_ENV: 'development',
       AUTH_SECRET: 'test-secret',
+      LLM_API_KEY_KEYCHAIN_DISABLED: 'true',
     });
-    expect(localConfig.dataStore).toBe('memory');
-    const config = {
-      ...localConfig,
-      nodeEnv: 'test',
-      authSecret: 'test-secret',
-    };
-
-    const app = await createServer({
-      config,
-      emailSender: {
-        async sendLoginCode(_email, code) {
-          latestCode = code;
-        },
-      },
-      llmClient: fakeLlm('测试总结。'),
-    });
-
-    const started = await app.inject({
-      method: 'POST',
-      url: '/auth/email/start',
-      payload: { email: 'user@example.com' },
-    });
-    const verified = await app.inject({
-      method: 'POST',
-      url: '/auth/email/verify',
-      payload: { email: 'user@example.com', code: latestCode },
-    });
-
-    expect(started.statusCode).toBe(200);
-    expect(verified.statusCode).toBe(200);
-    await app.close();
+    expect(localConfig.dataStore).toBe('prisma');
   });
 
   test('allows the universal login code 1234', async () => {
@@ -399,7 +369,7 @@ async function testApp(options: {
   };
   const app = await createServer({
     config,
-    store: new InMemoryStore(),
+    store: new TestStore(),
     emailSender: {
       async sendLoginCode(_email, code) {
         latestCode = code;

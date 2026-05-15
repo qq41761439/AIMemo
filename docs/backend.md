@@ -8,26 +8,26 @@
 cd backend
 npm install
 cp .env.example .env
+npm run db:up
 npm run prisma:generate
+npm run prisma:push
 npm run dev
 ```
 
-本地开发默认 `DATA_STORE=memory`，不需要先启动 Postgres；邮箱验证码会打印到后端控制台，重启后登录码、会话和云端数据会清空。后端默认监听 `127.0.0.1:8787`。
+本地开发默认 `DATA_STORE=prisma`，使用 `backend/docker-compose.yml` 启动的本地 Postgres 持久化保存用户、任务、总结、登录会话和额度。邮箱验证码会打印到后端控制台；后端默认监听 `127.0.0.1:8787`。
 
 登录 token 默认 30 天过期：`ACCESS_TOKEN_TTL=30d`，`REFRESH_TOKEN_DAYS=30`。
 
 如果端口已被旧服务占用，先结束旧进程再重新运行。
 
-## 使用 Postgres 持久化
-
-如果要稳定查看后端用户记录，把后端切到本地 Postgres 持久化模式：
+## 本地 Postgres
 
 ```bash
 cd backend
 npm run db:up
 ```
 
-然后把 `backend/.env` 里的 `DATA_STORE` 改成 `prisma`，确认 `DATABASE_URL` 是：
+确认 `backend/.env` 里的 `DATABASE_URL` 是：
 
 ```text
 DATABASE_URL=postgresql://aimemo:aimemo@localhost:5432/aimemo
@@ -90,7 +90,7 @@ SMTP_FROM=AIMemo <mailer@example.com>
 SMTP_SECURE=false
 ```
 
-如果本地开发也需要持久化后端数据，可以把 `.env` 里的 `DATA_STORE` 改为 `prisma`，并提供可连接且已同步结构的 `DATABASE_URL`；仓库内的 `backend/docker-compose.yml` 已经提供了本地 Postgres。
+本地开发不再提供后端内存数据源；如果 `DATA_STORE` 未设置，也会默认使用 `prisma`。
 
 微信小程序登录需要配置：
 
