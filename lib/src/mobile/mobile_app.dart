@@ -9,6 +9,7 @@ import '../providers.dart';
 import '../services/model_settings_repository.dart';
 import '../services/period_utils.dart';
 import '../services/template_renderer.dart';
+import '../services/task_body.dart';
 import '../platform/mobile_platform.dart';
 import 'mobile_components.dart';
 import 'mobile_theme.dart';
@@ -887,8 +888,7 @@ class _TaskEditScreen extends ConsumerStatefulWidget {
 }
 
 class _TaskEditScreenState extends ConsumerState<_TaskEditScreen> {
-  late final TextEditingController _titleController;
-  late final TextEditingController _notesController;
+  late final TextEditingController _taskController;
   late final TextEditingController _tagsController;
   late DateTime _startTime;
   late bool _completed;
@@ -900,8 +900,9 @@ class _TaskEditScreenState extends ConsumerState<_TaskEditScreen> {
   void initState() {
     super.initState();
     final task = widget.task;
-    _titleController = TextEditingController(text: task?.title ?? '');
-    _notesController = TextEditingController(text: task?.content ?? '');
+    _taskController = TextEditingController(
+      text: task == null ? '' : taskBodyFromRecord(task),
+    );
     _tagsController = TextEditingController(text: task?.tags.join(', ') ?? '');
     _startTime = task?.createdAt ?? DateTime.now();
     _completed = task?.isCompleted ?? false;
@@ -909,8 +910,7 @@ class _TaskEditScreenState extends ConsumerState<_TaskEditScreen> {
 
   @override
   void dispose() {
-    _titleController.dispose();
-    _notesController.dispose();
+    _taskController.dispose();
     _tagsController.dispose();
     super.dispose();
   }
@@ -939,35 +939,27 @@ class _TaskEditScreenState extends ConsumerState<_TaskEditScreen> {
       ),
       child: Column(
         children: [
-          _EditCard(
-            label: 'Title',
+          _EditFormRow(
+            label: 'Task',
+            alignTop: true,
             child: TextField(
-              controller: _titleController,
-              textInputAction: TextInputAction.next,
-              decoration: const InputDecoration(hintText: 'Task title'),
-            ),
-          ),
-          const SizedBox(height: 16),
-          _EditCard(
-            label: 'Notes',
-            child: TextField(
-              controller: _notesController,
-              minLines: 5,
+              controller: _taskController,
+              minLines: 4,
               maxLines: 8,
-              decoration: const InputDecoration(hintText: 'Notes'),
+              textInputAction: TextInputAction.newline,
+              decoration: _editInputDecoration('Task'),
             ),
           ),
-          const SizedBox(height: 16),
-          _EditCard(
+          _EditFormRow(
             label: 'Tags',
+            alignTop: true,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 TextField(
                   controller: _tagsController,
-                  decoration: const InputDecoration(
-                    hintText: 'Product, Planning, Q3',
-                  ),
+                  decoration: _editInputDecoration('Product, Planning, Q3'),
+                  onChanged: (_) => setState(() {}),
                 ),
                 const SizedBox(height: 12),
                 Wrap(
@@ -994,15 +986,14 @@ class _TaskEditScreenState extends ConsumerState<_TaskEditScreen> {
               ],
             ),
           ),
-          const SizedBox(height: 16),
-          _EditCard(
+          _EditFormRow(
             label: 'Start Time',
             child: Row(
               children: [
                 Expanded(
                   child: _TimeBox(
                     icon: Icons.calendar_month_rounded,
-                    label: _formatMediumDate(_startTime),
+                    label: _formatCompactDate(_startTime),
                     onTap: _pickDate,
                   ),
                 ),
@@ -1017,14 +1008,14 @@ class _TaskEditScreenState extends ConsumerState<_TaskEditScreen> {
               ],
             ),
           ),
-          const SizedBox(height: 16),
-          SoftCard(
+          _EditFormRow(
+            label: 'Completed',
             child: Row(
               children: [
                 Expanded(
                   child: Text(
                     'Mark as completed',
-                    style: Theme.of(context).textTheme.titleMedium,
+                    style: Theme.of(context).textTheme.bodyLarge,
                   ),
                 ),
                 Switch(
@@ -1038,26 +1029,42 @@ class _TaskEditScreenState extends ConsumerState<_TaskEditScreen> {
               ],
             ),
           ),
-          const SizedBox(height: 16),
-          SoftCard(
-            onTap: _deleting ? null : () => _confirmDelete(task),
-            child: Row(
-              children: [
-                const Icon(
-                  Icons.delete_outline_rounded,
-                  color: MobileTokens.danger,
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Text(
-                    _deleting ? 'Deleting...' : 'Delete task',
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                          color: MobileTokens.danger,
+          _EditFormRow(
+            label: 'Delete',
+            child: Material(
+              color: Colors.transparent,
+              child: InkWell(
+                borderRadius: BorderRadius.circular(MobileTokens.radiusSmall),
+                onTap: _deleting ? null : () => _confirmDelete(task),
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(
+                    minHeight: MobileTokens.minTouch,
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(
+                        Icons.delete_outline_rounded,
+                        color: MobileTokens.danger,
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          _deleting ? 'Deleting...' : 'Delete task',
+                          style:
+                              Theme.of(context).textTheme.bodyLarge?.copyWith(
+                                    color: MobileTokens.danger,
+                                    fontWeight: FontWeight.w600,
+                                  ),
                         ),
+                      ),
+                      const Icon(
+                        Icons.chevron_right_rounded,
+                        color: MobileTokens.muted,
+                      ),
+                    ],
                   ),
                 ),
-                const Icon(Icons.chevron_right_rounded),
-              ],
+              ),
             ),
           ),
           if (_error != null) ...[
@@ -1076,10 +1083,12 @@ class _TaskEditScreenState extends ConsumerState<_TaskEditScreen> {
   }
 
   Future<void> _save(TaskRecord task) async {
-    final title = _titleController.text.trim();
-    if (title.isEmpty) {
+    TaskDraft draft;
+    try {
+      draft = taskDraftFromBody(_taskController.text);
+    } on ArgumentError {
       setState(() {
-        _error = 'Title is required.';
+        _error = 'Task is required.';
       });
       return;
     }
@@ -1090,8 +1099,8 @@ class _TaskEditScreenState extends ConsumerState<_TaskEditScreen> {
     try {
       await ref.read(appDatabaseProvider).updateTask(
             taskId: task.id,
-            title: title,
-            content: _notesController.text.trim(),
+            title: draft.title,
+            content: draft.content,
             tags: _cleanTags(_tagsController.text),
             createdAt: _startTime,
             completedAt: _completed ? task.completedAt ?? DateTime.now() : null,
@@ -2513,25 +2522,67 @@ class _QuickAddBar extends StatelessWidget {
   }
 }
 
-class _EditCard extends StatelessWidget {
-  const _EditCard({required this.label, required this.child});
+class _EditFormRow extends StatelessWidget {
+  const _EditFormRow({
+    required this.label,
+    required this.child,
+    this.alignTop = false,
+  });
 
   final String label;
   final Widget child;
+  final bool alignTop;
 
   @override
   Widget build(BuildContext context) {
-    return SoftCard(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 10),
+      child: Row(
+        crossAxisAlignment:
+            alignTop ? CrossAxisAlignment.start : CrossAxisAlignment.center,
         children: [
-          Text(label, style: Theme.of(context).textTheme.titleMedium),
-          const SizedBox(height: 14),
-          child,
+          SizedBox(
+            width: 88,
+            child: Padding(
+              padding: EdgeInsets.only(top: alignTop ? 10 : 0),
+              child: Text(
+                label,
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      fontSize: 14,
+                    ),
+              ),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(child: child),
         ],
       ),
     );
   }
+}
+
+InputDecoration _editInputDecoration(String hintText) {
+  return InputDecoration(
+    hintText: hintText,
+    filled: false,
+    isDense: true,
+    contentPadding: const EdgeInsets.symmetric(horizontal: 0, vertical: 10),
+    border: const UnderlineInputBorder(
+      borderSide: BorderSide(color: MobileTokens.border),
+    ),
+    enabledBorder: const UnderlineInputBorder(
+      borderSide: BorderSide(color: MobileTokens.border),
+    ),
+    focusedBorder: const UnderlineInputBorder(
+      borderSide: BorderSide(color: MobileTokens.primary, width: 1.4),
+    ),
+    errorBorder: const UnderlineInputBorder(
+      borderSide: BorderSide(color: MobileTokens.danger),
+    ),
+    focusedErrorBorder: const UnderlineInputBorder(
+      borderSide: BorderSide(color: MobileTokens.danger, width: 1.4),
+    ),
+  );
 }
 
 class _TimeBox extends StatelessWidget {
@@ -2549,24 +2600,26 @@ class _TimeBox extends StatelessWidget {
   Widget build(BuildContext context) {
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(MobileTokens.radius),
+      borderRadius: BorderRadius.circular(MobileTokens.radiusSmall),
       child: Container(
-        constraints: const BoxConstraints(minHeight: 54),
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+        constraints: const BoxConstraints(minHeight: MobileTokens.minTouch),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
         decoration: BoxDecoration(
           border: Border.all(color: MobileTokens.border),
-          borderRadius: BorderRadius.circular(MobileTokens.radius),
+          borderRadius: BorderRadius.circular(MobileTokens.radiusSmall),
         ),
         child: Row(
           children: [
-            Icon(icon, color: MobileTokens.primary),
-            const SizedBox(width: 10),
+            Icon(icon, color: MobileTokens.primary, size: 20),
+            const SizedBox(width: 8),
             Expanded(
               child: Text(
                 label,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: Theme.of(context).textTheme.bodyLarge,
+                style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                      color: MobileTokens.ink,
+                    ),
               ),
             ),
           ],
@@ -3149,8 +3202,9 @@ String _formatShortDate(DateTime date) {
   return '${months[date.month - 1]} ${date.day}';
 }
 
-String _formatMediumDate(DateTime date) {
-  return '${_formatShortDate(date)}, ${date.year}';
+String _formatCompactDate(DateTime date) {
+  final year = (date.year % 100).toString().padLeft(2, '0');
+  return '${date.month}/${date.day}/$year';
 }
 
 String _formatTime(DateTime date) {

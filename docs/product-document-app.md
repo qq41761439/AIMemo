@@ -26,7 +26,7 @@
 | -------------------- | ------- | --------------- | ----------------------------------------------- |
 | 页面标题                 | 22      | Semibold / Bold | 顶部标题                                            |
 | Tab / Section Header | 15      | Semibold        | Tasks / Summary / Upcoming / Active / Completed |
-| 输入框标签                | 14      | Medium          | Title / Notes / Tags / Start Time               |
+| 输入框标签                | 14      | Medium          | Task / Tags / Start Time                        |
 | 输入框内容                | 16      | Regular         | 用户输入                                            |
 | Toggle 文案            | 16      | Medium          | Mark as completed                               |
 | 按钮文字                 | 16      | Semibold / Bold | Save Changes / Generate Summary                 |
@@ -89,7 +89,8 @@
 
 * 功能：
 
-  * 编辑 Title / Notes / Tags / Start Time
+  * 编辑 Task / Tags / Start Time
+  * Task 第一行作为标题，后续行作为备注
   * Mark as completed 开关
   * Delete task 按钮
   * Save Changes 按钮

@@ -35,7 +35,7 @@ AIMemo 移动端主线切回 Flutter 双端实现，iOS 和 Android 共用同一
 ## Business Components
 
 - Tasks：顶部 Tasks/Summary 切换、标签筛选、Upcoming/Active/Completed 分组、独立任务卡片、底部快速添加栏。
-- Task Edit：Title、Notes、Tags、Start Time、完成开关、删除确认、固定底部 Save Changes。
+- Task Edit：Task、Tags、Start Time、完成开关、删除确认、固定底部 Save Changes；表单使用无区域外框的行内参数布局，Task 第一行为标题、后续行为备注。
 - Summary：AI Summary Hero、报告类型选择、标签范围、预览指标、结果内容、修改输入、Copy/Share、历史页内展开。
 - Profile/Settings：账户卡、同步状态、菜单组、退出登录。
 

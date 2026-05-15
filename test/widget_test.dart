@@ -666,6 +666,90 @@ void main() {
     await database.close();
   });
 
+  testWidgets('mobile task edit uses one Task field and saves split body',
+      (tester) async {
+    final database = InMemoryMemoStore();
+    final taskId = await database.addTask(
+      title: '移动端编辑任务',
+      content: '旧备注',
+      tags: const ['界面'],
+    );
+
+    await _pumpMobileShellAndLogin(tester, database: database);
+
+    await tester.tap(find.text('移动端编辑任务'));
+    await _pumpFrame(tester);
+
+    expect(find.widgetWithText(TextField, 'Task'), findsOneWidget);
+    expect(find.text('Title'), findsNothing);
+    expect(find.text('Notes'), findsNothing);
+    expect(find.text('Start Time'), findsOneWidget);
+    expect(find.text('Mark as completed'), findsOneWidget);
+    expect(find.text('Delete task'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+
+    await tester.enterText(
+      find.widgetWithText(TextField, 'Task'),
+      '新的移动任务\n第一条备注\n第二条备注',
+    );
+    await tester.tap(find.widgetWithText(GradientButton, 'Save Changes'));
+    await _pumpFrame(tester);
+
+    final task = (await database.listTasks()).firstWhere(
+      (task) => task.id == taskId,
+    );
+    expect(task.title, '新的移动任务');
+    expect(task.content, '第一条备注\n第二条备注');
+
+    await database.close();
+  });
+
+  testWidgets('mobile task edit validates empty Task field', (tester) async {
+    final database = InMemoryMemoStore();
+    await database.addTask(
+      title: '移动端空任务',
+      content: '',
+      tags: const [],
+    );
+
+    await _pumpMobileShellAndLogin(tester, database: database);
+
+    await tester.tap(find.text('移动端空任务'));
+    await _pumpFrame(tester);
+    await tester.enterText(find.widgetWithText(TextField, 'Task'), '   ');
+    await tester.tap(find.widgetWithText(GradientButton, 'Save Changes'));
+    await tester.pump();
+
+    expect(find.text('Task is required.'), findsOneWidget);
+
+    await database.close();
+  });
+
+  testWidgets('mobile task edit stays usable on short screens', (tester) async {
+    final database = InMemoryMemoStore();
+    await database.addTask(
+      title: '短屏任务',
+      content: '短屏备注',
+      tags: const ['界面', '紧凑'],
+    );
+
+    await _pumpMobileShellAndLogin(tester, database: database);
+    tester.view.physicalSize = const Size(390, 430);
+    await tester.pump();
+
+    await tester.tap(find.text('短屏任务'));
+    await _pumpFrame(tester);
+
+    expect(find.widgetWithText(TextField, 'Task'), findsOneWidget);
+    expect(find.widgetWithText(TextField, 'Product, Planning, Q3'),
+        findsOneWidget);
+    expect(find.text('Start Time'), findsOneWidget);
+    expect(find.text('Delete task'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+
+    await database.close();
+  });
+
   testWidgets('mobile add task form keeps fields focusable on short screens',
       (tester) async {
     final database = await _pumpApp(
@@ -1109,4 +1193,54 @@ Future<MemoStore> _pumpApp(
   }
 
   return appDatabase;
+}
+
+Future<void> _pumpMobileShellAndLogin(
+  WidgetTester tester, {
+  required MemoStore database,
+  Size viewSize = const Size(390, 844),
+}) async {
+  sqfliteFfiInit();
+  databaseFactory = databaseFactoryFfi;
+  tester.view.physicalSize = viewSize;
+  tester.view.devicePixelRatio = 1;
+  addTearDown(tester.view.resetPhysicalSize);
+  addTearDown(tester.view.resetDevicePixelRatio);
+  final apiKeyVault = MemoryApiKeyVault();
+  final repository = _FakeHostedLoginRepository(
+    store: database,
+    apiKeyVault: apiKeyVault,
+  );
+
+  await tester.pumpWidget(
+    ProviderScope(
+      overrides: [
+        appDatabaseProvider.overrideWithValue(database),
+        apiKeyVaultProvider.overrideWithValue(apiKeyVault),
+        modelSettingsRepositoryProvider.overrideWithValue(repository),
+        appRunModeProvider.overrideWith((ref) async => AppRunMode.local),
+      ],
+      child: const AIMemoApp(forceMobileShell: true),
+    ),
+  );
+  await _pumpFrame(tester);
+
+  await tester.tap(find.text('Skip'));
+  await _pumpFrame(tester);
+  await tester.enterText(
+    find.widgetWithText(TextField, 'Email'),
+    'user@example.com',
+  );
+  await tester.ensureVisible(find.widgetWithText(GradientButton, 'Send code'));
+  await tester.pump();
+  await tester.tap(find.widgetWithText(GradientButton, 'Send code'));
+  await _pumpFrame(tester);
+  await tester.enterText(
+    find.widgetWithText(TextField, 'Verification code'),
+    '123456',
+  );
+  await tester.ensureVisible(find.text('Log in'));
+  await tester.pump();
+  await tester.tap(find.text('Log in'));
+  await _pumpFrame(tester);
 }
