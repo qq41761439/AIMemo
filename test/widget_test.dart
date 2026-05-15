@@ -120,16 +120,24 @@ void main() {
     );
     await tester.tap(find.text('Log in'));
     await _pumpFrame(tester);
-    await database.addTask(
+    final taskId = await database.addTask(
       title: 'Collapsible active task',
       content: '',
-      tags: const [],
+      tags: const ['Product'],
     );
     ProviderScope.containerOf(tester.element(find.byType(AIMemoApp)))
         .invalidate(taskListProvider);
     await _pumpFrame(tester);
 
     expect(find.text('Collapsible active task'), findsOneWidget);
+    expect(
+      tester
+          .getTopLeft(
+            find.byKey(ValueKey('mobile-task-$taskId-tag-Product')),
+          )
+          .dx,
+      lessThan(tester.getTopLeft(find.text('Collapsible active task')).dx),
+    );
     expect(find.textContaining('Already started'), findsNothing);
     expect(
       tester.getTopLeft(find.text('Upcoming')).dy,

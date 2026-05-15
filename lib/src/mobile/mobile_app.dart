@@ -2330,33 +2330,40 @@ class _TaskRow extends StatelessWidget {
           ),
           const SizedBox(width: 4),
           Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                Text(
-                  task.title,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        color: task.isCompleted
-                            ? const Color(0xFF8E93A3)
-                            : MobileTokens.ink,
-                        decoration: task.isCompleted
-                            ? TextDecoration.lineThrough
-                            : TextDecoration.none,
-                      ),
-                ),
                 if (task.tags.isNotEmpty) ...[
-                  const SizedBox(height: 5),
-                  Wrap(
-                    spacing: 6,
-                    runSpacing: 5,
-                    children: [
-                      for (final tag in task.tags.take(3))
-                        _TaskTagChip(label: tag),
-                    ],
-                  ),
+                  for (final tag in task.tags.take(2)) ...[
+                    _TaskTagChip(
+                      key: ValueKey('mobile-task-${task.id}-tag-$tag'),
+                      label: tag,
+                    ),
+                    const SizedBox(width: 6),
+                  ],
+                  if (task.tags.length > 2) ...[
+                    _TaskTagChip(
+                      key: ValueKey('mobile-task-${task.id}-tag-overflow'),
+                      label: '+${task.tags.length - 2}',
+                    ),
+                    const SizedBox(width: 6),
+                  ],
                 ],
+                Expanded(
+                  child: Text(
+                    task.title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                          color: task.isCompleted
+                              ? const Color(0xFF8E93A3)
+                              : MobileTokens.ink,
+                          decoration: task.isCompleted
+                              ? TextDecoration.lineThrough
+                              : TextDecoration.none,
+                        ),
+                  ),
+                ),
               ],
             ),
           ),
@@ -2374,7 +2381,7 @@ class _TaskRow extends StatelessWidget {
 }
 
 class _TaskTagChip extends StatelessWidget {
-  const _TaskTagChip({required this.label});
+  const _TaskTagChip({super.key, required this.label});
 
   final String label;
 
