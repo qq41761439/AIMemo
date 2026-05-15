@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:aimemo/src/app.dart';
 import 'package:aimemo/src/models/app_run_mode.dart';
 import 'package:aimemo/src/models/model_settings.dart';
@@ -7,9 +9,12 @@ import 'package:aimemo/src/services/app_database.dart';
 import 'package:aimemo/src/services/in_memory_memo_store.dart';
 import 'package:aimemo/src/services/memo_store.dart';
 import 'package:aimemo/src/services/model_settings_repository.dart';
+import 'package:aimemo/src/services/summary_api_client.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:http/http.dart' as http;
+import 'package:http/testing.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
 void main() {
@@ -20,7 +25,7 @@ void main() {
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
-    final database = AppDatabase(pathOverride: inMemoryDatabasePath);
+    final database = InMemoryMemoStore();
     addTearDown(database.close);
 
     await tester.pumpWidget(
@@ -56,10 +61,163 @@ void main() {
       find.widgetWithText(TextField, 'Quick add a task...'),
       'Mobile shell task',
     );
-    await tester.testTextInput.receiveAction(TextInputAction.send);
+    await tester.tap(find.byIcon(Icons.send_rounded));
     await _pumpFrame(tester);
 
     expect(find.text('Mobile shell task'), findsOneWidget);
+  });
+
+  testWidgets('Flutter mobile task sections collapse when tapped',
+      (tester) async {
+    sqfliteFfiInit();
+    databaseFactory = databaseFactoryFfi;
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final database = InMemoryMemoStore();
+    addTearDown(database.close);
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          appDatabaseProvider.overrideWithValue(database),
+          appRunModeProvider.overrideWith((ref) async => AppRunMode.local),
+        ],
+        child: const AIMemoApp(forceMobileShell: true),
+      ),
+    );
+    await _pumpFrame(tester);
+
+    await tester.tap(find.text('Skip'));
+    await _pumpFrame(tester);
+    await tester.enterText(
+      find.widgetWithText(TextField, 'Email'),
+      'user@example.com',
+    );
+    await tester.enterText(
+      find.widgetWithText(TextField, 'Password'),
+      'secret',
+    );
+    await tester.tap(find.text('Log in'));
+    await _pumpFrame(tester);
+    await database.addTask(
+      title: 'Collapsible active task',
+      content: '',
+      tags: const [],
+    );
+    ProviderScope.containerOf(tester.element(find.byType(AIMemoApp)))
+        .invalidate(taskListProvider);
+    await _pumpFrame(tester);
+
+    expect(find.text('Collapsible active task'), findsOneWidget);
+
+    final activeHeader = find.byKey(
+      const ValueKey('task-section-Active-header'),
+    );
+    expect(activeHeader, findsOneWidget);
+    await tester.tap(activeHeader);
+    await tester.pump();
+
+    expect(find.text('Collapsible active task'), findsNothing);
+
+    await tester.tap(activeHeader);
+    await tester.pump();
+
+    expect(find.text('Collapsible active task'), findsOneWidget);
+  });
+
+  testWidgets('Flutter mobile summary uses configured model API',
+      (tester) async {
+    sqfliteFfiInit();
+    databaseFactory = databaseFactoryFfi;
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final database = InMemoryMemoStore();
+    final apiKeyVault = MemoryApiKeyVault();
+    final repository = ModelSettingsRepository(
+      store: database,
+      apiKeyVault: apiKeyVault,
+    );
+    addTearDown(database.close);
+    await repository.save(
+      mode: ModelMode.custom,
+      baseUrl: 'https://example.test/v1',
+      model: 'test-model',
+      hostedBaseUrl: 'http://127.0.0.1:8787',
+      apiKey: 'placeholder-token',
+    );
+
+    Uri? requestedUri;
+    Map<String, Object?>? requestBody;
+    final summaryClient = SummaryApiClient(
+      httpClient: MockClient((request) async {
+        requestedUri = request.url;
+        requestBody = jsonDecode(request.body) as Map<String, Object?>;
+        return http.Response(
+          jsonEncode({
+            'choices': [
+              {
+                'message': {'content': 'LLM mobile report'},
+              },
+            ],
+          }),
+          200,
+          headers: const {'content-type': 'application/json'},
+        );
+      }),
+    );
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          appDatabaseProvider.overrideWithValue(database),
+          apiKeyVaultProvider.overrideWithValue(apiKeyVault),
+          modelSettingsRepositoryProvider.overrideWithValue(repository),
+          summaryApiClientProvider.overrideWithValue(summaryClient),
+          appRunModeProvider.overrideWith((ref) async => AppRunMode.local),
+        ],
+        child: const AIMemoApp(forceMobileShell: true),
+      ),
+    );
+    await _pumpFrame(tester);
+
+    await tester.tap(find.text('Skip'));
+    await _pumpFrame(tester);
+    await tester.enterText(
+      find.widgetWithText(TextField, 'Email'),
+      'user@example.com',
+    );
+    await tester.enterText(
+      find.widgetWithText(TextField, 'Password'),
+      'secret',
+    );
+    await tester.tap(find.text('Log in'));
+    await _pumpFrame(tester);
+    await database.addTask(
+      title: 'Prepare investor update',
+      content: 'Summarize completed product milestones.',
+      tags: const ['Product'],
+      createdAt: DateTime.now().subtract(const Duration(hours: 2)),
+    );
+    ProviderScope.containerOf(tester.element(find.byType(AIMemoApp)))
+        .invalidate(taskListProvider);
+    await _pumpFrame(tester);
+    await tester.tap(find.text('Summary').first);
+    await _pumpFrame(tester);
+    await tester.tap(find.text('Generate Summary').last);
+    await _pumpFrame(tester);
+    await tester.tap(find.text('Generate Summary').last);
+    await _pumpFrame(tester);
+
+    expect(requestedUri, Uri.parse('https://example.test/v1/chat/completions'));
+    expect(
+      requestBody?['messages'].toString(),
+      contains('Prepare investor update'),
+    );
+    expect(find.text('LLM mobile report'), findsOneWidget);
   });
 
   testWidgets('Flutter mobile shell keeps top spacing compact on short phones',

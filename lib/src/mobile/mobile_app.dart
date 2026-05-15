@@ -6,6 +6,7 @@ import '../models/summary_record.dart';
 import '../models/task_record.dart';
 import '../providers.dart';
 import '../services/period_utils.dart';
+import '../services/template_renderer.dart';
 import 'mobile_components.dart';
 import 'mobile_theme.dart';
 
@@ -183,23 +184,57 @@ class _MobileShellState extends ConsumerState<_MobileShell> {
     try {
       final store = ref.read(appDatabaseProvider);
       final range = periodRangeFor(_selectedPeriod, DateTime.now());
+      final selectedTags = _summaryTags.toList()..sort();
       final tasks = await store.listTasksForPeriod(
         start: range.start,
         end: range.end,
-        tagNames: _summaryTags.toList(),
+        tagNames: selectedTags,
       );
-      final output = _buildSummaryOutput(tasks, refinement);
+      if (tasks.isEmpty) {
+        throw Exception('No tasks found for this summary period.');
+      }
+      final template = await store.getTemplate(_selectedPeriod);
+      final periodText = '${_selectedPeriod.placeholderName} (${range.label})';
+      final periodDays = range.end.difference(range.start).inDays;
+      final basePrompt = renderSummaryPrompt(
+        template: template,
+        periodType: _selectedPeriod,
+        tasks: tasks,
+        tags: selectedTags,
+        periodText: periodText,
+        periodDays: periodDays,
+      );
+      final prompt = _summaryPromptWithRefinement(
+        basePrompt: basePrompt,
+        previousOutput: _latestSummaryOutput,
+        refinement: refinement,
+      );
+      final output = await ref.read(summaryApiClientProvider).generateSummary(
+            periodType: _selectedPeriod.value,
+            period: periodText,
+            periodStart: range.start,
+            periodEnd: range.end,
+            tags: selectedTags,
+            tasks: formatTasksForPrompt(tasks),
+            template: template,
+            prompt: prompt,
+            periodDays: periodDays,
+            llmConfig:
+                await ref.read(modelSettingsRepositoryProvider).requestConfig(),
+          );
       await store.insertSummary(
         periodType: _selectedPeriod,
         periodLabel: range.label,
         periodStart: range.start,
         periodEnd: range.end,
-        tagFilter: _summaryTags.toList(),
+        tagFilter: selectedTags,
         taskIds: tasks.map((task) => task.id).toList(),
-        prompt: 'Mobile ${_selectedPeriod.title} summary',
+        prompt: prompt,
         output: output,
       );
       ref.invalidate(summaryHistoryProvider);
+      ref.invalidate(hostedQuotaProvider);
+      ref.invalidate(hostedSummaryHistoryProvider);
       if (!mounted) {
         return;
       }
@@ -509,6 +544,9 @@ class _TasksScreen extends ConsumerStatefulWidget {
 class _TasksScreenState extends ConsumerState<_TasksScreen> {
   final _quickAddController = TextEditingController();
   String? _selectedTag;
+  bool _activeExpanded = true;
+  bool _upcomingExpanded = true;
+  bool _completedExpanded = true;
   bool _adding = false;
 
   @override
@@ -563,7 +601,11 @@ class _TasksScreenState extends ConsumerState<_TasksScreen> {
                     title: 'Active',
                     subtitle: 'Already started  ·  Needs attention',
                     tasks: sections.active,
+                    expanded: _activeExpanded,
                     tinted: true,
+                    onToggleExpanded: () => setState(() {
+                      _activeExpanded = !_activeExpanded;
+                    }),
                     onEditTask: widget.onEditTask,
                     onToggleCompleted: _toggleCompleted,
                   ),
@@ -571,6 +613,10 @@ class _TasksScreenState extends ConsumerState<_TasksScreen> {
                   _TaskSectionCard(
                     title: 'Upcoming',
                     tasks: sections.upcoming,
+                    expanded: _upcomingExpanded,
+                    onToggleExpanded: () => setState(() {
+                      _upcomingExpanded = !_upcomingExpanded;
+                    }),
                     onEditTask: widget.onEditTask,
                     onToggleCompleted: _toggleCompleted,
                   ),
@@ -578,6 +624,10 @@ class _TasksScreenState extends ConsumerState<_TasksScreen> {
                   _TaskSectionCard(
                     title: 'Completed',
                     tasks: sections.completed,
+                    expanded: _completedExpanded,
+                    onToggleExpanded: () => setState(() {
+                      _completedExpanded = !_completedExpanded;
+                    }),
                     onEditTask: widget.onEditTask,
                     onToggleCompleted: _toggleCompleted,
                   ),
@@ -1784,6 +1834,8 @@ class _TaskSectionCard extends StatelessWidget {
   const _TaskSectionCard({
     required this.title,
     required this.tasks,
+    required this.expanded,
+    required this.onToggleExpanded,
     required this.onEditTask,
     required this.onToggleCompleted,
     this.subtitle,
@@ -1793,7 +1845,9 @@ class _TaskSectionCard extends StatelessWidget {
   final String title;
   final String? subtitle;
   final List<TaskRecord> tasks;
+  final bool expanded;
   final bool tinted;
+  final VoidCallback onToggleExpanded;
   final ValueChanged<TaskRecord> onEditTask;
   final ValueChanged<TaskRecord> onToggleCompleted;
 
@@ -1805,69 +1859,96 @@ class _TaskSectionCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              Text(
-                title,
-                style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                      fontSize: 22,
-                    ),
-              ),
-              const SizedBox(width: 10),
-              Container(
-                constraints: const BoxConstraints(minWidth: 28),
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
-                decoration: BoxDecoration(
-                  color: MobileTokens.primarySoft,
-                  borderRadius: BorderRadius.circular(99),
-                ),
-                child: Text(
-                  tasks.length.toString(),
-                  textAlign: TextAlign.center,
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: MobileTokens.primary,
-                        fontWeight: FontWeight.w700,
+          Semantics(
+            button: true,
+            toggled: expanded,
+            label:
+                expanded ? 'Collapse $title section' : 'Expand $title section',
+            child: Material(
+              color: Colors.transparent,
+              child: InkWell(
+                key: ValueKey('task-section-$title-header'),
+                borderRadius: BorderRadius.circular(12),
+                onTap: onToggleExpanded,
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(minHeight: 44),
+                  child: Row(
+                    children: [
+                      Text(
+                        title,
+                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                              fontSize: 22,
+                            ),
                       ),
+                      const SizedBox(width: 10),
+                      Container(
+                        constraints: const BoxConstraints(minWidth: 28),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 5,
+                        ),
+                        decoration: BoxDecoration(
+                          color: MobileTokens.primarySoft,
+                          borderRadius: BorderRadius.circular(99),
+                        ),
+                        child: Text(
+                          tasks.length.toString(),
+                          textAlign: TextAlign.center,
+                          style:
+                              Theme.of(context).textTheme.bodySmall?.copyWith(
+                                    color: MobileTokens.primary,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                        ),
+                      ),
+                      const Spacer(),
+                      Icon(
+                        expanded
+                            ? Icons.keyboard_arrow_up_rounded
+                            : Icons.keyboard_arrow_down_rounded,
+                      ),
+                    ],
+                  ),
                 ),
               ),
-              const Spacer(),
-              const Icon(Icons.keyboard_arrow_up_rounded),
+            ),
+          ),
+          if (expanded) ...[
+            if (subtitle != null) ...[
+              const SizedBox(height: 8),
+              Text(subtitle!, style: Theme.of(context).textTheme.bodyMedium),
             ],
-          ),
-          if (subtitle != null) ...[
-            const SizedBox(height: 8),
-            Text(subtitle!, style: Theme.of(context).textTheme.bodyMedium),
+            const SizedBox(height: 16),
+            DecoratedBox(
+              decoration: BoxDecoration(
+                color: Colors.white,
+                border: Border.all(color: MobileTokens.border),
+                borderRadius: BorderRadius.circular(MobileTokens.radius),
+              ),
+              child: Column(
+                children: [
+                  if (tasks.isEmpty)
+                    const Padding(
+                      padding: EdgeInsets.all(16),
+                      child: StatusCard(
+                        title: 'Nothing here',
+                        message: 'Tasks in this section will appear here.',
+                      ),
+                    )
+                  else
+                    for (final task in tasks) ...[
+                      _TaskRow(
+                        task: task,
+                        onTap: () => onEditTask(task),
+                        onToggle: () => onToggleCompleted(task),
+                      ),
+                      if (task != tasks.last)
+                        const Divider(height: 1, color: MobileTokens.border),
+                    ],
+                ],
+              ),
+            ),
           ],
-          const SizedBox(height: 16),
-          DecoratedBox(
-            decoration: BoxDecoration(
-              color: Colors.white,
-              border: Border.all(color: MobileTokens.border),
-              borderRadius: BorderRadius.circular(MobileTokens.radius),
-            ),
-            child: Column(
-              children: [
-                if (tasks.isEmpty)
-                  const Padding(
-                    padding: EdgeInsets.all(16),
-                    child: StatusCard(
-                      title: 'Nothing here',
-                      message: 'Tasks in this section will appear here.',
-                    ),
-                  )
-                else
-                  for (final task in tasks) ...[
-                    _TaskRow(
-                      task: task,
-                      onTap: () => onEditTask(task),
-                      onToggle: () => onToggleCompleted(task),
-                    ),
-                    if (task != tasks.last)
-                      const Divider(height: 1, color: MobileTokens.border),
-                  ],
-              ],
-            ),
-          ),
         ],
       ),
     );
@@ -2693,40 +2774,6 @@ String _formatTime(DateTime date) {
   return '$hour:$minute $suffix';
 }
 
-String _buildSummaryOutput(List<TaskRecord> tasks, String? refinement) {
-  final completed = tasks.where((task) => task.isCompleted).toList();
-  final pending = tasks.where((task) => !task.isCompleted).toList();
-  final completedText = completed.isEmpty
-      ? 'No completed tasks in this range yet.'
-      : completed.map((task) => '- ${task.title}').join('\n');
-  final outcomes = completed.isEmpty
-      ? 'Keep capturing work so AIMemo can produce a richer report.'
-      : 'You completed ${completed.length} task${completed.length == 1 ? '' : 's'} and kept progress visible across your task list.';
-  final next = pending.isEmpty
-      ? 'No open tasks remain for this period.'
-      : pending.take(4).map((task) => '- ${task.title}').join('\n');
-  final included = tasks.isEmpty
-      ? 'No tasks were included.'
-      : tasks.take(8).map((task) => '- ${task.title}').join('\n');
-  final instruction = refinement == null || refinement.trim().isEmpty
-      ? ''
-      : '\n\nModification note\n${refinement.trim()}';
-  return '''
-What I completed
-$completedText
-
-Key outcomes
-$outcomes
-
-Next steps
-$next
-
-Included tasks
-$included$instruction
-'''
-      .trim();
-}
-
 const _emptySummaryOutput = '''
 What I completed
 No generated summary is available yet.
@@ -2740,3 +2787,24 @@ Return to Generate Summary and create a report.
 Included tasks
 No tasks were included.
 ''';
+
+String _summaryPromptWithRefinement({
+  required String basePrompt,
+  required String? previousOutput,
+  required String? refinement,
+}) {
+  final cleanRefinement = refinement?.trim();
+  if (cleanRefinement == null || cleanRefinement.isEmpty) {
+    return basePrompt;
+  }
+  final cleanPreviousOutput = previousOutput?.trim();
+  return [
+    basePrompt,
+    if (cleanPreviousOutput != null && cleanPreviousOutput.isNotEmpty) ...[
+      '上一次总结：',
+      cleanPreviousOutput,
+    ],
+    '请根据以下修改要求重新生成总结：',
+    cleanRefinement,
+  ].join('\n\n');
+}
