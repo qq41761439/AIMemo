@@ -44,7 +44,6 @@ const sensitiveLogFields = new Set([
   'accesstoken',
   'refreshtoken',
   'token',
-  'code',
   'password',
   'secret',
   'apikey',
@@ -415,7 +414,8 @@ function redactForLog(value: unknown): unknown {
 }
 
 function isSensitiveLogField(key: string): boolean {
-  return sensitiveLogFields.has(key.replace(/[^a-zA-Z0-9]/g, '').toLowerCase());
+  const normalized = key.replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
+  return sensitiveLogFields.has(normalized);
 }
 
 function truncateForLog(value: string): string {
