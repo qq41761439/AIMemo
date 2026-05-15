@@ -9,6 +9,7 @@ import '../providers.dart';
 import '../services/model_settings_repository.dart';
 import '../services/period_utils.dart';
 import '../services/template_renderer.dart';
+import '../platform/mobile_platform.dart';
 import 'mobile_components.dart';
 import 'mobile_theme.dart';
 
@@ -522,7 +523,7 @@ class _AuthScreenState extends ConsumerState<_AuthScreen> {
     });
     try {
       final repository = ref.read(modelSettingsRepositoryProvider);
-      final baseUrl = ModelSettings.defaults().hostedBaseUrl;
+      final baseUrl = defaultHostedBackendUrl;
       await repository.startHostedEmailLogin(
         hostedBaseUrl: baseUrl,
         email: email,
@@ -570,8 +571,9 @@ class _AuthScreenState extends ConsumerState<_AuthScreen> {
     try {
       final repository = ref.read(modelSettingsRepositoryProvider);
       final defaults = ModelSettings.defaults();
+      final hostedBaseUrl = defaultHostedBackendUrl;
       await repository.verifyHostedEmailLogin(
-        hostedBaseUrl: defaults.hostedBaseUrl,
+        hostedBaseUrl: hostedBaseUrl,
         email: email,
         code: code,
       );
@@ -579,7 +581,7 @@ class _AuthScreenState extends ConsumerState<_AuthScreen> {
         mode: ModelMode.hosted,
         baseUrl: defaults.baseUrl,
         model: defaults.model,
-        hostedBaseUrl: defaults.hostedBaseUrl,
+        hostedBaseUrl: hostedBaseUrl,
       );
       if (!mounted) {
         return;

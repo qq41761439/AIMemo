@@ -18,6 +18,7 @@ AIMemo 是一个待办 + 周期总结工具。桌面端和移动端使用 Flutte
 - 移动端记录表单支持在短屏和键盘场景下滚动填写任务内容、标签和提交按钮，点击空白处会收起键盘。
 - Flutter 移动端 Tasks 页面支持点击 Active、Upcoming 和 Completed 分组标题展开或收起对应任务列表。
 - Flutter 移动端 Summary 生成固定走 AIMemo 后端托管模型，不提供 App 端自填 API Key；“我的”页展示当月免费额度。
+- Flutter 移动端 Debug/Test 默认连接本地后端：iOS 模拟器使用 `http://127.0.0.1:8787`，Android 模拟器使用 `http://10.0.2.2:8787`；Release 默认连接线上 Render 后端。
 - 任务支持设置开始时间；任务列表中未完成任务按开始时间倒序，已完成任务按完成时间倒序。
 - 周期总结会纳入与所选周期有交集的任务，包括周期前开始但周期内完成或仍未完成的任务。
 - macOS 桌面版已接入 SQLite；Web 预览版使用内存 demo 数据。

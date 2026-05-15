@@ -129,6 +129,7 @@
 * 生成按钮：Generate Summary
 * 报告类型选择：Daily / Weekly / Monthly / Custom
 * 移动 App 首版只调用 AIMemo 后端托管模型生成总结，不展示自定义模型 API Key、Base URL 或 Model 配置
+* Debug/Test 构建默认连接本地后端，iOS 模拟器使用 `http://127.0.0.1:8787`，Android 模拟器使用 `http://10.0.2.2:8787`；Release 构建默认连接线上后端
 * 点击生成 → Summary 生成结果页
 * 点击历史 → Summary 历史列表页
 

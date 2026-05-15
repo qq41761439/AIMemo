@@ -222,7 +222,7 @@ void main() {
 
     expect(
       requestedUri,
-      Uri.parse('https://aimemo-backend.onrender.com/summaries/generate'),
+      Uri.parse('http://127.0.0.1:8787/summaries/generate'),
     );
     expect(
       requestBody?['prompt'].toString(),
