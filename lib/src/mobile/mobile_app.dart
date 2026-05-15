@@ -2266,7 +2266,7 @@ class _TaskSectionCard extends StatelessWidget {
                 onTap: () => onEditTask(task),
                 onToggle: () => onToggleCompleted(task),
               ),
-              if (task != tasks.last) const SizedBox(height: 8),
+              if (task != tasks.last) const SizedBox(height: 6),
             ],
         ],
       ],
@@ -2289,92 +2289,117 @@ class _TaskRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final date =
         task.isCompleted ? task.completedAt ?? task.updatedAt : task.createdAt;
-    return SoftCard(
-      padding: const EdgeInsets.fromLTRB(10, 8, 12, 8),
-      onTap: onTap,
-      child: Row(
-        children: [
-          SizedBox(
-            width: 44,
-            height: 44,
-            child: IconButton(
-              tooltip: task.isCompleted ? 'Mark incomplete' : 'Mark completed',
-              padding: EdgeInsets.zero,
-              constraints: const BoxConstraints(
-                minWidth: MobileTokens.minTouch,
-                minHeight: MobileTokens.minTouch,
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(MobileTokens.radius),
+        onTap: onTap,
+        child: Ink(
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(MobileTokens.radius),
+            border: Border.all(color: MobileTokens.border),
+            boxShadow: const [
+              BoxShadow(
+                color: Color(0x0A000000),
+                blurRadius: 10,
+                offset: Offset(0, 4),
               ),
-              onPressed: onToggle,
-              icon: task.isCompleted
-                  ? const DecoratedBox(
-                      decoration: BoxDecoration(
-                        gradient: MobileTokens.gradient,
-                        shape: BoxShape.circle,
-                      ),
-                      child: SizedBox(
-                        width: 24,
-                        height: 24,
-                        child: Icon(
-                          Icons.check_rounded,
-                          color: Colors.white,
-                          size: 16,
-                        ),
-                      ),
-                    )
-                  : const Icon(
-                      Icons.radio_button_unchecked_rounded,
-                      color: Color(0xFFA9AEBC),
-                      size: 26,
-                    ),
-            ),
+            ],
           ),
-          const SizedBox(width: 4),
-          Expanded(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(8, 6, 10, 6),
             child: Row(
-              crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                if (task.tags.isNotEmpty) ...[
-                  for (final tag in task.tags.take(2)) ...[
-                    _TaskTagChip(
-                      key: ValueKey('mobile-task-${task.id}-tag-$tag'),
-                      label: tag,
+                SizedBox(
+                  width: 38,
+                  height: 38,
+                  child: IconButton(
+                    tooltip:
+                        task.isCompleted ? 'Mark incomplete' : 'Mark completed',
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(
+                      minWidth: 38,
+                      minHeight: 38,
                     ),
-                    const SizedBox(width: 6),
-                  ],
-                  if (task.tags.length > 2) ...[
-                    _TaskTagChip(
-                      key: ValueKey('mobile-task-${task.id}-tag-overflow'),
-                      label: '+${task.tags.length - 2}',
-                    ),
-                    const SizedBox(width: 6),
-                  ],
-                ],
-                Expanded(
-                  child: Text(
-                    task.title,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                          color: task.isCompleted
-                              ? const Color(0xFF8E93A3)
-                              : MobileTokens.ink,
-                          decoration: task.isCompleted
-                              ? TextDecoration.lineThrough
-                              : TextDecoration.none,
-                        ),
+                    onPressed: onToggle,
+                    icon: task.isCompleted
+                        ? const DecoratedBox(
+                            decoration: BoxDecoration(
+                              gradient: MobileTokens.gradient,
+                              shape: BoxShape.circle,
+                            ),
+                            child: SizedBox(
+                              width: 22,
+                              height: 22,
+                              child: Icon(
+                                Icons.check_rounded,
+                                color: Colors.white,
+                                size: 15,
+                              ),
+                            ),
+                          )
+                        : const Icon(
+                            Icons.radio_button_unchecked_rounded,
+                            color: Color(0xFFA9AEBC),
+                            size: 24,
+                          ),
                   ),
+                ),
+                const SizedBox(width: 2),
+                Expanded(
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      if (task.tags.isNotEmpty) ...[
+                        for (final tag in task.tags.take(2)) ...[
+                          _TaskTagChip(
+                            key: ValueKey('mobile-task-${task.id}-tag-$tag'),
+                            label: tag,
+                          ),
+                          const SizedBox(width: 5),
+                        ],
+                        if (task.tags.length > 2) ...[
+                          _TaskTagChip(
+                            key: ValueKey(
+                              'mobile-task-${task.id}-tag-overflow',
+                            ),
+                            label: '+${task.tags.length - 2}',
+                          ),
+                          const SizedBox(width: 5),
+                        ],
+                      ],
+                      Expanded(
+                        child: Text(
+                          task.title,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style:
+                              Theme.of(context).textTheme.titleMedium?.copyWith(
+                                    color: task.isCompleted
+                                        ? const Color(0xFF8E93A3)
+                                        : MobileTokens.ink,
+                                    decoration: task.isCompleted
+                                        ? TextDecoration.lineThrough
+                                        : TextDecoration.none,
+                                  ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 6),
+                Text(
+                  _formatShortDate(date),
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: MobileTokens.muted,
+                        fontWeight: FontWeight.w500,
+                      ),
                 ),
               ],
             ),
           ),
-          const SizedBox(width: 8),
-          Text(
-            _formatShortDate(date),
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: MobileTokens.muted,
-                ),
-          ),
-        ],
+        ),
       ),
     );
   }
@@ -2388,11 +2413,11 @@ class _TaskTagChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      constraints: const BoxConstraints(minHeight: 20),
-      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 3),
+      constraints: const BoxConstraints(minHeight: 18, maxWidth: 72),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
       decoration: BoxDecoration(
         color: const Color(0xFFF1EDFF),
-        borderRadius: BorderRadius.circular(7),
+        borderRadius: BorderRadius.circular(6),
       ),
       child: Text(
         label,

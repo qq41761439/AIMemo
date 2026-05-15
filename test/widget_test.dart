@@ -138,6 +138,10 @@ void main() {
           .dx,
       lessThan(tester.getTopLeft(find.text('Collapsible active task')).dx),
     );
+    final taskCardHeight = tester
+        .getSize(find.widgetWithText(InkWell, 'Collapsible active task'))
+        .height;
+    expect(taskCardHeight, lessThanOrEqualTo(52));
     expect(find.textContaining('Already started'), findsNothing);
     expect(
       tester.getTopLeft(find.text('Upcoming')).dy,
