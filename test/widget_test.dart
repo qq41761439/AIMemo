@@ -263,6 +263,71 @@ void main() {
     expect(tester.getTopLeft(find.text('AIMemo')).dy, lessThan(130));
   });
 
+  testWidgets('Flutter mobile baseline screen uses compact type hierarchy',
+      (tester) async {
+    sqfliteFfiInit();
+    databaseFactory = databaseFactoryFfi;
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final database = InMemoryMemoStore();
+    final apiKeyVault = MemoryApiKeyVault();
+    final repository = _FakeHostedLoginRepository(
+      store: database,
+      apiKeyVault: apiKeyVault,
+    );
+    addTearDown(database.close);
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          appDatabaseProvider.overrideWithValue(database),
+          apiKeyVaultProvider.overrideWithValue(apiKeyVault),
+          modelSettingsRepositoryProvider.overrideWithValue(repository),
+          appRunModeProvider.overrideWith((ref) async => AppRunMode.local),
+        ],
+        child: const AIMemoApp(forceMobileShell: true),
+      ),
+    );
+    await _pumpFrame(tester);
+
+    await tester.tap(find.text('Skip'));
+    await _pumpFrame(tester);
+    await tester.enterText(
+      find.widgetWithText(TextField, 'Email'),
+      'user@example.com',
+    );
+    await tester.tap(find.widgetWithText(GradientButton, 'Send code'));
+    await _pumpFrame(tester);
+    await tester.enterText(
+      find.widgetWithText(TextField, 'Verification code'),
+      '123456',
+    );
+    await tester.tap(find.text('Log in'));
+    await _pumpFrame(tester);
+
+    final tabStyles = tester
+        .widgetList<Text>(find.text('Tasks'))
+        .map((text) => text.style)
+        .whereType<TextStyle>()
+        .toList();
+    expect(tabStyles, isNotEmpty);
+    expect(tabStyles.any((style) => style.fontSize == 16), isTrue);
+    expect(
+      tabStyles.where((style) => style.fontSize != null),
+      everyElement(
+        predicate<TextStyle>((style) => style.fontSize! < 20),
+      ),
+    );
+
+    final activeTitle = tester.widget<Text>(find.text('Active'));
+    expect(activeTitle.style?.fontSize, 16);
+    expect(tester.getTopLeft(find.text('All')).dy, lessThan(125));
+    expect(tester.getTopLeft(find.text('Active')).dy, lessThan(180));
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('AIMemo home renders primary panes', (tester) async {
     sqfliteFfiInit();
     databaseFactory = databaseFactoryFfi;

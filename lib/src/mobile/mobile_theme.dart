@@ -60,7 +60,7 @@ ThemeData buildMobileTheme() {
         color: MobileTokens.ink,
       ),
       titleLarge: TextStyle(
-        fontSize: 20,
+        fontSize: 18,
         fontWeight: FontWeight.w700,
         height: 1.3,
         color: MobileTokens.ink,

@@ -349,7 +349,7 @@ class _OnboardingScreen extends StatelessWidget {
           Text(
             'Organize tasks into clear progress',
             style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                  fontSize: 36,
+                  fontSize: 28,
                   height: 1.18,
                   fontWeight: FontWeight.w800,
                 ),
@@ -359,7 +359,6 @@ class _OnboardingScreen extends StatelessWidget {
             'AIMemo keeps daily work lightweight, then turns completed tasks into useful AI summaries when you need them.',
             style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                   color: MobileTokens.muted,
-                  fontSize: 18,
                 ),
           ),
           SizedBox(height: spacing.sectionGap),
@@ -704,7 +703,7 @@ class _TasksScreenState extends ConsumerState<_TasksScreen> {
                       .toList();
               final sections = _sectionTasks(filtered);
               return ListView(
-                padding: const EdgeInsets.fromLTRB(16, 18, 16, 112),
+                padding: const EdgeInsets.fromLTRB(16, 12, 16, 112),
                 children: [
                   tagsValue.when(
                     data: (tags) => _TagFilterRow(
@@ -1255,7 +1254,7 @@ class _SummaryMainScreen extends ConsumerWidget {
       ),
       body: SafeArea(
         child: ListView(
-          padding: const EdgeInsets.fromLTRB(16, 22, 16, 24),
+          padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
           children: [
             _SummaryHeroCard(onGenerate: onGenerate),
             const SizedBox(height: 24),
@@ -1353,7 +1352,7 @@ class _SummaryEntryScreen extends ConsumerWidget {
               children: [
                 Text(
                   'What would you like to summarize?',
-                  style: Theme.of(context).textTheme.titleLarge,
+                  style: Theme.of(context).textTheme.titleMedium,
                 ),
                 const SizedBox(height: 18),
                 _PeriodChooser(
@@ -1376,7 +1375,7 @@ class _SummaryEntryScreen extends ConsumerWidget {
           const SizedBox(height: 28),
           Row(
             children: [
-              Text('Preview', style: Theme.of(context).textTheme.titleLarge),
+              Text('Preview', style: Theme.of(context).textTheme.titleMedium),
               const SizedBox(width: 8),
               const Icon(Icons.info_outline_rounded, color: MobileTokens.muted),
             ],
@@ -1482,8 +1481,10 @@ class _SummaryResultScreenState extends State<_SummaryResultScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('AI Summary',
-                    style: Theme.of(context).textTheme.titleLarge),
+                Text(
+                  'AI Summary',
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
                 const SizedBox(height: 16),
                 _SummaryContent(output: output),
               ],
@@ -1834,7 +1835,7 @@ class _QuotaCardContent extends StatelessWidget {
                         style:
                             Theme.of(context).textTheme.headlineSmall?.copyWith(
                                   color: MobileTokens.primary,
-                                  fontSize: 34,
+                                  fontSize: 28,
                                   fontWeight: FontWeight.w800,
                                 ),
                       ),
@@ -2006,7 +2007,7 @@ class _FeatureCard extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(title, style: Theme.of(context).textTheme.titleLarge),
+                Text(title, style: Theme.of(context).textTheme.titleMedium),
                 const SizedBox(height: 6),
                 Text(message, style: Theme.of(context).textTheme.bodySmall),
               ],
@@ -2057,7 +2058,7 @@ class _MobileTopTabs extends StatelessWidget implements PreferredSizeWidget {
   final VoidCallback onProfile;
 
   @override
-  Size get preferredSize => const Size.fromHeight(94);
+  Size get preferredSize => const Size.fromHeight(78);
 
   @override
   Widget build(BuildContext context) {
@@ -2123,11 +2124,11 @@ class _TopTab extends StatelessWidget {
           children: [
             Text(
               label,
-              style: Theme.of(context).textTheme.titleLarge?.copyWith(
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
                     color: active ? MobileTokens.ink : MobileTokens.muted,
                   ),
             ),
-            const SizedBox(height: 14),
+            const SizedBox(height: 10),
             AnimatedContainer(
               duration: const Duration(milliseconds: 180),
               width: active ? (label == 'Summary' ? 84 : 52) : 0,
@@ -2227,9 +2228,7 @@ class _TaskSectionCard extends StatelessWidget {
                     children: [
                       Text(
                         title,
-                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                              fontSize: 22,
-                            ),
+                        style: Theme.of(context).textTheme.titleMedium,
                       ),
                       const SizedBox(width: 10),
                       Container(
@@ -2560,7 +2559,7 @@ class _SummaryHeroCard extends StatelessWidget {
                 Text(
                   'AI Summary',
                   style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                        fontSize: 30,
+                        fontSize: 26,
                       ),
                 ),
                 const SizedBox(height: 12),
@@ -2670,7 +2669,7 @@ class _MetricCard extends StatelessWidget {
           Text(
             value.toString(),
             style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                  fontSize: 30,
+                  fontSize: 28,
                 ),
           ),
           const SizedBox(height: 6),
@@ -2934,43 +2933,43 @@ class _AdaptiveSpacing {
         media.size.height - media.padding.top - media.padding.bottom;
     if (usableHeight < 640) {
       return const _AdaptiveSpacing._(
-        pageTop: 10,
+        pageTop: 8,
         authTop: 10,
-        onboardingHeroGap: 18,
-        onboardingMarkSize: 78,
+        onboardingHeroGap: 12,
+        onboardingMarkSize: 72,
         authMarkSize: 72,
-        authTitleSize: 34,
+        authTitleSize: 32,
         bodyGap: 10,
         sectionGap: 18,
-        topTabsHeight: 78,
-        topTabsPaddingTop: 10,
+        topTabsHeight: 70,
+        topTabsPaddingTop: 8,
       );
     }
     if (usableHeight < 760) {
       return const _AdaptiveSpacing._(
-        pageTop: 14,
+        pageTop: 10,
         authTop: 14,
-        onboardingHeroGap: 34,
-        onboardingMarkSize: 92,
-        authMarkSize: 82,
-        authTitleSize: 38,
+        onboardingHeroGap: 18,
+        onboardingMarkSize: 82,
+        authMarkSize: 78,
+        authTitleSize: 34,
         bodyGap: 12,
         sectionGap: 22,
-        topTabsHeight: 86,
-        topTabsPaddingTop: 14,
+        topTabsHeight: 74,
+        topTabsPaddingTop: 10,
       );
     }
     return const _AdaptiveSpacing._(
-      pageTop: 18,
-      authTop: 22,
-      onboardingHeroGap: 52,
-      onboardingMarkSize: 104,
-      authMarkSize: 92,
-      authTitleSize: 40,
-      bodyGap: 14,
-      sectionGap: 26,
-      topTabsHeight: 94,
-      topTabsPaddingTop: 18,
+      pageTop: 10,
+      authTop: 16,
+      onboardingHeroGap: 20,
+      onboardingMarkSize: 84,
+      authMarkSize: 84,
+      authTitleSize: 36,
+      bodyGap: 12,
+      sectionGap: 22,
+      topTabsHeight: 78,
+      topTabsPaddingTop: 12,
     );
   }
 }

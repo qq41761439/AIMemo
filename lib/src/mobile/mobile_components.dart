@@ -314,7 +314,7 @@ class SectionTitle extends StatelessWidget {
     return Row(
       children: [
         Expanded(
-          child: Text(title, style: Theme.of(context).textTheme.titleLarge),
+          child: Text(title, style: Theme.of(context).textTheme.titleMedium),
         ),
         if (trailing != null) trailing!,
       ],
