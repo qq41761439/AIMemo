@@ -162,6 +162,46 @@ void main() {
       await database.close();
     });
 
+    test('downloads remote desktop task into local task list', () async {
+      final coordinator = SyncCoordinator(
+        database: database,
+        client: SyncApiClient(
+          config: const SyncConfig(
+            baseUrl: 'https://backend.example.test',
+            accessToken: 'token',
+          ),
+          httpClient: MockClient((request) async {
+            expect(request.method, 'GET');
+            expect(request.url.path, '/tasks');
+            return _jsonResponse({
+              'items': [
+                _remoteTaskJson(
+                  id: 'cloud-desktop-1',
+                  body: '桌面端任务\n需要同步到 iOS App',
+                  tags: const ['同步'],
+                  clientId: 'desktop-client-1',
+                  createdAt: '2026-05-12T08:00:00.000Z',
+                  updatedAt: '2026-05-12T10:00:00.000Z',
+                ),
+              ],
+            });
+          }),
+        ),
+      );
+
+      final result = await coordinator.sync();
+      final tasks = await database.listTasks();
+
+      expect(result.downloaded, 1);
+      expect(result.errors, 0);
+      expect(tasks, hasLength(1));
+      expect(tasks.single.title, '桌面端任务');
+      expect(tasks.single.content, '需要同步到 iOS App');
+      expect(tasks.single.tags, ['同步']);
+      expect(tasks.single.cloudId, 'cloud-desktop-1');
+      expect(tasks.single.syncStatus, TaskSyncStatus.synced);
+    });
+
     test('pushes local create and stores cloud metadata', () async {
       final taskId = await database.addTask(
         title: '同步任务',

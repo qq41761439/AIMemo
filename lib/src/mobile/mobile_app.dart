@@ -13,6 +13,20 @@ import '../platform/mobile_platform.dart';
 import 'mobile_components.dart';
 import 'mobile_theme.dart';
 
+Future<void> _syncMobileTasks(WidgetRef ref) async {
+  final coordinator = await ref.read(syncCoordinatorProvider.future);
+  if (coordinator == null) {
+    ref
+      ..invalidate(taskListProvider)
+      ..invalidate(tagListProvider);
+    return;
+  }
+  await coordinator.sync();
+  ref
+    ..invalidate(taskListProvider)
+    ..invalidate(tagListProvider);
+}
+
 enum _MobileRoute {
   onboarding,
   auth,
@@ -65,15 +79,7 @@ class _MobileShellState extends ConsumerState<_MobileShell> {
           onContinue: _openAuth,
         ),
       _MobileRoute.auth => _AuthScreen(
-          onAuthenticated: () async {
-            ref.invalidate(modelSettingsProvider);
-            ref.invalidate(appRunModeProvider);
-            ref.invalidate(hostedQuotaProvider);
-            ref.invalidate(hostedSummaryHistoryProvider);
-            setState(() {
-              _route = _MobileRoute.tasks;
-            });
-          },
+          onAuthenticated: _completeAuthentication,
         ),
       _MobileRoute.tasks => _guarded(_TasksScreen(
           onOpenSummary: () => _go(_MobileRoute.summary),
@@ -149,15 +155,7 @@ class _MobileShellState extends ConsumerState<_MobileShell> {
       data: (settings) {
         if (!settings.hasHostedSession) {
           return _AuthScreen(
-            onAuthenticated: () async {
-              ref.invalidate(modelSettingsProvider);
-              ref.invalidate(appRunModeProvider);
-              ref.invalidate(hostedQuotaProvider);
-              ref.invalidate(hostedSummaryHistoryProvider);
-              setState(() {
-                _route = _MobileRoute.tasks;
-              });
-            },
+            onAuthenticated: _completeAuthentication,
           );
         }
         return child;
@@ -186,6 +184,26 @@ class _MobileShellState extends ConsumerState<_MobileShell> {
     });
   }
 
+  Future<void> _completeAuthentication() async {
+    ref.invalidate(modelSettingsProvider);
+    ref.invalidate(appRunModeProvider);
+    ref.invalidate(hostedQuotaProvider);
+    ref.invalidate(hostedSummaryHistoryProvider);
+    setState(() {
+      _route = _MobileRoute.tasks;
+    });
+    try {
+      await _syncMobileTasks(ref);
+    } catch (error) {
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Task sync failed: $error')),
+      );
+    }
+  }
+
   Future<void> _logout() async {
     await ref.read(modelSettingsRepositoryProvider).clearHostedSession();
     ref.invalidate(modelSettingsProvider);
@@ -208,6 +226,7 @@ class _MobileShellState extends ConsumerState<_MobileShell> {
       _generating = true;
     });
     try {
+      await _syncMobileTasks(ref);
       final store = ref.read(appDatabaseProvider);
       final range = periodRangeFor(_selectedPeriod, DateTime.now());
       final selectedTags = _summaryTags.toList()..sort();
@@ -632,6 +651,16 @@ class _TasksScreenState extends ConsumerState<_TasksScreen> {
   bool _adding = false;
 
   @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        _refresh();
+      }
+    });
+  }
+
+  @override
   void dispose() {
     _quickAddController.dispose();
     super.dispose();
@@ -760,9 +789,17 @@ class _TasksScreenState extends ConsumerState<_TasksScreen> {
   }
 
   Future<void> _refresh() async {
-    ref.invalidate(taskListProvider);
-    ref.invalidate(tagListProvider);
-    await Future<void>.delayed(const Duration(milliseconds: 100));
+    try {
+      await _syncMobileTasks(ref);
+    } catch (error) {
+      ref.invalidate(taskListProvider);
+      ref.invalidate(tagListProvider);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Task sync failed: $error')),
+        );
+      }
+    }
   }
 
   Future<void> _addTask() async {
@@ -782,6 +819,16 @@ class _TasksScreenState extends ConsumerState<_TasksScreen> {
       _quickAddController.clear();
       ref.invalidate(taskListProvider);
       ref.invalidate(tagListProvider);
+      try {
+        await _syncMobileTasks(ref);
+      } catch (error) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Task added locally. Sync failed: $error')),
+          );
+        }
+        return;
+      }
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Task added.')),
@@ -803,6 +850,15 @@ class _TasksScreenState extends ConsumerState<_TasksScreen> {
         );
     ref.invalidate(taskListProvider);
     ref.invalidate(tagListProvider);
+    try {
+      await _syncMobileTasks(ref);
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Task updated locally. Sync failed: $error')),
+        );
+      }
+    }
   }
 }
 
@@ -1031,6 +1087,15 @@ class _TaskEditScreenState extends ConsumerState<_TaskEditScreen> {
           );
       ref.invalidate(taskListProvider);
       ref.invalidate(tagListProvider);
+      try {
+        await _syncMobileTasks(ref);
+      } catch (error) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Task saved locally. Sync failed: $error')),
+          );
+        }
+      }
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Task saved.')),
@@ -1079,6 +1144,15 @@ class _TaskEditScreenState extends ConsumerState<_TaskEditScreen> {
     await ref.read(appDatabaseProvider).deleteTask(task.id);
     ref.invalidate(taskListProvider);
     ref.invalidate(tagListProvider);
+    try {
+      await _syncMobileTasks(ref);
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Task deleted locally. Sync failed: $error')),
+        );
+      }
+    }
     if (mounted) {
       setState(() {
         _deleting = false;
