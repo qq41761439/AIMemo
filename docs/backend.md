@@ -18,6 +18,8 @@ npm run dev
 
 登录 token 默认 30 天过期：`ACCESS_TOKEN_TTL=30d`，`REFRESH_TOKEN_DAYS=30`。
 
+后端会在 `npm run dev` 的终端打印接口响应体日志，便于本地联调；`accessToken`、`refreshToken`、验证码和密钥类字段会自动脱敏。
+
 如果端口已被旧服务占用，先结束旧进程再重新运行。
 
 ## 本地 Postgres

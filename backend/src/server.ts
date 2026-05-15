@@ -39,6 +39,21 @@ const summaryGenerateSchema = z.object({
   tasks: z.string().trim().min(1).max(100000),
   prompt: z.string().trim().min(1).max(120000),
 });
+const sensitiveLogFields = new Set([
+  'authorization',
+  'accesstoken',
+  'refreshtoken',
+  'token',
+  'code',
+  'password',
+  'secret',
+  'apikey',
+  'llmapikey',
+  'resendapikey',
+  'smtppass',
+  'wechatminiprogramappsecret',
+]);
+const maxLoggedStringLength = 4000;
 
 export type ServerDependencies = {
   config?: AppConfig;
@@ -60,6 +75,19 @@ export async function createServer(
   const wechatClient = dependencies.wechatClient ?? new WechatApiClient(config);
 
   await app.register(cors, { origin: true });
+
+  app.addHook('onSend', async (request, reply, payload) => {
+    app.log.info(
+      {
+        method: request.method,
+        url: request.url,
+        statusCode: reply.statusCode,
+        body: payloadForLog(payload),
+      },
+      'response body',
+    );
+    return payload;
+  });
 
   if (
     !dependencies.emailSender &&
@@ -348,4 +376,51 @@ function summaryDto(summary: {
     model: summary.model,
     createdAt: summary.createdAt.toISOString(),
   };
+}
+
+function payloadForLog(payload: unknown): unknown {
+  if (payload === undefined || payload === null) {
+    return payload;
+  }
+  if (Buffer.isBuffer(payload)) {
+    return parseLogPayload(payload.toString('utf8'));
+  }
+  if (typeof payload === 'string') {
+    return parseLogPayload(payload);
+  }
+  return '[non-text response body]';
+}
+
+function parseLogPayload(payload: string): unknown {
+  try {
+    return redactForLog(JSON.parse(payload));
+  } catch (_) {
+    return truncateForLog(payload);
+  }
+}
+
+function redactForLog(value: unknown): unknown {
+  if (Array.isArray(value)) {
+    return value.map(redactForLog);
+  }
+  if (!value || typeof value !== 'object') {
+    return typeof value === 'string' ? truncateForLog(value) : value;
+  }
+  return Object.fromEntries(
+    Object.entries(value).map(([key, fieldValue]) => [
+      key,
+      isSensitiveLogField(key) ? '[redacted]' : redactForLog(fieldValue),
+    ]),
+  );
+}
+
+function isSensitiveLogField(key: string): boolean {
+  return sensitiveLogFields.has(key.replace(/[^a-zA-Z0-9]/g, '').toLowerCase());
+}
+
+function truncateForLog(value: string): string {
+  if (value.length <= maxLoggedStringLength) {
+    return value;
+  }
+  return `${value.slice(0, maxLoggedStringLength)}... [truncated]`;
 }
