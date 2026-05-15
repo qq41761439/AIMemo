@@ -25,7 +25,7 @@
 | 元素                   | 字号 (pt) | 字重 / 风格         | 备注                                              |
 | -------------------- | ------- | --------------- | ----------------------------------------------- |
 | 页面标题                 | 22      | Semibold / Bold | 顶部标题                                            |
-| Tab / Section Header | 16      | Semibold        | Tasks / Summary / Active / Upcoming / Completed |
+| Tab / Section Header | 15      | Semibold        | Tasks / Summary / Upcoming / Active / Completed |
 | 输入框标签                | 14      | Medium          | Title / Notes / Tags / Start Time               |
 | 输入框内容                | 16      | Regular         | 用户输入                                            |
 | Toggle 文案            | 16      | Medium          | Mark as completed                               |
@@ -33,11 +33,11 @@
 | Delete 按钮            | 14      | Medium          | 红色警告文字                                          |
 | Placeholder / 占位文字   | 16      | Regular         | 灰色提示                                            |
 | 辅助信息 / Subtext       | 12      | Regular         | 例如任务数量、日期                                       |
-| 标签文字                 | 14      | Medium          | 背景圆角小卡片                                         |
+| 标签文字                 | 13      | Medium          | 背景圆角小卡片                                         |
 
 * 行高：1.3–1.4 倍字体大小
 * 按钮高度：≥44pt
-* Tag 标签高度：24–28pt
+* Tag 标签高度：20–28pt，Task 列表内标签使用更紧凑的浅紫底样式
 * iOS 使用 SF Pro 和系统 Dynamic Type
 * Android 使用 Roboto 和 Material 3 type scale，但字号要贴近上表
 * 不使用负字距；列表和按钮文字不能溢出容器
@@ -73,7 +73,8 @@
 
 * 功能：
 
-  * 显示 Active / Upcoming / Completed 三个任务分组
+  * 显示 Upcoming / Active / Completed 三个任务分组
+  * Upcoming 默认收起，Active 和 Completed 默认展开
   * 标签筛选栏：All / Product / Client / Study / Personal
   * 任务列表：
 

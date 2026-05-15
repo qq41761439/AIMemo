@@ -130,6 +130,17 @@ void main() {
     await _pumpFrame(tester);
 
     expect(find.text('Collapsible active task'), findsOneWidget);
+    expect(find.textContaining('Already started'), findsNothing);
+    expect(
+      tester.getTopLeft(find.text('Upcoming')).dy,
+      lessThan(tester.getTopLeft(find.text('Active')).dy),
+    );
+    expect(
+      tester.getTopLeft(find.text('Active')).dy,
+      lessThan(tester.getTopLeft(find.text('Completed')).dy),
+    );
+    expect(find.byIcon(Icons.keyboard_arrow_down_rounded), findsOneWidget);
+    expect(find.byIcon(Icons.keyboard_arrow_up_rounded), findsNWidgets(2));
 
     final activeHeader = find.byKey(
       const ValueKey('task-section-Active-header'),
@@ -324,7 +335,15 @@ void main() {
     final activeTitle = tester.widget<Text>(find.text('Active'));
     expect(activeTitle.style?.fontSize, 15);
     expect(tester.getTopLeft(find.text('All')).dy, lessThan(125));
-    expect(tester.getTopLeft(find.text('Active')).dy, lessThan(170));
+    expect(tester.getTopLeft(find.text('Upcoming')).dy, lessThan(170));
+    expect(
+      tester.getTopLeft(find.text('Upcoming')).dy,
+      lessThan(tester.getTopLeft(find.text('Active')).dy),
+    );
+    expect(
+      tester.getTopLeft(find.text('Active')).dy,
+      lessThan(tester.getTopLeft(find.text('Completed')).dy),
+    );
     expect(tester.takeException(), isNull);
   });
 
