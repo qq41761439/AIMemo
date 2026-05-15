@@ -196,6 +196,7 @@ fun AIMemoApp(viewModel: AIMemoViewModel) {
             composable(Routes.Settings) {
                 SettingsScreen(
                     onBack = navController::popBackStack,
+                    onLogout = viewModel::logout,
                     onComingSoon = viewModel::showComingSoon,
                 )
             }

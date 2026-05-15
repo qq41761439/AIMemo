@@ -109,7 +109,7 @@ fun ProfileScreen(
 }
 
 @Composable
-fun SettingsScreen(onBack: () -> Unit, onComingSoon: (String) -> Unit) {
+fun SettingsScreen(onBack: () -> Unit, onLogout: () -> Unit, onComingSoon: (String) -> Unit) {
     var confirmLogout by rememberSaveable { mutableStateOf(false) }
     Scaffold(
         containerColor = ProfileBg,
@@ -149,7 +149,7 @@ fun SettingsScreen(onBack: () -> Unit, onComingSoon: (String) -> Unit) {
             title = { Text("Sign out") },
             text = { Text("This will clear the current account session on this device.") },
             confirmButton = {
-                Button(onClick = { confirmLogout = false; onComingSoon("Sign out") }) { Text("Sign out") }
+                Button(onClick = { confirmLogout = false; onLogout() }) { Text("Sign out") }
             },
             dismissButton = { TextButton(onClick = { confirmLogout = false }) { Text("Cancel") } },
         )
