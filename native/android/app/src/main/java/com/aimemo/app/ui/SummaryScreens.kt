@@ -553,7 +553,12 @@ fun SummaryEntryScreen(
                 }
             }
             if (state.clientConfig?.hostedModelAvailable == false) {
-                item { Text("Hosted model is unavailable.", color = MaterialTheme.colorScheme.error) }
+                item {
+                    StatusCard(
+                        title = "Hosted model is unavailable.",
+                        body = "Summary generation will be available when the backend model service is enabled.",
+                    )
+                }
             }
         }
     }

@@ -382,11 +382,10 @@ private fun TaskListCard(
     ) {
         Column {
             if (tasks.isEmpty()) {
-                Text(
-                    "Nothing here.",
-                    modifier = Modifier.padding(horizontal = 20.dp, vertical = 18.dp),
-                    color = Muted,
-                    fontSize = 15.sp,
+                StatusCard(
+                    title = "Nothing here.",
+                    body = "Tasks in this section will appear here in the same compact row style.",
+                    modifier = Modifier.padding(12.dp),
                 )
             } else {
                 tasks.forEachIndexed { index, task ->

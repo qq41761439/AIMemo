@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -42,6 +43,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
@@ -59,46 +61,106 @@ import com.aimemo.app.R
 
 @Composable
 fun OnboardingScreen(onContinue: () -> Unit, onSkip: () -> Unit) {
-    Scaffold(containerColor = MaterialTheme.colorScheme.background) { padding ->
+    val bg = Color(0xFFFCFBFF)
+    val ink = Color(0xFF080C1B)
+    val muted = Color(0xFF6F7488)
+    Scaffold(
+        containerColor = bg,
+        bottomBar = {
+            Surface(color = bg) {
+                GradientButton(
+                    text = "Get Started",
+                    onClick = onContinue,
+                    modifier = Modifier
+                        .navigationBarsPadding()
+                        .padding(horizontal = 24.dp, vertical = 18.dp),
+                )
+            }
+        },
+    ) { padding ->
         Column(
             Modifier
                 .fillMaxSize()
                 .padding(padding)
-                .padding(horizontal = 24.dp, vertical = 28.dp),
-            verticalArrangement = Arrangement.SpaceBetween,
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 24.dp)
+                .padding(top = 28.dp, bottom = 112.dp),
         ) {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-                TextButton(onClick = onSkip) { Text("Skip") }
+                TextButton(onClick = onSkip) {
+                    Text("Skip", color = AimemoPrimary, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                }
             }
-            Column(verticalArrangement = Arrangement.spacedBy(18.dp)) {
-                Image(
-                    painterResource(R.drawable.logo),
-                    contentDescription = null,
-                    modifier = Modifier
-                        .size(92.dp)
-                        .clip(RoundedCornerShape(24.dp)),
-                    contentScale = ContentScale.Fit,
-                )
-                Text("Organize tasks into clear progress", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
+            Spacer(Modifier.height(120.dp))
+            Image(
+                painterResource(R.drawable.logo),
+                contentDescription = null,
+                modifier = Modifier
+                    .size(118.dp)
+                    .clip(RoundedCornerShape(28.dp))
+                    .shadow(10.dp, RoundedCornerShape(28.dp), ambientColor = Color(0x16000000), spotColor = Color(0x20000000)),
+                contentScale = ContentScale.Fit,
+            )
+            Spacer(Modifier.height(34.dp))
+            Text(
+                "Organize tasks into clear progress",
+                color = ink,
+                fontSize = 39.sp,
+                lineHeight = 46.sp,
+                fontWeight = FontWeight.Black,
+            )
+            Spacer(Modifier.height(24.dp))
+            Text(
+                "AIMemo keeps daily work lightweight, then turns completed tasks into useful AI summaries when you need them.",
+                color = muted,
+                fontSize = 22.sp,
+                lineHeight = 34.sp,
+            )
+            Spacer(Modifier.height(34.dp))
+            OnboardingFeatureCard(
+                title = "Tasks",
+                body = "Group active, upcoming, and completed work with compact tags.",
+                icon = R.drawable.ic_check_circle_round,
+            )
+            Spacer(Modifier.height(18.dp))
+            OnboardingFeatureCard(
+                title = "AI Summary",
+                body = "Generate daily, weekly, monthly, or custom summaries from real task history.",
+                icon = R.drawable.ic_auto_awesome_round,
+            )
+        }
+    }
+}
+
+@Composable
+private fun OnboardingFeatureCard(title: String, body: String, icon: Int) {
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .shadow(7.dp, RoundedCornerShape(18.dp), ambientColor = Color(0x12000000), spotColor = Color(0x16000000)),
+        shape = RoundedCornerShape(18.dp),
+        color = Color.White,
+        border = BorderStroke(1.dp, Color(0xFFEDE9F4)),
+    ) {
+        Row(
+            modifier = Modifier.padding(18.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(16.dp),
+        ) {
+            Surface(shape = RoundedCornerShape(16.dp), color = Color(0xFFF1EAFE)) {
+                Box(Modifier.size(58.dp), contentAlignment = Alignment.Center) {
+                    Icon(painterResource(icon), contentDescription = null, tint = AimemoPrimary, modifier = Modifier.size(30.dp))
+                }
+            }
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(title, color = Color(0xFF080C1B), fontSize = 22.sp, lineHeight = 26.sp, fontWeight = FontWeight.Bold)
                 Text(
-                    "AIMemo keeps daily work lightweight, then turns completed tasks into useful AI summaries when you need them.",
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    body,
+                    color = Color(0xFF6F7488),
+                    fontSize = 17.sp,
+                    lineHeight = 24.sp,
                 )
-                SoftCard {
-                    Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                        Text("Tasks", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-                        Text("Group active, upcoming, and completed work with compact tags.", color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    }
-                }
-                SoftCard {
-                    Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                        Text("AI Summary", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-                        Text("Generate daily, weekly, monthly, or custom summaries from real task history.", color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    }
-                }
             }
-            GradientButton(text = "Get Started", onClick = onContinue)
         }
     }
 }

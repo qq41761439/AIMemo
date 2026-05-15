@@ -22,6 +22,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.CheckCircle
+import androidx.compose.material.icons.rounded.Info
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -38,6 +39,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
@@ -46,6 +48,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.aimemo.app.R
 import com.aimemo.app.domain.PeriodType
 import com.aimemo.app.ui.theme.AimemoPrimary
@@ -200,8 +203,56 @@ fun TagPill(label: String) {
 
 @Composable
 fun EmptyState(text: String, modifier: Modifier = Modifier) {
-    Box(modifier.fillMaxSize().padding(24.dp), contentAlignment = Alignment.Center) {
-        Text(text, color = MaterialTheme.colorScheme.onSurfaceVariant)
+    Box(modifier.fillMaxSize().padding(18.dp), contentAlignment = Alignment.Center) {
+        StatusCard(
+            title = text,
+            body = when {
+                text.contains("Loading", ignoreCase = true) -> "We are bringing your latest AIMemo data into view."
+                text.contains("No", ignoreCase = true) || text.contains("not found", ignoreCase = true) -> "Once there is content here, it will use the same card layout as the main screens."
+                else -> "Please try again in a moment."
+            },
+            loading = text.contains("Loading", ignoreCase = true),
+        )
+    }
+}
+
+@Composable
+fun StatusCard(
+    title: String,
+    body: String,
+    modifier: Modifier = Modifier,
+    loading: Boolean = false,
+    icon: Int? = null,
+) {
+    Surface(
+        modifier = modifier
+            .fillMaxWidth()
+            .shadow(5.dp, RoundedCornerShape(18.dp), ambientColor = Color(0x10000000), spotColor = Color(0x14000000)),
+        shape = RoundedCornerShape(18.dp),
+        color = Color.White,
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+    ) {
+        Row(
+            modifier = Modifier.padding(18.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(14.dp),
+        ) {
+            Surface(shape = RoundedCornerShape(16.dp), color = MaterialTheme.colorScheme.primaryContainer) {
+                Box(Modifier.size(54.dp), contentAlignment = Alignment.Center) {
+                    if (loading) {
+                        CircularProgressIndicator(Modifier.size(24.dp), strokeWidth = 2.dp, color = MaterialTheme.colorScheme.primary)
+                    } else if (icon != null) {
+                        Icon(painterResource(icon), contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(28.dp))
+                    } else {
+                        Icon(Icons.Rounded.Info, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(28.dp))
+                    }
+                }
+            }
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                Text(title, color = MaterialTheme.colorScheme.onSurface, fontSize = 18.sp, lineHeight = 22.sp, fontWeight = FontWeight.Bold)
+                Text(body, color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 14.sp, lineHeight = 19.sp)
+            }
+        }
     }
 }
 
