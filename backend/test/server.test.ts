@@ -68,6 +68,40 @@ describe('AIMemo backend API', () => {
     await app.close();
   });
 
+  test('allows universal login code when email delivery fails', async () => {
+    const app = await createServer({
+      config: testConfig(),
+      store: new TestStore(),
+      emailSender: {
+        async sendLoginCode() {
+          throw new Error('email delivery failed');
+        },
+      },
+      llmClient: fakeLlm('测试总结。'),
+    });
+
+    const started = await app.inject({
+      method: 'POST',
+      url: '/auth/email/start',
+      payload: { email: 'user@example.com' },
+    });
+    expect(started.statusCode).toBe(200);
+
+    const verified = await app.inject({
+      method: 'POST',
+      url: '/auth/email/verify',
+      payload: { email: 'user@example.com', code: '1234' },
+    });
+
+    expect(verified.statusCode).toBe(200);
+    expect(verified.json()).toMatchObject({
+      accessToken: expect.any(String),
+      refreshToken: expect.any(String),
+      user: { email: 'user@example.com' },
+    });
+    await app.close();
+  });
+
   test('defaults hosted model provider to DeepSeek', () => {
     const config = loadConfig({
       NODE_ENV: 'test',
@@ -389,9 +423,7 @@ async function testApp(options: {
 } = {}) {
   let latestCode = '';
   const config = {
-    ...loadConfig({ NODE_ENV: 'test', AUTH_SECRET: 'test-secret' }),
-    nodeEnv: 'test',
-    authSecret: 'test-secret',
+    ...testConfig(),
     ...options.config,
   };
   const app = await createServer({
@@ -425,6 +457,14 @@ async function testApp(options: {
   };
 
   return { app, login };
+}
+
+function testConfig(): AppConfig {
+  return {
+    ...loadConfig({ NODE_ENV: 'test', AUTH_SECRET: 'test-secret' }),
+    nodeEnv: 'test',
+    authSecret: 'test-secret',
+  };
 }
 
 function fakeLlm(summary: string): LlmClient {

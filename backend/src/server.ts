@@ -157,7 +157,14 @@ export async function createServer(
   app.post('/auth/email/start', async (request) => {
     const { email } = emailSchema.parse(request.body);
     const code = await auth.startEmailLogin(email);
-    await emailSender.sendLoginCode(email, code);
+    try {
+      await emailSender.sendLoginCode(email, code);
+    } catch (error) {
+      app.log.error(
+        { err: error, email },
+        'Email login code delivery failed. The code was stored and can still be verified.',
+      );
+    }
     return { ok: true };
   });
 
