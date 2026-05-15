@@ -175,6 +175,7 @@ fun AIMemoApp(viewModel: AIMemoViewModel) {
                 SummaryHistoryScreen(
                     state = state,
                     onBack = navController::popBackStack,
+                    onOpenProfile = { navController.navigate(Routes.Profile) },
                     onSelectPeriod = viewModel::selectHistoryPeriod,
                     onRefresh = viewModel::refreshHistory,
                 )

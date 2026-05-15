@@ -32,9 +32,11 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.Check
+import androidx.compose.material.icons.rounded.CheckCircle
 import androidx.compose.material.icons.rounded.Person
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -71,6 +73,7 @@ import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -450,30 +453,98 @@ fun SummaryEntryScreen(
     onToggleTag: (String) -> Unit,
     onGenerate: () -> Unit,
 ) {
-    AppScaffoldFrame(title = "AI Summary", subtitle = "Generate a focused report from your tasks", onBack = onBack) { padding ->
+    val selectedTags = state.selectedSummaryTags.toList()
+    val totalTasks = state.summaryTasks.size
+    val completedTasks = state.summaryTasks.count { it.isCompleted }
+    val inProgressTasks = (totalTasks - completedTasks).coerceAtLeast(0)
+
+    Scaffold(
+        containerColor = SummaryBg,
+        topBar = { PrototypeTopBar(title = "Generate Summary", onBack = onBack) },
+        bottomBar = {
+            Surface(color = SummaryBg) {
+                GradientButton(
+                    text = "Generate Summary",
+                    onClick = onGenerate,
+                    loading = state.isGeneratingSummary,
+                    enabled = state.clientConfig?.hostedModelAvailable != false,
+                    modifier = Modifier
+                        .navigationBarsPadding()
+                        .imePadding()
+                        .padding(horizontal = 16.dp, vertical = 12.dp),
+                )
+            }
+        },
+    ) { padding ->
         LazyColumn(
-            Modifier.padding(padding).fillMaxSize(),
-            contentPadding = PaddingValues(16.dp),
+            modifier = Modifier
+                .padding(padding)
+                .fillMaxSize(),
+            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 14.dp, bottom = 110.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp),
         ) {
             item {
-                SoftCard {
-                    Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                        IconBubble(R.drawable.ic_auto_awesome_round)
-                        Text("Turn tasks into a clear summary", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-                        Text("Choose a report type, optionally narrow by tags, then generate a report you can copy or share.", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Surface(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(20.dp),
+                    color = Color(0xFFF5F1FF),
+                    border = BorderStroke(1.dp, Color(0xFFECE4FF)),
+                ) {
+                    Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                        Text("What would you like to summarize?", color = SummaryInk, fontSize = 22.sp, lineHeight = 28.sp, fontWeight = FontWeight.Bold)
+                        SummaryChooserRow(
+                            leadingIcon = R.drawable.ic_calendar_month_round,
+                            title = periodHeading(state.selectedPeriod),
+                            subtitle = periodRange(state.selectedPeriod).label,
+                            trailing = R.drawable.ic_chevron_right_round,
+                            tint = AimemoPrimary,
+                        )
+                        SummaryChooserRow(
+                            leadingIcon = R.drawable.ic_info_outline_round,
+                            title = if (selectedTags.isEmpty()) "All Tags" else selectedTags.joinToString(", "),
+                            subtitle = if (selectedTags.isEmpty()) "Include everything" else "${selectedTags.size} selected",
+                            trailing = R.drawable.ic_chevron_right_round,
+                            tint = Color(0xFF6B7280),
+                        )
                     }
                 }
             }
             item {
-                Text("Report type", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-                Spacer(Modifier.height(8.dp))
-                PeriodSelector(selected = state.selectedPeriod, onSelect = onSelectPeriod)
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text("Preview", color = SummaryMuted, fontSize = 22.sp, lineHeight = 26.sp, fontWeight = FontWeight.Bold)
+                    Spacer(Modifier.width(10.dp))
+                    Icon(painterResource(R.drawable.ic_info_outline_round), contentDescription = null, tint = Color(0xFFB4B7C6), modifier = Modifier.size(18.dp))
+                }
+            }
+            item {
+                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    PreviewStatCard(value = totalTasks, label = "Tasks", modifier = Modifier.weight(1f))
+                    PreviewStatCard(value = completedTasks, label = "Completed", modifier = Modifier.weight(1f))
+                    PreviewStatCard(value = inProgressTasks, label = "In Progress", modifier = Modifier.weight(1f))
+                }
+            }
+            item {
+                Surface(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(20.dp),
+                    color = Color(0xFFF6F1FF),
+                    border = BorderStroke(1.dp, Color(0xFFECE4FF)),
+                ) {
+                    Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                            Icon(painterResource(R.drawable.ic_auto_awesome_round), contentDescription = null, tint = AimemoPrimary, modifier = Modifier.size(22.dp))
+                            Text("AI will analyze your tasks and", color = SummaryInk, fontSize = 17.sp, lineHeight = 22.sp, fontWeight = FontWeight.Bold)
+                        }
+                        SummaryCheckLine("Summarize what you accomplished")
+                        SummaryCheckLine("Highlight key insights")
+                        SummaryCheckLine("Suggest next steps")
+                    }
+                }
             }
             if (state.availableTags.isNotEmpty()) {
                 item {
-                    Text("Included tags", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-                    Spacer(Modifier.height(8.dp))
+                    Text("Tags", color = SummaryMuted, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                    Spacer(Modifier.height(4.dp))
                     FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         state.availableTags.forEach { tag ->
                             AppFilterChip(label = tag, selected = tag in state.selectedSummaryTags, onClick = { onToggleTag(tag) })
@@ -481,22 +552,8 @@ fun SummaryEntryScreen(
                     }
                 }
             }
-            item {
-                Text(
-                    "Range: ${periodRange(state.selectedPeriod).label}",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-            item {
-                GradientButton("Generate Summary", onClick = onGenerate, loading = state.isGeneratingSummary, enabled = state.clientConfig?.hostedModelAvailable != false)
-                if (state.clientConfig?.hostedModelAvailable == false) {
-                    Spacer(Modifier.height(6.dp))
-                    Text("Hosted model is unavailable.", color = MaterialTheme.colorScheme.error)
-                }
-            }
-            item {
-                TextButton(onClick = onHistory, modifier = Modifier.fillMaxWidth()) { Text("View Summary History") }
+            if (state.clientConfig?.hostedModelAvailable == false) {
+                item { Text("Hosted model is unavailable.", color = MaterialTheme.colorScheme.error) }
             }
         }
     }
@@ -512,101 +569,93 @@ fun SummaryResultScreen(
     val clipboard = LocalClipboardManager.current
     val context = LocalContext.current
     var refinement by rememberSaveable { mutableStateOf("") }
-    AppScaffoldFrame(title = "Summary Result", subtitle = periodRange(state.selectedPeriod).label, onBack = onBack) { padding ->
-        Column(
-            Modifier
-                .padding(padding)
-                .fillMaxSize()
-                .verticalScroll(rememberScrollState())
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp),
-        ) {
-            SoftCard {
-                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        IconButton(
-                            onClick = { clipboard.setText(AnnotatedString(state.latestSummary.orEmpty())) },
-                            modifier = Modifier.semantics { contentDescription = "Copy summary" },
-                        ) {
-                            Icon(painterResource(R.drawable.ic_content_copy_round), contentDescription = null)
-                        }
-                        IconButton(
-                            onClick = {
-                                val intent = Intent(Intent.ACTION_SEND).apply {
-                                    type = "text/plain"
-                                    putExtra(Intent.EXTRA_TEXT, state.latestSummary.orEmpty())
-                                }
-                                context.startActivity(Intent.createChooser(intent, "Share summary"))
-                            },
-                            modifier = Modifier.semantics { contentDescription = "Share summary" },
-                        ) {
-                            Icon(painterResource(R.drawable.ic_auto_awesome_round), contentDescription = null)
-                        }
-                    }
-                    if (state.isGeneratingSummary && state.latestSummary == null) {
-                        CircularProgressIndicator()
-                    } else {
-                        Text(state.latestSummary ?: "Your generated summary will appear here.", style = MaterialTheme.typography.bodyLarge)
-                    }
-                }
-            }
-            androidx.compose.material3.OutlinedTextField(
-                value = refinement,
-                onValueChange = { refinement = it },
-                label = { Text("Modification request") },
-                minLines = 3,
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(12.dp),
-            )
-            Button(
-                onClick = { onRefine(refinement) },
-                enabled = refinement.isNotBlank() && !state.isGeneratingSummary,
-                modifier = Modifier.fillMaxWidth().height(48.dp),
-                shape = ButtonShape,
-            ) {
-                if (state.isGeneratingSummary) CircularProgressIndicator(Modifier.height(18.dp)) else Text("Regenerate")
-            }
-            GradientButton("Looks Good", onClick = onConfirm)
-        }
-    }
-}
+    var lastSentRefinement by rememberSaveable { mutableStateOf("") }
+    val summaryText = state.latestSummary.orEmpty()
+    val sections = remember(summaryText) { buildSummarySections(summaryText, state) }
 
-@Composable
-fun SummaryHistoryScreen(
-    state: AIMemoUiState,
-    onBack: () -> Unit,
-    onSelectPeriod: (PeriodType) -> Unit,
-    onRefresh: () -> Unit,
-) {
-    val filtered = remember(state.summaries, state.selectedHistoryPeriod) {
-        state.summaries.filter { it.periodType == state.selectedHistoryPeriod }
-    }
-    val clipboard = LocalClipboardManager.current
-    var expandedId by rememberSaveable { mutableStateOf<String?>(null) }
-    AppScaffoldFrame(
-        title = "Summary History",
-        subtitle = "${filtered.size} records",
-        onBack = onBack,
-        trailing = { TextButton(onClick = onRefresh, enabled = !state.isLoadingHistory) { Text("Refresh") } },
-    ) { padding ->
-        Column(Modifier.padding(padding).fillMaxSize()) {
-            Row(Modifier.padding(horizontal = 16.dp, vertical = 6.dp)) {
-                PeriodSelector(selected = state.selectedHistoryPeriod, onSelect = onSelectPeriod)
+    Scaffold(
+        containerColor = SummaryBg,
+        topBar = { PrototypeTopBar(title = "Generate Summary", onBack = onBack) },
+        bottomBar = {
+            Column(
+                Modifier
+                    .fillMaxWidth()
+                    .navigationBarsPadding()
+                    .imePadding()
+                    .padding(horizontal = 16.dp, vertical = 10.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
+                SummaryRefinementBar(
+                    value = refinement,
+                    onValueChange = { refinement = it },
+                    onSend = {
+                        lastSentRefinement = refinement
+                        onRefine(refinement)
+                    },
+                    sending = state.isGeneratingSummary,
+                )
+                GradientButton(
+                    text = "This looks good",
+                    onClick = onConfirm,
+                    modifier = Modifier.height(50.dp),
+                )
+                Text(
+                    "Future weekly reports will follow this style automatically.",
+                    color = SummaryMuted,
+                    fontSize = 14.sp,
+                    lineHeight = 18.sp,
+                    modifier = Modifier.align(Alignment.CenterHorizontally),
+                )
             }
-            if (state.isLoadingHistory && state.summaries.isEmpty()) {
-                EmptyState("Loading history...")
-            } else if (filtered.isEmpty()) {
-                EmptyState("No summaries for this report type yet.")
-            } else {
-                LazyColumn(contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    items(filtered, key = { it.id }) { summary ->
-                        HistoryCard(
-                            summary = summary,
-                            expanded = expandedId == summary.id,
-                            onToggle = { expandedId = if (expandedId == summary.id) null else summary.id },
-                            onCopy = {
-                                clipboard.setText(AnnotatedString(summary.output))
-                            },
+        },
+    ) { padding ->
+        LazyColumn(
+            modifier = Modifier
+                .padding(padding)
+                .fillMaxSize(),
+            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 12.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            item {
+                SummaryPeriodStrip(selected = state.selectedPeriod)
+            }
+            item {
+                SummaryChooserRow(
+                    leadingIcon = R.drawable.ic_calendar_month_round,
+                    title = periodRange(state.selectedPeriod).label,
+                    subtitle = null,
+                    trailing = R.drawable.ic_chevron_right_round,
+                    tint = AimemoPrimary,
+                )
+            }
+            item {
+                SummaryChooserRow(
+                    leadingIcon = R.drawable.ic_info_outline_round,
+                    title = if (state.selectedSummaryTags.isEmpty()) "All Tags" else state.selectedSummaryTags.joinToString(", "),
+                    subtitle = null,
+                    trailing = R.drawable.ic_chevron_right_round,
+                    tint = Color(0xFF6B7280),
+                )
+            }
+            item {
+                SummaryReportCard(
+                    summaryText = summaryText,
+                    sections = sections,
+                    onCopy = { clipboard.setText(AnnotatedString(summaryText)) },
+                )
+            }
+            if (lastSentRefinement.isNotBlank()) {
+                item {
+                    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        ChatBubble(
+                            text = lastSentRefinement,
+                            mine = true,
+                            time = nowClockString(),
+                        )
+                        ChatBubble(
+                            text = refinementReply(summaryText),
+                            mine = false,
+                            time = nowClockString(),
                         )
                     }
                 }
@@ -616,25 +665,545 @@ fun SummaryHistoryScreen(
 }
 
 @Composable
-private fun HistoryCard(summary: SummaryRecord, expanded: Boolean, onToggle: () -> Unit, onCopy: () -> Unit) {
-    SoftCard(onClick = onToggle) {
-        Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Row {
-                Column(Modifier.weight(1f)) {
-                    Text(summary.periodLabel, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-                    Text("${summary.periodType.title} · ${summary.tags.size} tags · ${formatDate(summary.createdAt)}", color = MaterialTheme.colorScheme.onSurfaceVariant)
-                }
-                IconButton(onClick = onCopy, modifier = Modifier.semantics { contentDescription = "Copy summary" }) {
-                    Icon(painterResource(R.drawable.ic_content_copy_round), contentDescription = null)
+fun SummaryHistoryScreen(
+    state: AIMemoUiState,
+    onBack: () -> Unit,
+    onOpenProfile: () -> Unit,
+    onSelectPeriod: (PeriodType) -> Unit,
+    onRefresh: () -> Unit,
+) {
+    val filtered = remember(state.summaries, state.selectedHistoryPeriod) {
+        state.summaries.filter { it.periodType == state.selectedHistoryPeriod }
+    }
+    val clipboard = LocalClipboardManager.current
+    val context = LocalContext.current
+    var expandedId by rememberSaveable { mutableStateOf<String?>(filtered.firstOrNull()?.id) }
+    Scaffold(
+        containerColor = SummaryBg,
+        topBar = {
+            Column {
+                SummaryTabsHeader(
+                    selected = "Summary",
+                    onTasks = { },
+                    onSummary = { },
+                    onProfile = onOpenProfile,
+                )
+                Text(
+                    "Summary History",
+                    modifier = Modifier.padding(start = 16.dp, top = 18.dp, bottom = 12.dp),
+                    color = SummaryInk,
+                    fontSize = 28.sp,
+                    lineHeight = 34.sp,
+                    fontWeight = FontWeight.Bold,
+                )
+            }
+        },
+        bottomBar = {
+            if (!state.isLoadingHistory) {
+                TextButton(
+                    onClick = onRefresh,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .navigationBarsPadding()
+                        .padding(horizontal = 16.dp, vertical = 10.dp),
+                ) {
+                    Text("Refresh")
                 }
             }
-            Text(summary.output, maxLines = if (expanded) Int.MAX_VALUE else 3, overflow = TextOverflow.Ellipsis)
-            if (expanded) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Rounded.Check, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
-                    Text("Full content expanded", color = MaterialTheme.colorScheme.onSurfaceVariant)
+        },
+    ) { padding ->
+        LazyColumn(
+            modifier = Modifier
+                .padding(padding)
+                .fillMaxSize(),
+            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 88.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            item {
+                SummaryPeriodStrip(
+                    selected = state.selectedHistoryPeriod,
+                    onSelect = onSelectPeriod,
+                )
+            }
+            if (state.isLoadingHistory && state.summaries.isEmpty()) {
+                item { EmptyState("Loading history...", Modifier.height(220.dp)) }
+            } else if (filtered.isEmpty()) {
+                item { EmptyState("No summaries for this report type yet.", Modifier.height(220.dp)) }
+            } else {
+                items(filtered, key = { it.id }) { summary ->
+                    SummaryHistoryCard(
+                        summary = summary,
+                        expanded = expandedId == summary.id,
+                        onToggle = { expandedId = if (expandedId == summary.id) null else summary.id },
+                        onCopy = { clipboard.setText(AnnotatedString(summary.output)) },
+                        onShare = {
+                            context.startActivity(
+                                Intent(Intent.ACTION_SEND).apply {
+                                    type = "text/plain"
+                                    putExtra(Intent.EXTRA_TEXT, summary.output)
+                                }.let { Intent.createChooser(it, "Share summary") }
+                            )
+                        },
+                    )
                 }
             }
         }
     }
 }
+
+@Composable
+private fun PrototypeTopBar(title: String, onBack: () -> Unit) {
+    Surface(color = SummaryBg) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(start = 12.dp, end = 12.dp, top = 48.dp, bottom = 18.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            IconButton(
+                onClick = onBack,
+                modifier = Modifier.size(48.dp).semantics { contentDescription = "Back" },
+            ) {
+                Icon(
+                    painterResource(R.drawable.ic_chevron_right_round),
+                    contentDescription = null,
+                    tint = SummaryInk,
+                    modifier = Modifier.size(34.dp).rotate(180f),
+                )
+            }
+            Text(
+                title,
+                modifier = Modifier.weight(1f),
+                color = SummaryInk,
+                fontSize = 26.sp,
+                lineHeight = 32.sp,
+                fontWeight = FontWeight.Bold,
+                textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+            )
+            Spacer(Modifier.size(48.dp))
+        }
+    }
+}
+
+@Composable
+private fun SummaryChooserRow(
+    leadingIcon: Int,
+    title: String,
+    subtitle: String?,
+    trailing: Int,
+    tint: Color,
+) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(18.dp),
+        color = Color.White,
+        border = BorderStroke(1.dp, SummaryLine),
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 18.dp, vertical = 16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(14.dp),
+        ) {
+            Surface(shape = RoundedCornerShape(16.dp), color = Color(0xFFF0EAFF)) {
+                Box(Modifier.size(64.dp), contentAlignment = Alignment.Center) {
+                    Icon(painterResource(leadingIcon), contentDescription = null, tint = tint, modifier = Modifier.size(28.dp))
+                }
+            }
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                Text(title, color = SummaryInk, fontSize = 18.sp, lineHeight = 22.sp, fontWeight = FontWeight.Bold)
+                if (subtitle != null) {
+                    Text(subtitle, color = SummaryMuted, fontSize = 15.sp, lineHeight = 18.sp)
+                }
+            }
+            Icon(painterResource(trailing), contentDescription = null, tint = Color(0xFF5B6173), modifier = Modifier.size(30.dp))
+        }
+    }
+}
+
+@Composable
+private fun PreviewStatCard(value: Int, label: String, modifier: Modifier = Modifier) {
+    Surface(
+        modifier = modifier.height(116.dp),
+        shape = RoundedCornerShape(20.dp),
+        color = Color.White,
+        border = BorderStroke(1.dp, SummaryLine),
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Text(value.toString(), color = SummaryInk, fontSize = 40.sp, lineHeight = 42.sp, fontWeight = FontWeight.Bold)
+            Text(label, color = SummaryMuted, fontSize = 16.sp, lineHeight = 20.sp, fontWeight = FontWeight.Medium)
+        }
+    }
+}
+
+@Composable
+private fun SummaryCheckLine(text: String) {
+    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+        Icon(Icons.Rounded.Check, contentDescription = null, tint = Color(0xFF7C88A4), modifier = Modifier.size(22.dp))
+        Text(text, color = SummaryMuted, fontSize = 17.sp, lineHeight = 22.sp)
+    }
+}
+
+@Composable
+private fun SummaryPeriodStrip(
+    selected: PeriodType,
+    onSelect: ((PeriodType) -> Unit)? = null,
+) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(18.dp),
+        color = Color.White,
+        border = BorderStroke(1.dp, SummaryLine),
+    ) {
+        Row(modifier = Modifier.padding(4.dp)) {
+            PeriodType.entries.forEach { type ->
+                val active = type == selected
+                Surface(
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(42.dp)
+                        .clickable(enabled = onSelect != null) { onSelect?.invoke(type) },
+                    shape = RoundedCornerShape(14.dp),
+                    color = if (active) AimemoPrimary else Color.Transparent,
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Text(
+                            type.name.replaceFirstChar { it.uppercase() },
+                            color = if (active) Color.White else SummaryMuted,
+                            fontSize = 16.sp,
+                            lineHeight = 20.sp,
+                            fontWeight = FontWeight.Bold,
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun SummaryRefinementBar(
+    value: String,
+    onValueChange: (String) -> Unit,
+    onSend: () -> Unit,
+    sending: Boolean,
+) {
+    Surface(
+        shape = RoundedCornerShape(18.dp),
+        color = Color.White,
+        border = BorderStroke(1.dp, SummaryLine),
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Box(Modifier.weight(1f)) {
+                if (value.isBlank()) {
+                    Text("Tell AI how to adjust this report...", color = Color(0xFFA0A5B8), fontSize = 16.sp)
+                }
+                BasicTextField(
+                    value = value,
+                    onValueChange = onValueChange,
+                    singleLine = true,
+                    textStyle = TextStyle(color = SummaryInk, fontSize = 16.sp),
+                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
+                    cursorBrush = SolidColor(AimemoPrimary),
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
+            Spacer(Modifier.width(10.dp))
+            Box(
+                modifier = Modifier
+                    .size(48.dp)
+                    .clip(CircleShape)
+                    .background(SummaryGradient)
+                    .clickable(enabled = value.isNotBlank() && !sending, onClick = onSend),
+                contentAlignment = Alignment.Center,
+            ) {
+                if (sending) {
+                    CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp, color = Color.White)
+                } else {
+                    Icon(painterResource(R.drawable.ic_send_round), contentDescription = null, tint = Color.White, modifier = Modifier.size(24.dp))
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun SummaryReportCard(
+    summaryText: String,
+    sections: List<SummarySection>,
+    onCopy: () -> Unit,
+) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(20.dp),
+        color = Color.White,
+        border = BorderStroke(1.dp, SummaryLine),
+    ) {
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Row(verticalAlignment = Alignment.Top) {
+                Surface(shape = RoundedCornerShape(999.dp), color = Color(0xFFF1E8FF)) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    ) {
+                        Icon(painterResource(R.drawable.ic_auto_awesome_round), contentDescription = null, tint = AimemoPrimary, modifier = Modifier.size(17.dp))
+                        Text("AI-generated", color = AimemoPrimary, fontSize = 13.sp, lineHeight = 16.sp, fontWeight = FontWeight.Medium)
+                    }
+                }
+                Spacer(Modifier.weight(1f))
+                IconButton(onClick = onCopy, modifier = Modifier.size(36.dp).semantics { contentDescription = "Copy summary" }) {
+                    Icon(painterResource(R.drawable.ic_content_copy_round), contentDescription = null, tint = AimemoPrimary, modifier = Modifier.size(22.dp))
+                }
+            }
+            sections.forEachIndexed { index, section ->
+                SummarySectionRow(section = section, divider = index != sections.lastIndex)
+            }
+            if (summaryText.isBlank()) {
+                Text("Your generated summary will appear here.", color = SummaryMuted)
+            }
+        }
+    }
+}
+
+@Composable
+private fun SummarySectionRow(section: SummarySection, divider: Boolean) {
+    Column {
+        Row(verticalAlignment = Alignment.Top, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+            Surface(shape = RoundedCornerShape(14.dp), color = Color(0xFFF1E8FF)) {
+                Box(Modifier.size(42.dp), contentAlignment = Alignment.Center) {
+                    Icon(painterResource(section.icon), contentDescription = null, tint = AimemoPrimary, modifier = Modifier.size(24.dp))
+                }
+            }
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                Text(section.title, color = SummaryInk, fontSize = 17.sp, lineHeight = 21.sp, fontWeight = FontWeight.Bold)
+                section.items.forEach { item ->
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.Top) {
+                        Text("•", color = AimemoPrimary, fontSize = 16.sp, lineHeight = 22.sp)
+                        Text(item, color = SummaryMuted, fontSize = 15.sp, lineHeight = 20.sp)
+                    }
+                }
+            }
+            Icon(painterResource(R.drawable.ic_chevron_right_round), contentDescription = null, tint = Color(0xFF77809A), modifier = Modifier.size(28.dp))
+        }
+        if (divider) {
+            Spacer(Modifier.height(12.dp))
+            HorizontalDivider(color = SummaryLine, thickness = 1.dp)
+            Spacer(Modifier.height(12.dp))
+        } else {
+            Spacer(Modifier.height(4.dp))
+        }
+    }
+}
+
+@Composable
+private fun ChatBubble(text: String, mine: Boolean, time: String) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = if (mine) Arrangement.End else Arrangement.Start,
+        verticalAlignment = Alignment.Bottom,
+    ) {
+        if (!mine) {
+            Surface(shape = CircleShape, color = Color(0xFFF1E8FF)) {
+                Box(Modifier.size(42.dp), contentAlignment = Alignment.Center) {
+                    Icon(painterResource(R.drawable.ic_auto_awesome_round), contentDescription = null, tint = AimemoPrimary, modifier = Modifier.size(22.dp))
+                }
+            }
+            Spacer(Modifier.width(10.dp))
+        }
+        Surface(
+            shape = RoundedCornerShape(18.dp),
+            color = if (mine) Color(0xFFEDE3FF) else Color.White,
+            border = BorderStroke(1.dp, SummaryLine),
+        ) {
+            Column(
+                modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
+                verticalArrangement = Arrangement.spacedBy(6.dp),
+            ) {
+                Text(text, color = SummaryInk, fontSize = 15.sp, lineHeight = 19.sp)
+                Text(time, color = SummaryMuted, fontSize = 12.sp)
+            }
+        }
+    }
+}
+
+@Composable
+private fun SummaryHistoryCard(
+    summary: SummaryRecord,
+    expanded: Boolean,
+    onToggle: () -> Unit,
+    onCopy: () -> Unit,
+    onShare: () -> Unit,
+) {
+    val sections = remember(summary.output) { buildSummarySections(summary.output, null, summary) }
+    val tasksSection = sections.lastOrNull()
+    val cardColor = when (summary.periodType) {
+        PeriodType.Daily -> Color(0xFFE9F2FF)
+        PeriodType.Weekly -> Color(0xFFE9F8EF)
+        PeriodType.Monthly, PeriodType.Yearly -> Color(0xFFFFEFE6)
+        PeriodType.Custom -> Color(0xFFF0EAFE)
+    }
+    val accent = when (summary.periodType) {
+        PeriodType.Daily -> Color(0xFF2563EB)
+        PeriodType.Weekly -> Color(0xFF16A05B)
+        PeriodType.Monthly, PeriodType.Yearly -> Color(0xFFF97316)
+        PeriodType.Custom -> Color(0xFF6D45D9)
+    }
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(20.dp),
+        color = Color.White,
+        border = BorderStroke(1.dp, SummaryLine),
+    ) {
+        Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Row(verticalAlignment = Alignment.Top, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+                Surface(shape = RoundedCornerShape(16.dp), color = cardColor) {
+                    Box(Modifier.size(60.dp), contentAlignment = Alignment.Center) {
+                        Icon(painterResource(R.drawable.ic_calendar_month_round), contentDescription = null, tint = accent, modifier = Modifier.size(30.dp))
+                    }
+                }
+                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Surface(shape = RoundedCornerShape(999.dp), color = cardColor) {
+                        Text(summary.periodType.title, modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp), color = accent, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                    }
+                    Text(summary.periodLabel, color = SummaryInk, fontSize = 17.sp, lineHeight = 21.sp, fontWeight = FontWeight.Bold)
+                    Text("${summary.tags.size} tasks  •  Generated ${formatDate(summary.createdAt)}", color = SummaryMuted, fontSize = 14.sp)
+                    if (expanded) {
+                        Text(summary.output.take(120), color = SummaryMuted, fontSize = 14.sp, lineHeight = 19.sp)
+                    }
+                }
+                IconButton(onClick = onToggle, modifier = Modifier.size(40.dp)) {
+                    Icon(
+                        painterResource(R.drawable.ic_chevron_right_round),
+                        contentDescription = null,
+                        tint = Color(0xFF6E7486),
+                        modifier = Modifier.rotate(if (expanded) -90f else 90f).size(26.dp),
+                    )
+                }
+            }
+            if (expanded) {
+                sections.take(4).forEachIndexed { index, section ->
+                    SummaryHistorySectionRow(section = section, divider = index != minOf(3, sections.lastIndex))
+                }
+                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    OutlinedActionButton("Copy", onCopy, modifier = Modifier.weight(1f))
+                    GradientActionButton("Share", onShare, modifier = Modifier.weight(1f))
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun SummaryHistorySectionRow(section: SummarySection, divider: Boolean) {
+    Column {
+        Row(verticalAlignment = Alignment.Top, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            Surface(shape = RoundedCornerShape(14.dp), color = Color(0xFFF1E8FF)) {
+                Box(Modifier.size(40.dp), contentAlignment = Alignment.Center) {
+                    Icon(painterResource(section.icon), contentDescription = null, tint = AimemoPrimary, modifier = Modifier.size(22.dp))
+                }
+            }
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text(section.title, color = SummaryInk, fontSize = 16.sp, lineHeight = 20.sp, fontWeight = FontWeight.Bold)
+                Text(section.summary, color = SummaryMuted, fontSize = 14.sp, lineHeight = 18.sp)
+            }
+            Icon(painterResource(R.drawable.ic_chevron_right_round), contentDescription = null, tint = Color(0xFF6E7486), modifier = Modifier.size(26.dp))
+        }
+        if (divider) {
+            Spacer(Modifier.height(10.dp))
+            HorizontalDivider(color = SummaryLine, thickness = 1.dp)
+            Spacer(Modifier.height(10.dp))
+        } else {
+            Spacer(Modifier.height(6.dp))
+        }
+    }
+}
+
+@Composable
+private fun OutlinedActionButton(text: String, onClick: () -> Unit, modifier: Modifier = Modifier) {
+    Surface(
+        modifier = modifier.height(44.dp).clickable(onClick = onClick),
+        shape = RoundedCornerShape(12.dp),
+        color = Color.White,
+        border = BorderStroke(1.2.dp, AimemoPrimary),
+    ) {
+        Box(contentAlignment = Alignment.Center) {
+            Text(text, color = AimemoPrimary, fontSize = 15.sp, fontWeight = FontWeight.Bold)
+        }
+    }
+}
+
+@Composable
+private fun GradientActionButton(text: String, onClick: () -> Unit, modifier: Modifier = Modifier) {
+    Surface(
+        modifier = modifier.height(44.dp).clickable(onClick = onClick),
+        shape = RoundedCornerShape(12.dp),
+        color = Color.Transparent,
+    ) {
+        Box(
+            modifier = Modifier
+                .background(SummaryGradient)
+                .fillMaxSize(),
+            contentAlignment = Alignment.Center,
+        ) {
+            Text(text, color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.Bold)
+        }
+    }
+}
+
+private data class SummarySection(
+    val icon: Int,
+    val title: String,
+    val summary: String,
+    val items: List<String>,
+)
+
+private fun periodHeading(periodType: PeriodType): String =
+    when (periodType) {
+        PeriodType.Daily -> "This Day"
+        PeriodType.Weekly -> "This Week"
+        PeriodType.Monthly -> "This Month"
+        PeriodType.Yearly -> "This Year"
+        PeriodType.Custom -> "Custom Range"
+    }
+
+private fun buildSummarySections(summaryText: String, state: AIMemoUiState?, summaryRecord: SummaryRecord? = null): List<SummarySection> {
+    val rawLines = summaryText.lineSequence().map { it.trim() }.filter { it.isNotBlank() }.toList()
+    val source = if (rawLines.isNotEmpty()) rawLines else listOf(summaryText.ifBlank { "No summary available." })
+    val buckets = source.chunked((source.size + 2) / 3.coerceAtLeast(1))
+    val labels = listOf("What I completed", "Key outcomes", "Next steps")
+    val icons = listOf(R.drawable.ic_check_circle_round, R.drawable.ic_auto_awesome_round, R.drawable.ic_info_outline_round)
+    return labels.mapIndexed { index, label ->
+        val items = buckets.getOrNull(index)?.take(3)?.map { it.trimStart('-', '•', ' ') }?.filter { it.isNotBlank() }
+            ?: listOf(source.first())
+        SummarySection(
+            icon = icons[index],
+            title = label,
+            summary = items.firstOrNull().orEmpty(),
+            items = items.take(3),
+        )
+    } + SummarySection(
+        icon = R.drawable.ic_history_round,
+        title = "Included tasks",
+        summary = when {
+            summaryRecord != null -> "${summaryRecord.tags.size} tasks across ${summaryRecord.tags.joinToString(", ").ifBlank { "all tags" }}."
+            state != null -> "${state.summaryTasks.size} tasks across selected tags."
+            else -> "Task list for this summary."
+        },
+        items = summaryRecord?.tags?.take(10)?.ifEmpty { listOf("All tasks") }
+            ?: state?.summaryTasks?.take(10)?.map { it.title }?.ifEmpty { listOf("All tasks") }
+            ?: listOf("All tasks"),
+    )
+}
+
+private fun refinementReply(summaryText: String): String =
+    summaryText.lineSequence().firstOrNull()?.takeIf { it.isNotBlank() }
+        ?: "Updated the summary to be shorter and more outcome-focused."
+
+private fun nowClockString(): String =
+    java.time.format.DateTimeFormatter.ofPattern("h:mm a").format(java.time.LocalTime.now())
