@@ -1390,13 +1390,22 @@ class _SummaryEntryScreen extends ConsumerWidget {
           const SizedBox(height: 14),
           tasksValue.when(
             data: (tasks) {
-              final scoped = selectedTags.isEmpty
-                  ? tasks
-                  : tasks
-                      .where(
-                        (task) => task.tags.any(selectedTags.contains),
-                      )
-                      .toList();
+              final range = periodRangeFor(selectedPeriod, DateTime.now());
+              final scoped = tasks.where((task) {
+                if (task.createdAt.isAfter(range.end) ||
+                    task.createdAt.isAtSameMomentAs(range.end)) {
+                  return false;
+                }
+                if (task.completedAt != null &&
+                    task.completedAt!.isBefore(range.start)) {
+                  return false;
+                }
+                if (selectedTags.isNotEmpty &&
+                    !task.tags.any(selectedTags.contains)) {
+                  return false;
+                }
+                return true;
+              }).toList();
               final completed = scoped.where((task) => task.isCompleted).length;
               return Row(
                 children: [
