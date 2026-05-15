@@ -69,6 +69,16 @@ flutter run -d ios
 flutter run -d android
 ```
 
+iPhone 真机连接本地后端调试时，手机不能访问 Mac 的 `127.0.0.1`。先在 `backend/.env` 中设置 `HOST=0.0.0.0` 并运行后端，再使用 Mac 的局域网 IP 覆盖移动端后端地址：
+
+```bash
+cd backend
+npm run dev
+
+cd ..
+flutter run -d ios --dart-define=AIMEMO_BACKEND_BASE_URL=http://<mac-lan-ip>:8787
+```
+
 移动端主线开发请优先修改 `lib/src/mobile/`、`lib/src/mobile/mobile_components.dart` 和 `lib/src/mobile/mobile_theme.dart`，并参考 [Flutter 移动组件系统](docs/mobile-component-system.md)。`native/android/` 是暂停保留的 Compose 探索工程，除非专门处理历史原生 Android 包，否则不要作为移动端功能主线修改。
 
 暂停保留的原生 Android App：
