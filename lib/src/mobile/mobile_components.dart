@@ -204,7 +204,7 @@ class PillChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ConstrainedBox(
-      constraints: const BoxConstraints(minHeight: 28, minWidth: 44),
+      constraints: const BoxConstraints(minHeight: 26, minWidth: 44),
       child: Material(
         color: selected ? MobileTokens.primarySoft : Colors.white,
         shape: RoundedRectangleBorder(
@@ -217,7 +217,7 @@ class PillChip extends StatelessWidget {
           onTap: onTap,
           borderRadius: BorderRadius.circular(999),
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [

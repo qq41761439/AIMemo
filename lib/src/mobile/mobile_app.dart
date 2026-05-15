@@ -720,7 +720,7 @@ class _TasksScreenState extends ConsumerState<_TasksScreen> {
                       icon: Icons.error_outline_rounded,
                     ),
                   ),
-                  const SizedBox(height: 18),
+                  const SizedBox(height: 14),
                   _TaskSectionCard(
                     title: 'Active',
                     subtitle: 'Already started  ·  Needs attention',
@@ -733,7 +733,7 @@ class _TasksScreenState extends ConsumerState<_TasksScreen> {
                     onEditTask: widget.onEditTask,
                     onToggleCompleted: _toggleCompleted,
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 12),
                   _TaskSectionCard(
                     title: 'Upcoming',
                     tasks: sections.upcoming,
@@ -744,7 +744,7 @@ class _TasksScreenState extends ConsumerState<_TasksScreen> {
                     onEditTask: widget.onEditTask,
                     onToggleCompleted: _toggleCompleted,
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 12),
                   _TaskSectionCard(
                     title: 'Completed',
                     tasks: sections.completed,
@@ -756,7 +756,7 @@ class _TasksScreenState extends ConsumerState<_TasksScreen> {
                     onToggleCompleted: _toggleCompleted,
                   ),
                   if (filtered.isEmpty) ...[
-                    const SizedBox(height: 16),
+                    const SizedBox(height: 12),
                     const StatusCard(
                       title: 'No tasks yet',
                       message: 'Add one from the quick add bar below.',
@@ -2058,7 +2058,7 @@ class _MobileTopTabs extends StatelessWidget implements PreferredSizeWidget {
   final VoidCallback onProfile;
 
   @override
-  Size get preferredSize => const Size.fromHeight(78);
+  Size get preferredSize => const Size.fromHeight(72);
 
   @override
   Widget build(BuildContext context) {
@@ -2070,7 +2070,7 @@ class _MobileTopTabs extends StatelessWidget implements PreferredSizeWidget {
       surfaceTintColor: Colors.transparent,
       titleSpacing: 0,
       title: Padding(
-        padding: EdgeInsets.fromLTRB(32, spacing.topTabsPaddingTop, 20, 0),
+        padding: EdgeInsets.fromLTRB(28, spacing.topTabsPaddingTop, 18, 0),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.end,
           children: [
@@ -2079,7 +2079,7 @@ class _MobileTopTabs extends StatelessWidget implements PreferredSizeWidget {
               active: selected == 'Tasks',
               onTap: onTasks,
             ),
-            const SizedBox(width: 34),
+            const SizedBox(width: 30),
             _TopTab(
               label: 'Summary',
               active: selected == 'Summary',
@@ -2089,7 +2089,7 @@ class _MobileTopTabs extends StatelessWidget implements PreferredSizeWidget {
             IconButton(
               tooltip: 'Profile',
               onPressed: onProfile,
-              icon: const Icon(Icons.account_circle_outlined, size: 34),
+              icon: const Icon(Icons.account_circle_outlined, size: 30),
             ),
           ],
         ),
@@ -2128,7 +2128,7 @@ class _TopTab extends StatelessWidget {
                     color: active ? MobileTokens.ink : MobileTokens.muted,
                   ),
             ),
-            const SizedBox(height: 10),
+            const SizedBox(height: 8),
             AnimatedContainer(
               duration: const Duration(milliseconds: 180),
               width: active ? (label == 'Summary' ? 84 : 52) : 0,
@@ -2207,7 +2207,7 @@ class _TaskSectionCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return SoftCard(
       color: tinted ? MobileTokens.faint : Colors.white,
-      padding: const EdgeInsets.fromLTRB(12, 14, 12, 12),
+      padding: const EdgeInsets.fromLTRB(10, 12, 10, 10),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -2234,8 +2234,8 @@ class _TaskSectionCard extends StatelessWidget {
                       Container(
                         constraints: const BoxConstraints(minWidth: 28),
                         padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 5,
+                          horizontal: 7,
+                          vertical: 4,
                         ),
                         decoration: BoxDecoration(
                           color: MobileTokens.primarySoft,
@@ -2265,10 +2265,10 @@ class _TaskSectionCard extends StatelessWidget {
           ),
           if (expanded) ...[
             if (subtitle != null) ...[
-              const SizedBox(height: 8),
+              const SizedBox(height: 6),
               Text(subtitle!, style: Theme.of(context).textTheme.bodyMedium),
             ],
-            const SizedBox(height: 16),
+            const SizedBox(height: 12),
             DecoratedBox(
               decoration: BoxDecoration(
                 color: Colors.white,
@@ -2323,35 +2323,45 @@ class _TaskRow extends StatelessWidget {
     return InkWell(
       onTap: onTap,
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(12, 12, 14, 12),
+        padding: const EdgeInsets.fromLTRB(10, 8, 12, 8),
         child: Row(
           children: [
-            IconButton(
-              tooltip: task.isCompleted ? 'Mark incomplete' : 'Mark completed',
-              onPressed: onToggle,
-              icon: task.isCompleted
-                  ? const DecoratedBox(
-                      decoration: BoxDecoration(
-                        gradient: MobileTokens.gradient,
-                        shape: BoxShape.circle,
-                      ),
-                      child: SizedBox(
-                        width: 28,
-                        height: 28,
-                        child: Icon(
-                          Icons.check_rounded,
-                          color: Colors.white,
-                          size: 18,
+            SizedBox(
+              width: 44,
+              height: 44,
+              child: IconButton(
+                tooltip:
+                    task.isCompleted ? 'Mark incomplete' : 'Mark completed',
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(
+                  minWidth: MobileTokens.minTouch,
+                  minHeight: MobileTokens.minTouch,
+                ),
+                onPressed: onToggle,
+                icon: task.isCompleted
+                    ? const DecoratedBox(
+                        decoration: BoxDecoration(
+                          gradient: MobileTokens.gradient,
+                          shape: BoxShape.circle,
                         ),
+                        child: SizedBox(
+                          width: 24,
+                          height: 24,
+                          child: Icon(
+                            Icons.check_rounded,
+                            color: Colors.white,
+                            size: 16,
+                          ),
+                        ),
+                      )
+                    : const Icon(
+                        Icons.radio_button_unchecked_rounded,
+                        color: Color(0xFFA9AEBC),
+                        size: 26,
                       ),
-                    )
-                  : const Icon(
-                      Icons.radio_button_unchecked_rounded,
-                      color: Color(0xFFA9AEBC),
-                      size: 30,
-                    ),
+              ),
             ),
-            const SizedBox(width: 6),
+            const SizedBox(width: 4),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -2370,10 +2380,10 @@ class _TaskRow extends StatelessWidget {
                         ),
                   ),
                   if (task.tags.isNotEmpty) ...[
-                    const SizedBox(height: 7),
+                    const SizedBox(height: 5),
                     Wrap(
-                      spacing: 7,
-                      runSpacing: 6,
+                      spacing: 6,
+                      runSpacing: 5,
                       children: [
                         for (final tag in task.tags.take(3))
                           PillChip(label: tag, selected: true),
@@ -2383,7 +2393,7 @@ class _TaskRow extends StatelessWidget {
                 ],
               ),
             ),
-            const SizedBox(width: 10),
+            const SizedBox(width: 8),
             Text(
               _formatShortDate(date),
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
@@ -2413,7 +2423,7 @@ class _QuickAddBar extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
       child: Container(
-        height: 70,
+        height: 62,
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(35),
@@ -2424,15 +2434,15 @@ class _QuickAddBar extends StatelessWidget {
           children: [
             const SizedBox(width: 12),
             Container(
-              width: 46,
-              height: 46,
+              width: 42,
+              height: 42,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 border: Border.all(color: MobileTokens.border),
               ),
               child: const Icon(Icons.add_rounded),
             ),
-            const SizedBox(width: 16),
+            const SizedBox(width: 12),
             Expanded(
               child: TextField(
                 controller: controller,
@@ -2451,15 +2461,15 @@ class _QuickAddBar extends StatelessWidget {
             GestureDetector(
               onTap: adding ? null : onAdd,
               child: Container(
-                width: 48,
-                height: 48,
+                width: 44,
+                height: 44,
                 decoration: const BoxDecoration(
                   gradient: MobileTokens.gradient,
                   shape: BoxShape.circle,
                 ),
                 child: adding
                     ? const Padding(
-                        padding: EdgeInsets.all(14),
+                        padding: EdgeInsets.all(12),
                         child: CircularProgressIndicator(
                           strokeWidth: 2,
                           valueColor:
@@ -2941,8 +2951,8 @@ class _AdaptiveSpacing {
         authTitleSize: 32,
         bodyGap: 10,
         sectionGap: 18,
-        topTabsHeight: 70,
-        topTabsPaddingTop: 8,
+        topTabsHeight: 64,
+        topTabsPaddingTop: 6,
       );
     }
     if (usableHeight < 760) {
@@ -2955,8 +2965,8 @@ class _AdaptiveSpacing {
         authTitleSize: 34,
         bodyGap: 12,
         sectionGap: 22,
-        topTabsHeight: 74,
-        topTabsPaddingTop: 10,
+        topTabsHeight: 68,
+        topTabsPaddingTop: 8,
       );
     }
     return const _AdaptiveSpacing._(
@@ -2968,8 +2978,8 @@ class _AdaptiveSpacing {
       authTitleSize: 36,
       bodyGap: 12,
       sectionGap: 22,
-      topTabsHeight: 78,
-      topTabsPaddingTop: 12,
+      topTabsHeight: 72,
+      topTabsPaddingTop: 10,
     );
   }
 }

@@ -66,9 +66,9 @@ ThemeData buildMobileTheme() {
         color: MobileTokens.ink,
       ),
       titleMedium: TextStyle(
-        fontSize: 16,
+        fontSize: 15,
         fontWeight: FontWeight.w600,
-        height: 1.35,
+        height: 1.3,
         color: MobileTokens.ink,
       ),
       bodyLarge: TextStyle(
@@ -78,7 +78,7 @@ ThemeData buildMobileTheme() {
         color: MobileTokens.ink,
       ),
       bodyMedium: TextStyle(
-        fontSize: 14,
+        fontSize: 13,
         fontWeight: FontWeight.w500,
         height: 1.35,
         color: MobileTokens.ink,
@@ -95,7 +95,7 @@ ThemeData buildMobileTheme() {
         height: 1.25,
       ),
       labelMedium: TextStyle(
-        fontSize: 14,
+        fontSize: 13,
         fontWeight: FontWeight.w500,
         height: 1.25,
       ),

@@ -313,7 +313,7 @@ void main() {
         .whereType<TextStyle>()
         .toList();
     expect(tabStyles, isNotEmpty);
-    expect(tabStyles.any((style) => style.fontSize == 16), isTrue);
+    expect(tabStyles.any((style) => style.fontSize == 15), isTrue);
     expect(
       tabStyles.where((style) => style.fontSize != null),
       everyElement(
@@ -322,9 +322,9 @@ void main() {
     );
 
     final activeTitle = tester.widget<Text>(find.text('Active'));
-    expect(activeTitle.style?.fontSize, 16);
+    expect(activeTitle.style?.fontSize, 15);
     expect(tester.getTopLeft(find.text('All')).dy, lessThan(125));
-    expect(tester.getTopLeft(find.text('Active')).dy, lessThan(180));
+    expect(tester.getTopLeft(find.text('Active')).dy, lessThan(170));
     expect(tester.takeException(), isNull);
   });
 
