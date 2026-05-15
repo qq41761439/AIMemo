@@ -13,6 +13,55 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
 void main() {
+  testWidgets('Flutter mobile shell opens auth and tasks flow', (tester) async {
+    sqfliteFfiInit();
+    databaseFactory = databaseFactoryFfi;
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final database = AppDatabase(pathOverride: inMemoryDatabasePath);
+    addTearDown(database.close);
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          appDatabaseProvider.overrideWithValue(database),
+          appRunModeProvider.overrideWith((ref) async => AppRunMode.local),
+        ],
+        child: const AIMemoApp(forceMobileShell: true),
+      ),
+    );
+    await _pumpFrame(tester);
+
+    expect(find.text('Organize tasks into clear progress'), findsOneWidget);
+
+    await tester.tap(find.text('Skip'));
+    await _pumpFrame(tester);
+    await tester.enterText(
+      find.widgetWithText(TextField, 'Email'),
+      'user@example.com',
+    );
+    await tester.enterText(
+      find.widgetWithText(TextField, 'Password'),
+      'secret',
+    );
+    await tester.tap(find.text('Log in'));
+    await _pumpFrame(tester);
+
+    expect(find.text('Tasks'), findsWidgets);
+    expect(find.text('Summary'), findsWidgets);
+
+    await tester.enterText(
+      find.widgetWithText(TextField, 'Quick add a task...'),
+      'Mobile shell task',
+    );
+    await tester.testTextInput.receiveAction(TextInputAction.send);
+    await _pumpFrame(tester);
+
+    expect(find.text('Mobile shell task'), findsOneWidget);
+  });
+
   testWidgets('AIMemo home renders primary panes', (tester) async {
     sqfliteFfiInit();
     databaseFactory = databaseFactoryFfi;

@@ -1,12 +1,20 @@
 import 'package:flutter/material.dart';
 
 import 'features/home_page.dart';
+import 'mobile/mobile_app.dart';
+import 'platform/mobile_platform.dart';
 
 class AIMemoApp extends StatelessWidget {
-  const AIMemoApp({super.key});
+  const AIMemoApp({super.key, this.forceMobileShell});
+
+  final bool? forceMobileShell;
 
   @override
   Widget build(BuildContext context) {
+    if (forceMobileShell ?? isRunningOnMobileDevice) {
+      return const MobileAIMemoApp();
+    }
+
     const accent = Color(0xFF2F6F5E);
     const background = Color(0xFFF4F5F2);
     const surface = Color(0xFFFFFFFF);
