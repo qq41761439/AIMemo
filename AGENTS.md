@@ -31,6 +31,7 @@ Run the checks that match the files touched:
   - `flutter analyze`
   - `flutter test`
   - For iOS/Android app changes, update the running simulator/emulator after the change and verify the affected screen when practical.
+  - When testing iOS/Android Debug/Test app flows that call the hosted API, start the local backend test server with `cd backend && npm run dev` first; iOS Simulator uses `http://127.0.0.1:8787` and Android Emulator uses `http://10.0.2.2:8787`.
 
 - Native Android changes:
   - Run the relevant Gradle unit or UI checks.
