@@ -62,6 +62,38 @@ void main() {
     expect(find.text('Mobile shell task'), findsOneWidget);
   });
 
+  testWidgets('Flutter mobile shell keeps top spacing compact on short phones',
+      (tester) async {
+    sqfliteFfiInit();
+    databaseFactory = databaseFactoryFfi;
+    tester.view.physicalSize = const Size(390, 667);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final database = AppDatabase(pathOverride: inMemoryDatabasePath);
+    addTearDown(database.close);
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          appDatabaseProvider.overrideWithValue(database),
+          appRunModeProvider.overrideWith((ref) async => AppRunMode.local),
+        ],
+        child: const AIMemoApp(forceMobileShell: true),
+      ),
+    );
+    await _pumpFrame(tester);
+
+    expect(
+      tester.getTopLeft(find.text('Organize tasks into clear progress')).dy,
+      lessThan(250),
+    );
+
+    await tester.tap(find.text('Skip'));
+    await _pumpFrame(tester);
+    expect(tester.getTopLeft(find.text('AIMemo')).dy, lessThan(130));
+  });
+
   testWidgets('AIMemo home renders primary panes', (tester) async {
     sqfliteFfiInit();
     databaseFactory = databaseFactoryFfi;

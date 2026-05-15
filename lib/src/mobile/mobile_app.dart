@@ -233,8 +233,9 @@ class _OnboardingScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final spacing = _AdaptiveSpacing.of(context);
     return MobileScreen(
-      padding: const EdgeInsets.fromLTRB(24, 24, 24, 24),
+      padding: EdgeInsets.fromLTRB(24, spacing.pageTop, 24, 24),
       bottom: GradientButton(
         label: 'Get Started',
         icon: Icons.arrow_forward_rounded,
@@ -247,9 +248,9 @@ class _OnboardingScreen extends StatelessWidget {
             alignment: Alignment.centerRight,
             child: TextButton(onPressed: onSkip, child: const Text('Skip')),
           ),
-          const SizedBox(height: 96),
-          const _AIMemoMark(size: 112),
-          const SizedBox(height: 32),
+          SizedBox(height: spacing.onboardingHeroGap),
+          _AIMemoMark(size: spacing.onboardingMarkSize),
+          SizedBox(height: spacing.sectionGap),
           Text(
             'Organize tasks into clear progress',
             style: Theme.of(context).textTheme.headlineSmall?.copyWith(
@@ -258,7 +259,7 @@ class _OnboardingScreen extends StatelessWidget {
                   fontWeight: FontWeight.w800,
                 ),
           ),
-          const SizedBox(height: 20),
+          SizedBox(height: spacing.bodyGap),
           Text(
             'AIMemo keeps daily work lightweight, then turns completed tasks into useful AI summaries when you need them.',
             style: Theme.of(context).textTheme.bodyLarge?.copyWith(
@@ -266,7 +267,7 @@ class _OnboardingScreen extends StatelessWidget {
                   fontSize: 18,
                 ),
           ),
-          const SizedBox(height: 28),
+          SizedBox(height: spacing.sectionGap),
           const _FeatureCard(
             icon: Icons.check_circle_outline_rounded,
             title: 'Tasks',
@@ -309,16 +310,17 @@ class _AuthScreenState extends State<_AuthScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final spacing = _AdaptiveSpacing.of(context);
     return MobileScreen(
-      padding: const EdgeInsets.fromLTRB(24, 42, 24, 24),
+      padding: EdgeInsets.fromLTRB(24, spacing.authTop, 24, 24),
       child: Column(
         children: [
-          const _AIMemoMark(size: 104),
-          const SizedBox(height: 16),
+          _AIMemoMark(size: spacing.authMarkSize),
+          SizedBox(height: spacing.bodyGap),
           Text(
             'AIMemo',
             style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                  fontSize: 42,
+                  fontSize: spacing.authTitleSize,
                   fontWeight: FontWeight.w800,
                 ),
           ),
@@ -330,7 +332,7 @@ class _AuthScreenState extends State<_AuthScreen> {
                   color: MobileTokens.muted,
                 ),
           ),
-          const SizedBox(height: 32),
+          SizedBox(height: spacing.sectionGap),
           SoftCard(
             padding: const EdgeInsets.fromLTRB(20, 22, 20, 22),
             child: Column(
@@ -1654,18 +1656,19 @@ class _MobileTopTabs extends StatelessWidget implements PreferredSizeWidget {
   final VoidCallback onProfile;
 
   @override
-  Size get preferredSize => const Size.fromHeight(112);
+  Size get preferredSize => const Size.fromHeight(94);
 
   @override
   Widget build(BuildContext context) {
+    final spacing = _AdaptiveSpacing.of(context);
     return AppBar(
       automaticallyImplyLeading: false,
-      toolbarHeight: 112,
+      toolbarHeight: spacing.topTabsHeight,
       backgroundColor: Colors.white,
       surfaceTintColor: Colors.transparent,
       titleSpacing: 0,
       title: Padding(
-        padding: const EdgeInsets.fromLTRB(38, 32, 24, 0),
+        padding: EdgeInsets.fromLTRB(32, spacing.topTabsPaddingTop, 20, 0),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.end,
           children: [
@@ -2464,6 +2467,78 @@ class _DangerButton extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+class _AdaptiveSpacing {
+  const _AdaptiveSpacing._({
+    required this.pageTop,
+    required this.authTop,
+    required this.onboardingHeroGap,
+    required this.onboardingMarkSize,
+    required this.authMarkSize,
+    required this.authTitleSize,
+    required this.bodyGap,
+    required this.sectionGap,
+    required this.topTabsHeight,
+    required this.topTabsPaddingTop,
+  });
+
+  final double pageTop;
+  final double authTop;
+  final double onboardingHeroGap;
+  final double onboardingMarkSize;
+  final double authMarkSize;
+  final double authTitleSize;
+  final double bodyGap;
+  final double sectionGap;
+  final double topTabsHeight;
+  final double topTabsPaddingTop;
+
+  static _AdaptiveSpacing of(BuildContext context) {
+    final media = MediaQuery.of(context);
+    final usableHeight =
+        media.size.height - media.padding.top - media.padding.bottom;
+    if (usableHeight < 640) {
+      return const _AdaptiveSpacing._(
+        pageTop: 10,
+        authTop: 10,
+        onboardingHeroGap: 18,
+        onboardingMarkSize: 78,
+        authMarkSize: 72,
+        authTitleSize: 34,
+        bodyGap: 10,
+        sectionGap: 18,
+        topTabsHeight: 78,
+        topTabsPaddingTop: 10,
+      );
+    }
+    if (usableHeight < 760) {
+      return const _AdaptiveSpacing._(
+        pageTop: 14,
+        authTop: 14,
+        onboardingHeroGap: 34,
+        onboardingMarkSize: 92,
+        authMarkSize: 82,
+        authTitleSize: 38,
+        bodyGap: 12,
+        sectionGap: 22,
+        topTabsHeight: 86,
+        topTabsPaddingTop: 14,
+      );
+    }
+    return const _AdaptiveSpacing._(
+      pageTop: 18,
+      authTop: 22,
+      onboardingHeroGap: 52,
+      onboardingMarkSize: 104,
+      authMarkSize: 92,
+      authTitleSize: 40,
+      bodyGap: 14,
+      sectionGap: 26,
+      topTabsHeight: 94,
+      topTabsPaddingTop: 18,
     );
   }
 }
